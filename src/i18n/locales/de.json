@@ -1,0 +1,319 @@
+{
+  "common": {
+    "loading": "Laden...",
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "delete": "Löschen",
+    "edit": "Bearbeiten",
+    "create": "Erstellen",
+    "search": "Suchen",
+    "close": "Schließen",
+    "copy": "Kopieren",
+    "copied": "Kopiert!",
+    "show": "Anzeigen",
+    "hide": "Verbergen",
+    "yes": "Ja",
+    "no": "Nein",
+    "back": "Zurück",
+    "next": "Weiter",
+    "submit": "Absenden",
+    "error": "Fehler",
+    "success": "Erfolgreich",
+    "warning": "Warnung",
+    "info": "Info"
+  },
+  "nav": {
+    "home": "Startseite",
+    "vault": "Tresor",
+    "settings": "Einstellungen",
+    "logout": "Abmelden",
+    "login": "Anmelden",
+    "signup": "Registrieren"
+  },
+  "landing": {
+    "hero": {
+      "title": "Deine Passwörter.",
+      "titleHighlight": "Deine Kontrolle.",
+      "subtitle": "Der sichere Open-Source Passwortmanager mit Ende-zu-Ende-Verschlüsselung. Deine Daten gehören nur dir.",
+      "cta": "Jetzt kostenlos starten",
+      "ctaSecondary": "Mehr erfahren"
+    },
+    "security": {
+      "title": "Höchste Sicherheitsstandards",
+      "subtitle": "Wir nutzen die gleichen Verschlüsselungsstandards wie führende Passwortmanager.",
+      "zeroKnowledge": {
+        "title": "Zero-Knowledge Architektur",
+        "description": "Wir können deine Passwörter niemals sehen. Die Entschlüsselung findet nur auf deinem Gerät statt."
+      },
+      "e2ee": {
+        "title": "Ende-zu-Ende Verschlüsselung",
+        "description": "AES-256-GCM Verschlüsselung mit Argon2id Key Derivation - Industriestandard."
+      },
+      "openSource": {
+        "title": "100% Open Source",
+        "description": "Der gesamte Code ist öffentlich einsehbar und von der Community überprüfbar."
+      },
+      "clientSide": {
+        "title": "Client-Side Encryption",
+        "description": "Alle Daten werden VOR dem Senden an den Server verschlüsselt."
+      }
+    },
+    "features": {
+      "title": "Alles, was du brauchst",
+      "subtitle": "Einfach, sicher und leistungsstark",
+      "passwordManager": {
+        "title": "Passwort-Manager",
+        "description": "Speichere alle deine Passwörter sicher an einem Ort."
+      },
+      "generator": {
+        "title": "Passwort-Generator",
+        "description": "Erstelle starke, einzigartige Passwörter mit einem Klick."
+      },
+      "totp": {
+        "title": "2FA / TOTP",
+        "description": "Speichere deine Zwei-Faktor-Authentifizierung Codes."
+      },
+      "secureNotes": {
+        "title": "Sichere Notizen",
+        "description": "Verschlüsselte Notizen für sensible Informationen."
+      },
+      "categories": {
+        "title": "Kategorien & Tags",
+        "description": "Organisiere deine Einträge mit Ordnern und Labels."
+      },
+      "crossPlatform": {
+        "title": "Plattformübergreifend",
+        "description": "Funktioniert auf allen Geräten - Desktop, Tablet und Handy."
+      }
+    },
+    "openSource": {
+      "title": "Transparent & Open Source",
+      "subtitle": "Vertrauen durch Transparenz",
+      "description": "Zingra PW ist vollständig Open Source. Jede Zeile Code kann von der Community überprüft werden. Keine versteckten Hintertüren, keine Geheimnisse.",
+      "cta": "Code auf GitHub ansehen",
+      "community": "Teil der Community werden"
+    },
+    "comparison": {
+      "title": "Warum Zingra PW?",
+      "subtitle": "Vergleich mit anderen Passwortmanagern",
+      "features": {
+        "openSource": "Open Source",
+        "e2ee": "Ende-zu-Ende Verschlüsselung",
+        "zeroKnowledge": "Zero-Knowledge",
+        "free": "Kostenlos",
+        "selfHostable": "Self-Hosting möglich",
+        "totp": "TOTP/2FA Support"
+      }
+    },
+    "footer": {
+      "tagline": "Deine Passwörter. Deine Kontrolle.",
+      "security": "Sicherheit",
+      "docs": "Dokumentation",
+      "github": "GitHub",
+      "privacy": "Datenschutz",
+      "imprint": "Impressum",
+      "copyright": "© {{year}} Zingra PW. Open Source unter MIT Lizenz."
+    }
+  },
+  "auth": {
+    "login": {
+      "title": "Willkommen zurück",
+      "subtitle": "Melde dich an, um auf deinen Tresor zuzugreifen",
+      "email": "E-Mail",
+      "password": "Passwort",
+      "submit": "Anmelden",
+      "forgotPassword": "Passwort vergessen?",
+      "noAccount": "Noch kein Konto?",
+      "signupLink": "Jetzt registrieren",
+      "orContinueWith": "Oder weiter mit"
+    },
+    "signup": {
+      "title": "Konto erstellen",
+      "subtitle": "Erstelle dein sicheres Konto in wenigen Schritten",
+      "email": "E-Mail",
+      "password": "Passwort",
+      "confirmPassword": "Passwort bestätigen",
+      "submit": "Registrieren",
+      "hasAccount": "Bereits ein Konto?",
+      "loginLink": "Jetzt anmelden",
+      "orContinueWith": "Oder weiter mit",
+      "passwordRequirements": "Mindestens 12 Zeichen mit Groß-/Kleinbuchstaben, Zahlen und Sonderzeichen"
+    },
+    "masterPassword": {
+      "title": "Master-Passwort erstellen",
+      "subtitle": "Dieses Passwort verschlüsselt alle deine Daten. Es wird niemals an unsere Server gesendet.",
+      "warning": "Wenn du dein Master-Passwort vergisst, können wir deine Daten nicht wiederherstellen!",
+      "password": "Master-Passwort",
+      "confirmPassword": "Master-Passwort bestätigen",
+      "hint": "Hinweis (optional)",
+      "hintHelp": "Ein Hinweis, der dir hilft, dich an dein Passwort zu erinnern.",
+      "submit": "Tresor einrichten",
+      "strength": {
+        "weak": "Schwach",
+        "fair": "Ausreichend",
+        "good": "Gut",
+        "strong": "Stark",
+        "veryStrong": "Sehr stark"
+      }
+    },
+    "unlock": {
+      "title": "Tresor entsperren",
+      "subtitle": "Gib dein Master-Passwort ein, um auf deine Daten zuzugreifen",
+      "password": "Master-Passwort",
+      "submit": "Entsperren",
+      "forgot": "Master-Passwort vergessen?",
+      "logout": "Abmelden"
+    },
+    "providers": {
+      "google": "Google",
+      "discord": "Discord",
+      "github": "GitHub"
+    },
+    "errors": {
+      "invalidCredentials": "Ungültige E-Mail oder Passwort",
+      "emailInUse": "Diese E-Mail wird bereits verwendet",
+      "weakPassword": "Das Passwort ist zu schwach",
+      "passwordMismatch": "Die Passwörter stimmen nicht überein",
+      "invalidEmail": "Bitte gib eine gültige E-Mail-Adresse ein",
+      "generic": "Ein Fehler ist aufgetreten. Bitte versuche es erneut."
+    }
+  },
+  "vault": {
+    "title": "Mein Tresor",
+    "empty": {
+      "title": "Dein Tresor ist leer",
+      "subtitle": "Füge deinen ersten Eintrag hinzu, um loszulegen.",
+      "cta": "Ersten Eintrag hinzufügen"
+    },
+    "search": {
+      "placeholder": "Suche nach Name, URL oder Tags..."
+    },
+    "filters": {
+      "all": "Alle",
+      "passwords": "Passwörter",
+      "notes": "Notizen",
+      "totp": "2FA Codes",
+      "favorites": "Favoriten"
+    },
+    "categories": {
+      "title": "Kategorien",
+      "all": "Alle Einträge",
+      "uncategorized": "Ohne Kategorie",
+      "addCategory": "Kategorie hinzufügen"
+    },
+    "item": {
+      "addNew": "Neuer Eintrag",
+      "edit": "Bearbeiten",
+      "delete": "Löschen",
+      "deleteConfirm": "Möchtest du diesen Eintrag wirklich löschen?",
+      "copyPassword": "Passwort kopieren",
+      "copyUsername": "Benutzername kopieren",
+      "openUrl": "Website öffnen",
+      "showPassword": "Passwort anzeigen",
+      "hidePassword": "Passwort verbergen",
+      "lastUsed": "Zuletzt verwendet",
+      "created": "Erstellt",
+      "updated": "Aktualisiert"
+    },
+    "form": {
+      "title": "Titel",
+      "titlePlaceholder": "z.B. Netflix, Google, Bank...",
+      "description": "Beschreibung (optional)",
+      "descriptionPlaceholder": "Wofür ist dieser Dienst?",
+      "url": "Website-URL",
+      "urlPlaceholder": "https://example.com",
+      "username": "Benutzername / E-Mail",
+      "usernamePlaceholder": "max@example.com",
+      "password": "Passwort",
+      "passwordPlaceholder": "Dein sicheres Passwort",
+      "generatePassword": "Generieren",
+      "notes": "Notizen",
+      "notesPlaceholder": "Zusätzliche Informationen...",
+      "category": "Kategorie",
+      "selectCategory": "Kategorie auswählen",
+      "tags": "Tags",
+      "addTag": "Tag hinzufügen",
+      "favorite": "Als Favorit markieren",
+      "totp": {
+        "title": "2FA / TOTP",
+        "secret": "TOTP Secret",
+        "secretPlaceholder": "JBSWY3DPEHPK3PXP",
+        "addTotp": "2FA hinzufügen",
+        "currentCode": "Aktueller Code"
+      }
+    }
+  },
+  "generator": {
+    "title": "Passwort-Generator",
+    "length": "Länge",
+    "characters": "Zeichen",
+    "options": {
+      "uppercase": "Großbuchstaben (A-Z)",
+      "lowercase": "Kleinbuchstaben (a-z)",
+      "numbers": "Zahlen (0-9)",
+      "symbols": "Sonderzeichen (!@#$%...)"
+    },
+    "mode": {
+      "random": "Zufällig",
+      "passphrase": "Passphrase"
+    },
+    "passphrase": {
+      "words": "Wörter",
+      "separator": "Trennzeichen",
+      "capitalize": "Großschreiben"
+    },
+    "generate": "Neues Passwort",
+    "copy": "Kopieren",
+    "use": "Verwenden",
+    "strength": "Stärke"
+  },
+  "settings": {
+    "title": "Einstellungen",
+    "profile": {
+      "title": "Profil",
+      "displayName": "Anzeigename",
+      "email": "E-Mail",
+      "avatar": "Profilbild"
+    },
+    "security": {
+      "title": "Sicherheit",
+      "changeMasterPassword": "Master-Passwort ändern",
+      "enable2fa": "Zwei-Faktor-Authentifizierung aktivieren",
+      "sessions": "Aktive Sitzungen"
+    },
+    "linkedAccounts": {
+      "title": "Verknüpfte Konten",
+      "connect": "Verbinden",
+      "disconnect": "Trennen"
+    },
+    "appearance": {
+      "title": "Darstellung",
+      "theme": "Design",
+      "themes": {
+        "light": "Hell",
+        "dark": "Dunkel",
+        "system": "System"
+      },
+      "language": "Sprache",
+      "languages": {
+        "de": "Deutsch",
+        "en": "English"
+      }
+    },
+    "export": {
+      "title": "Daten exportieren",
+      "description": "Exportiere deine verschlüsselten Daten als Backup.",
+      "button": "Export starten"
+    },
+    "import": {
+      "title": "Daten importieren",
+      "description": "Importiere Daten aus anderen Passwortmanagern.",
+      "button": "Import starten"
+    },
+    "danger": {
+      "title": "Gefahrenzone",
+      "deleteAccount": "Konto löschen",
+      "deleteWarning": "Diese Aktion kann nicht rückgängig gemacht werden. Alle deine Daten werden unwiderruflich gelöscht."
+    }
+  }
+}

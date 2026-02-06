@@ -1,7 +1,7 @@
 /**
  * @fileoverview Main App Component
  * 
- * Sets up providers and routing for Zingra PW.
+ * Sets up providers and routing for Singra PW.
  */
 
 import { Toaster } from "@/components/ui/toaster";

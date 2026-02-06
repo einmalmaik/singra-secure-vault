@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 /* ============================================
- * Zingra PW - Design System
+ * Singra PW - Design System
  * 
  * Color Palette:
  * - Primary: Deep Blue (Trust, Security)
@@ -73,10 +73,10 @@
     --sidebar-border: 214 32% 91%;
     --sidebar-ring: 221 83% 53%;
 
-    /* Zingra Brand Colors */
-    --zingra-blue: 221 83% 53%;
-    --zingra-blue-dark: 221 83% 43%;
-    --zingra-blue-light: 221 83% 63%;
+    /* Singra Brand Colors */
+    --Singra-blue: 221 83% 53%;
+    --Singra-blue-dark: 221 83% 43%;
+    --Singra-blue-light: 221 83% 63%;
   }
 
   .dark {
@@ -135,10 +135,10 @@
     --sidebar-border: 217 33% 17%;
     --sidebar-ring: 217 91% 60%;
 
-    /* Zingra Brand Colors (Dark) */
-    --zingra-blue: 217 91% 60%;
-    --zingra-blue-dark: 217 91% 50%;
-    --zingra-blue-light: 217 91% 70%;
+    /* Singra Brand Colors (Dark) */
+    --Singra-blue: 217 91% 60%;
+    --Singra-blue-dark: 217 91% 50%;
+    --Singra-blue-light: 217 91% 70%;
   }
 }
 
@@ -172,6 +172,7 @@
 }
 
 @layer utilities {
+
   /* Glass morphism effect */
   .glass {
     @apply bg-background/80 backdrop-blur-lg;

@@ -89,12 +89,12 @@
     "openSource": {
       "title": "Transparent & Open Source",
       "subtitle": "Trust through transparency",
-      "description": "Zingra PW is fully open source. Every line of code can be reviewed by the community. No hidden backdoors, no secrets.",
+      "description": "Singra PW is fully open source. Every line of code can be reviewed by the community. No hidden backdoors, no secrets.",
       "cta": "View code on GitHub",
       "community": "Join the community"
     },
     "comparison": {
-      "title": "Why Zingra PW?",
+      "title": "Why Singra PW?",
       "subtitle": "Comparison with other password managers",
       "features": {
         "openSource": "Open Source",
@@ -112,7 +112,7 @@
       "github": "GitHub",
       "privacy": "Privacy",
       "imprint": "Imprint",
-      "copyright": "© {{year}} Zingra PW. Open Source under MIT License."
+      "copyright": "© {{year}} Singra PW. Open Source under MIT License."
     }
   },
   "auth": {

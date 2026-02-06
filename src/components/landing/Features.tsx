@@ -1,7 +1,7 @@
 /**
  * @fileoverview Features Section
  * 
- * Displays all main features of Zingra PW.
+ * Displays all main features of Singra PW.
  */
 
 import { useTranslation } from 'react-i18next';
@@ -34,7 +34,7 @@ export function Features() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
           {features.map((feature, index) => (
-            <Card 
+            <Card
               key={feature.key}
               className="group hover:shadow-md hover:border-primary/20 transition-all duration-300 animate-fade-in"
               style={{ animationDelay: `${index * 0.05}s` }}

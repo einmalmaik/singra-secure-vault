@@ -1,5 +1,5 @@
 /**
- * @fileoverview Authentication Context for Zingra PW
+ * @fileoverview Authentication Context for Singra PW
  * 
  * Provides authentication state and methods throughout the application.
  * Handles Supabase auth state changes, login, signup, and OAuth flows.
@@ -55,7 +55,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
    */
   const signUp = async (email: string, password: string) => {
     const redirectUrl = `${window.location.origin}/`;
-    
+
     const { error } = await supabase.auth.signUp({
       email,
       password,
@@ -63,7 +63,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         emailRedirectTo: redirectUrl,
       },
     });
-    
+
     return { error: error as Error | null };
   };
 
@@ -75,7 +75,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       email,
       password,
     });
-    
+
     return { error: error as Error | null };
   };
 
@@ -89,7 +89,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         redirectTo: `${window.location.origin}/vault`,
       },
     });
-    
+
     return { error: error as Error | null };
   };
 

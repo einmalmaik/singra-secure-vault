@@ -1,7 +1,7 @@
 /**
  * @fileoverview Open Source Section
  * 
- * Highlights the open-source nature of Zingra PW.
+ * Highlights the open-source nature of Singra PW.
  */
 
 import { useTranslation } from 'react-i18next';
@@ -26,11 +26,11 @@ export function OpenSource() {
               <h2 className="text-3xl sm:text-4xl font-bold mb-4">
                 {t('landing.openSource.title')}
               </h2>
-              
+
               <p className="text-lg text-muted-foreground mb-2">
                 {t('landing.openSource.subtitle')}
               </p>
-              
+
               <p className="text-muted-foreground mb-8">
                 {t('landing.openSource.description')}
               </p>

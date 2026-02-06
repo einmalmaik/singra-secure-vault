@@ -1,7 +1,7 @@
 /**
  * @fileoverview Security Features Section
  * 
- * Displays the core security features of Zingra PW.
+ * Displays the core security features of Singra PW.
  */
 
 import { useTranslation } from 'react-i18next';
@@ -44,8 +44,8 @@ export function SecurityFeatures() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
           {features.map((feature, index) => (
-            <Card 
-              key={feature.key} 
+            <Card
+              key={feature.key}
               className="relative overflow-hidden group hover:shadow-lg transition-all duration-300 animate-fade-in"
               style={{ animationDelay: `${index * 0.1}s` }}
             >

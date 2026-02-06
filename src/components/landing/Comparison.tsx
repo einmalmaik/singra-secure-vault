@@ -1,7 +1,7 @@
 /**
  * @fileoverview Comparison Table Section
  * 
- * Compares Zingra PW with other password managers.
+ * Compares Singra PW with other password managers.
  */
 
 import { useTranslation } from 'react-i18next';
@@ -24,7 +24,7 @@ interface Competitor {
 
 const competitors: Competitor[] = [
   {
-    name: 'Zingra PW',
+    name: 'Singra PW',
     features: {
       openSource: 'yes',
       e2ee: 'yes',
@@ -104,7 +104,7 @@ export function Comparison() {
                 <TableHead className="w-[200px]">Feature</TableHead>
                 {competitors.map((c) => (
                   <TableHead key={c.name} className="text-center">
-                    <span className={c.name === 'Zingra PW' ? 'text-primary font-bold' : ''}>
+                    <span className={c.name === 'Singra PW' ? 'text-primary font-bold' : ''}>
                       {c.name}
                     </span>
                   </TableHead>

@@ -1,5 +1,5 @@
 /**
- * @fileoverview Theme Provider for Zingra PW
+ * @fileoverview Theme Provider for Singra PW
  * 
  * Provides theme context (light/dark/system) throughout the application.
  * Persists theme preference to localStorage and syncs with system preference.
@@ -17,7 +17,7 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
-const STORAGE_KEY = 'zingra-theme';
+const STORAGE_KEY = 'Singra-theme';
 
 /**
  * Get the system's preferred color scheme

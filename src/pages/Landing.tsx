@@ -1,7 +1,7 @@
 /**
  * @fileoverview Landing Page
  * 
- * Public landing page showcasing Zingra PW features.
+ * Public landing page showcasing Singra PW features.
  */
 
 import { Header } from '@/components/landing/Header';

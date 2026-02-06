@@ -29,7 +29,7 @@ export function Header() {
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2">
             <Shield className="w-6 h-6 text-primary" />
-            <span className="text-xl font-bold">Zingra PW</span>
+            <span className="text-xl font-bold">Singra PW</span>
           </Link>
 
           {/* Desktop Navigation */}
@@ -91,22 +91,22 @@ export function Header() {
         {mobileMenuOpen && (
           <div className="md:hidden py-4 border-t animate-fade-in">
             <nav className="flex flex-col gap-4">
-              <a 
-                href="#security" 
+              <a
+                href="#security"
                 className="text-sm text-muted-foreground hover:text-foreground transition-colors"
                 onClick={() => setMobileMenuOpen(false)}
               >
                 {t('landing.footer.security')}
               </a>
-              <a 
-                href="#features" 
+              <a
+                href="#features"
                 className="text-sm text-muted-foreground hover:text-foreground transition-colors"
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Features
               </a>
-              <a 
-                href="#comparison" 
+              <a
+                href="#comparison"
                 className="text-sm text-muted-foreground hover:text-foreground transition-colors"
                 onClick={() => setMobileMenuOpen(false)}
               >

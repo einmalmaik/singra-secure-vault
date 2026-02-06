@@ -1,5 +1,5 @@
 /**
- * @fileoverview i18n Configuration for Zingra PW
+ * @fileoverview i18n Configuration for Singra PW
  * 
  * This module sets up internationalization using i18next and react-i18next.
  * Currently supports German (default) and English.
@@ -39,17 +39,17 @@ export type LanguageCode = keyof typeof languages;
 // Get stored language or browser language or default to German
 const getInitialLanguage = (): LanguageCode => {
   // Check localStorage first
-  const stored = localStorage.getItem('zingra-language');
+  const stored = localStorage.getItem('Singra-language');
   if (stored && stored in languages) {
     return stored as LanguageCode;
   }
-  
+
   // Check browser language
   const browserLang = navigator.language.split('-')[0];
   if (browserLang in languages) {
     return browserLang as LanguageCode;
   }
-  
+
   // Default to German
   return 'de';
 };
@@ -75,7 +75,7 @@ i18n
  * @param lang - The language code to switch to
  */
 export const changeLanguage = (lang: LanguageCode) => {
-  localStorage.setItem('zingra-language', lang);
+  localStorage.setItem('Singra-language', lang);
   i18n.changeLanguage(lang);
 };
 

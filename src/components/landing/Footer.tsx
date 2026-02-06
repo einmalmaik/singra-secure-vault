@@ -28,12 +28,12 @@ export function Footer() {
           <div className="md:col-span-2">
             <Link to="/" className="flex items-center gap-2 mb-4">
               <Shield className="w-6 h-6 text-primary" />
-              <span className="text-xl font-bold">Zingra PW</span>
+              <span className="text-xl font-bold">Singra PW</span>
             </Link>
             <p className="text-muted-foreground mb-4 max-w-sm">
               {t('landing.footer.tagline')}
             </p>
-            
+
             {/* Language Switcher */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -72,9 +72,9 @@ export function Footer() {
                 </a>
               </li>
               <li>
-                <a 
-                  href="https://github.com" 
-                  target="_blank" 
+                <a
+                  href="https://github.com"
+                  target="_blank"
                   rel="noopener noreferrer"
                   className="text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
                 >

@@ -131,7 +131,7 @@ export default function Auth() {
         {/* Logo */}
         <Link to="/" className="flex items-center justify-center gap-2 mb-8">
           <Shield className="w-8 h-8 text-primary" />
-          <span className="text-2xl font-bold">Zingra PW</span>
+          <span className="text-2xl font-bold">Singra PW</span>
         </Link>
 
         <Card className="shadow-xl">

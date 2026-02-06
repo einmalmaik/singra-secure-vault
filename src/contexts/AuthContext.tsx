@@ -51,10 +51,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, []);
 
   /**
+   * Helper to get the redirect URL
+   */
+  const getRedirectUrl = () => {
+    const siteUrl = import.meta.env.VITE_SITE_URL;
+    const origin = siteUrl ? siteUrl : window.location.origin;
+    // Remove trailing slash if present to avoid double slashes when appending paths
+    return origin.replace(/\/$/, '');
+  };
+
+  /**
    * Sign up with email and password
    */
   const signUp = async (email: string, password: string) => {
-    const redirectUrl = `${window.location.origin}/`;
+    const redirectUrl = `${getRedirectUrl()}/`;
 
     const { error } = await supabase.auth.signUp({
       email,
@@ -86,7 +96,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
-        redirectTo: `${window.location.origin}/vault`,
+        redirectTo: `${getRedirectUrl()}/vault`,
       },
     });
 

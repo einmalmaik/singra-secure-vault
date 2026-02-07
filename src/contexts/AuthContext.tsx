@@ -54,7 +54,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
    * Helper to get the redirect URL
    */
   const getRedirectUrl = () => {
-    const siteUrl = import.meta.env.VITE_SITE_URL;
+    let siteUrl = import.meta.env.VITE_SITE_URL;
+
+    // Defensive fix for common typo (comma instead of dot)
+    if (siteUrl && siteUrl.includes('mauntingstudios,de')) {
+      console.warn('Detected typo in VITE_SITE_URL (comma instead of dot). Applying automatic fix.');
+      siteUrl = siteUrl.replace('mauntingstudios,de', 'mauntingstudios.de');
+    }
+
     const origin = siteUrl ? siteUrl : window.location.origin;
     // Remove trailing slash if present to avoid double slashes when appending paths
     return origin.replace(/\/$/, '');

@@ -5,26 +5,49 @@ import { componentTagger } from "lovable-tagger";
 import wasm from "vite-plugin-wasm";
 import topLevelAwait from "vite-plugin-top-level-await";
 
-const SECURITY_HEADERS = {
-  "Content-Security-Policy":
-    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'",
-  "X-Content-Type-Options": "nosniff",
-  "X-Frame-Options": "DENY",
-  "Referrer-Policy": "strict-origin-when-cross-origin",
-};
+function getSecurityHeaders(mode: string) {
+  const dev = mode === "development";
+  const scriptSrc = dev
+    ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
+    : "script-src 'self'";
+  const connectSrc = dev
+    ? "connect-src 'self' ws: wss: http: https:"
+    : "connect-src 'self' https://*.supabase.co wss://*.supabase.co";
+
+  return {
+    "Content-Security-Policy": [
+      "default-src 'self'",
+      scriptSrc,
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob: https:",
+      "font-src 'self' data: https:",
+      connectSrc,
+      "object-src 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+      "frame-ancestors 'none'",
+    ].join("; "),
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+  };
+}
 
 // https://vitejs.dev/config/
-export default defineConfig(({ mode }) => ({
+export default defineConfig(({ mode }) => {
+  const securityHeaders = getSecurityHeaders(mode);
+
+  return {
   server: {
     host: "::",
     port: 8080,
-    headers: SECURITY_HEADERS,
+    headers: securityHeaders,
     hmr: {
       overlay: false,
     },
   },
   preview: {
-    headers: SECURITY_HEADERS,
+    headers: securityHeaders,
   },
   plugins: [
     wasm(),
@@ -40,5 +63,6 @@ export default defineConfig(({ mode }) => ({
   build: {
     target: "esnext",
   },
-}));
+  };
+});
 

@@ -27,9 +27,11 @@ export function Header() {
       <div className="container px-4">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2">
-            <Shield className="w-6 h-6 text-primary" />
-            <span className="text-xl font-bold">Singra PW</span>
+          <Link to="/" className="flex items-center gap-3 decoration-0">
+            <img src="/singra-icon.png" alt="Singra PW" className="w-8 h-8 rounded-full shadow-lg shadow-primary/20" />
+            <span className="text-xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/80">
+              Singra PW
+            </span>
           </Link>
 
           {/* Desktop Navigation */}

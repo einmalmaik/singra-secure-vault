@@ -112,7 +112,66 @@
       "github": "GitHub",
       "privacy": "Privacy",
       "imprint": "Imprint",
+      "cookies": "Cookie Settings",
       "copyright": "© {{year}} Singra PW. Open Source under MIT License."
+    }
+  },
+  "privacy": {
+    "title": "Privacy Policy",
+    "subtitle": "Transparency and security are our top priorities. Learn how we protect your data.",
+    "lastUpdated": "Last updated: {{date}}",
+    "contact": "For questions, please contact privacy@singra.net",
+    "zeroKnowledge": {
+      "title": "Zero-Knowledge Architecture",
+      "description": "Your data belongs only to you.",
+      "details": "Singra PW is built on a Zero-Knowledge principle. This means your passwords and sensitive data are encrypted exclusively on your device before ever being stored or transmitted. We as operators have technically no way to view your decrypted data. Your Master Password never leaves your device."
+    },
+    "general": {
+      "title": "General",
+      "content": "This privacy policy explains the nature, scope, and purpose of the processing of personal data within our online offering."
+    },
+    "collection": {
+      "title": "Data Collection",
+      "content": "We collect only what is necessary to provide the service:\n\n• Email address (for authentication and account recovery)\n• Encrypted vault data (we cannot read the content)\n• Master Password Hash (for verification, not the password itself)\n• Authentication metadata (login time)"
+    },
+    "security": {
+      "title": "Security Measures",
+      "content": "To protect your data, we use state-of-the-art encryption technologies:\n\n• AES-256-GCM for data encryption\n• Argon2id for key derivation\n• HTTPS/TLS for all transmissions\n\nAll cryptographic operations take place locally in your browser."
+    },
+    "storage": {
+      "title": "Data Storage",
+      "content": "Your encrypted data is securely stored in our cloud database (Supabase). Backups are created regularly and are also encrypted."
+    },
+    "cookies": {
+      "title": "Cookies & Local Data",
+      "content": "We use local storage technologies (LocalStorage) to store your settings (e.g., theme, language) and session information. We do not use third-party tracking cookies."
+    },
+    "rights": {
+      "title": "Your Rights",
+      "content": "You have the right at any time to:\n\n• Information about your stored data\n• Correction of incorrect data\n• Deletion of your account and all data\n• Export of your data in a machine-readable format"
+    }
+  },
+  "cookies": {
+    "banner": {
+      "title": "We respect your privacy",
+      "description": "We use cookies to ensure you get the best experience on our website. Some are essential, others help us improve the user experience.",
+      "acceptAll": "Accept All",
+      "manage": "Manage Settings"
+    },
+    "settings": {
+      "title": "Cookie Settings",
+      "description": "Here you can decide which cookies you want to allow.",
+      "save": "Save Settings"
+    },
+    "categories": {
+      "necessary": {
+        "title": "Necessary",
+        "description": "These cookies are essential for the website to function (e.g. login status). They cannot be disabled."
+      },
+      "optional": {
+        "title": "Optional (Preferences)",
+        "description": "Preferences like Theme (Light/Dark), Language, and Auto-Lock Timer. If disabled, these settings will not be saved permanently."
+      }
     }
   },
   "auth": {

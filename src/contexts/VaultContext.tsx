@@ -67,10 +67,27 @@ export function VaultProvider({ children }: VaultProviderProps) {
     const [salt, setSalt] = useState<string | null>(null);
     const [verificationHash, setVerificationHash] = useState<string | null>(null);
     const [passwordHint, setPasswordHint] = useState<string | null>(null);
-    const [autoLockTimeout, setAutoLockTimeout] = useState(() => {
+    const [autoLockTimeout, setAutoLockTimeoutState] = useState(() => {
         const saved = localStorage.getItem('singra_autolock');
         return saved ? parseInt(saved, 10) : DEFAULT_AUTO_LOCK_TIMEOUT;
     });
+
+    const setAutoLockTimeout = (timeout: number) => {
+        // Check for optional cookie consent
+        const consent = localStorage.getItem("singra-cookie-consent");
+        if (consent) {
+            try {
+                const parsed = JSON.parse(consent);
+                if (parsed.optional) {
+                    localStorage.setItem('singra_autolock', timeout.toString());
+                }
+            } catch (e) {
+                // If parse fails, err on safe side and don't save
+            }
+        }
+        setAutoLockTimeoutState(timeout);
+    };
+
     const [lastActivity, setLastActivity] = useState(Date.now());
 
     // Check if master password is set up

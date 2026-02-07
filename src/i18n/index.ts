@@ -75,7 +75,18 @@ i18n
  * @param lang - The language code to switch to
  */
 export const changeLanguage = (lang: LanguageCode) => {
-  localStorage.setItem('Singra-language', lang);
+  // Check for optional cookie consent
+  const consent = localStorage.getItem("singra-cookie-consent");
+  if (consent) {
+    try {
+      const parsed = JSON.parse(consent);
+      if (parsed.optional) {
+        localStorage.setItem('Singra-language', lang);
+      }
+    } catch (e) {
+      // If parse fails, err on safe side and don't save
+    }
+  }
   i18n.changeLanguage(lang);
 };
 

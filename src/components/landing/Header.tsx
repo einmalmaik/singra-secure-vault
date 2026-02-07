@@ -36,13 +36,13 @@ export function Header() {
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center gap-6">
-            <a href="#security" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+            <a href="/#security" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
               {t('landing.footer.security')}
             </a>
-            <a href="#features" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+            <a href="/#features" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
               Features
             </a>
-            <a href="#comparison" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+            <a href="/#comparison" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
               Vergleich
             </a>
           </nav>
@@ -94,21 +94,21 @@ export function Header() {
           <div className="md:hidden py-4 border-t animate-fade-in">
             <nav className="flex flex-col gap-4">
               <a
-                href="#security"
+                href="/#security"
                 className="text-sm text-muted-foreground hover:text-foreground transition-colors"
                 onClick={() => setMobileMenuOpen(false)}
               >
                 {t('landing.footer.security')}
               </a>
               <a
-                href="#features"
+                href="/#features"
                 className="text-sm text-muted-foreground hover:text-foreground transition-colors"
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Features
               </a>
               <a
-                href="#comparison"
+                href="/#comparison"
                 className="text-sm text-muted-foreground hover:text-foreground transition-colors"
                 onClick={() => setMobileMenuOpen(false)}
               >

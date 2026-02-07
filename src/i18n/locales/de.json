@@ -112,7 +112,66 @@
       "github": "GitHub",
       "privacy": "Datenschutz",
       "imprint": "Impressum",
+      "cookies": "Cookie-Einstellungen",
       "copyright": "© {{year}} Singra PW. Open Source unter MIT Lizenz."
+    }
+  },
+  "privacy": {
+    "title": "Datenschutzerklärung",
+    "subtitle": "Transparenz und Sicherheit stehen bei uns an erster Stelle. Hier erfährst du, wie wir deine Daten schützen.",
+    "lastUpdated": "Zuletzt aktualisiert: {{date}}",
+    "contact": "Bei Fragen wende dich bitte an privacy@singra.net",
+    "zeroKnowledge": {
+      "title": "Zero-Knowledge Architektur",
+      "description": "Deine Daten gehören nur dir.",
+      "details": "Singra PW basiert auf einem Zero-Knowledge-Prinzip. Das bedeutet, dass deine Passwörter und sensiblen Daten ausschließlich auf deinem Gerät verschlüsselt werden, bevor sie jemals gespeichert oder übertragen werden. Wir als Betreiber haben technisch keine Möglichkeit, deine entschlüsselten Daten einzusehen. Dein Master-Passwort verlässt niemals dein Gerät."
+    },
+    "general": {
+      "title": "Allgemeines",
+      "content": "Diese Datenschutzerklärung klärt dich über die Art, den Umfang und Zweck der Verarbeitung von personenbezogenen Daten innerhalb unseres Online-Angebotes auf."
+    },
+    "collection": {
+      "title": "Datenerfassung",
+      "content": "Wir erfassen nur das Nötigste, um den Dienst bereitzustellen:\n\n• E-Mail-Adresse (für Authentifizierung und Kontowiederherstellung)\n• Verschlüsselte Tresor-Daten (wir können den Inhalt nicht lesen)\n• Master-Passwort-Hash (zur Verifizierung, nicht das Passwort selbst)\n• Authentifizierungs-Metadaten (Anmeldezeitpunkt)"
+    },
+    "security": {
+      "title": "Sicherheitsmaßnahmen",
+      "content": "Zum Schutz deiner Daten setzen wir modernste Verschlüsselungstechnologien ein:\n\n• AES-256-GCM für die Datenverschlüsselung\n• Argon2id für die Schlüsselableitung\n• HTTPS/TLS für alle Übertragungen\n\nAlle kryptographischen Operationen finden lokal in deinem Browser statt."
+    },
+    "storage": {
+      "title": "Datenspeicherung",
+      "content": "Deine verschlüsselten Daten werden sicher in unserer Cloud-Datenbank (Supabase) gespeichert. Backups werden regelmäßig erstellt und sind ebenfalls verschlüsselt."
+    },
+    "cookies": {
+      "title": "Cookies & Lokale Daten",
+      "content": "Wir verwenden lokale Speichertechnologien (LocalStorage), um deine Einstellungen (z.B. Theme, Sprache) und Sitzungsinformationen zu speichern. Wir verwenden keine Tracking-Cookies von Drittanbietern."
+    },
+    "rights": {
+      "title": "Deine Rechte",
+      "content": "Du hast jederzeit das Recht auf:\n\n• Auskunft über deine gespeicherten Daten\n• Berichtigung unrichtiger Daten\n• Löschung deines Kontos und aller Daten\n• Export deiner Daten in einem maschinenlesbaren Format"
+    }
+  },
+  "cookies": {
+    "banner": {
+      "title": "Wir respektieren deine Privatsphäre",
+      "description": "Wir nutzen Cookies, um dir die bestmögliche Erfahrung zu bieten. Einige sind essenziell, andere helfen uns, das Nutzererlebnis zu verbessern.",
+      "acceptAll": "Alle akzeptieren",
+      "manage": "Einstellungen"
+    },
+    "settings": {
+      "title": "Cookie-Einstellungen",
+      "description": "Hier kannst du entscheiden, welche Cookies du zulassen möchtest.",
+      "save": "Einstellungen speichern"
+    },
+    "categories": {
+      "necessary": {
+        "title": "Notwendig",
+        "description": "Diese Cookies sind für das Funktionieren der Website essenziell (z.B. Login-Status). Sie können nicht deaktiviert werden."
+      },
+      "optional": {
+        "title": "Optional (Einstellungen)",
+        "description": "Einstellungen wie Design (Hell/Dunkel), Sprache und Auto-Lock Timer. Wenn deaktiviert, werden diese Einstellungen nicht permanent gespeichert."
+      }
     }
   },
   "auth": {

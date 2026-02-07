@@ -82,7 +82,19 @@ export function ThemeProvider({ children, defaultTheme = 'system' }: ThemeProvid
   }, [resolvedTheme]);
 
   const setTheme = (newTheme: Theme) => {
-    localStorage.setItem(STORAGE_KEY, newTheme);
+    // Check for optional cookie consent
+    const consent = localStorage.getItem("singra-cookie-consent");
+    if (consent) {
+      try {
+        const parsed = JSON.parse(consent);
+        if (parsed.optional) {
+          localStorage.setItem(STORAGE_KEY, newTheme);
+        }
+      } catch (e) {
+        // If parse fails, err on safe side and don't save
+      }
+    }
+
     setThemeState(newTheme);
   };
 

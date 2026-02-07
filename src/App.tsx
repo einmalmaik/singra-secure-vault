@@ -23,6 +23,9 @@ import Auth from "./pages/Auth";
 import VaultPage from "./pages/VaultPage";
 import SettingsPage from "./pages/SettingsPage";
 import NotFound from "./pages/NotFound";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import { CookieConsent } from "./components/CookieConsent";
+import Impressum from "./pages/Impressum";
 
 const queryClient = new QueryClient();
 
@@ -34,12 +37,15 @@ const App = () => (
           <TooltipProvider>
             <Toaster />
             <Sonner />
+            <CookieConsent />
             <BrowserRouter>
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/vault" element={<VaultPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
+                <Route path="/privacy" element={<PrivacyPolicy />} />
+                <Route path="/impressum" element={<Impressum />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>

@@ -62,12 +62,12 @@ export function Footer() {
             <h4 className="font-semibold mb-4">Links</h4>
             <ul className="space-y-2 text-sm">
               <li>
-                <a href="#security" className="text-muted-foreground hover:text-foreground transition-colors">
+                <a href="/#security" className="text-muted-foreground hover:text-foreground transition-colors">
                   {t('landing.footer.security')}
                 </a>
               </li>
               <li>
-                <a href="#features" className="text-muted-foreground hover:text-foreground transition-colors">
+                <a href="/#features" className="text-muted-foreground hover:text-foreground transition-colors">
                   {t('landing.footer.docs')}
                 </a>
               </li>
@@ -95,9 +95,17 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <Link to="/imprint" className="text-muted-foreground hover:text-foreground transition-colors">
+                <Link to="/impressum" className="text-muted-foreground hover:text-foreground transition-colors">
                   {t('landing.footer.imprint')}
                 </Link>
+              </li>
+              <li>
+                <button
+                  onClick={() => window.dispatchEvent(new Event('singra:open-cookie-settings'))}
+                  className="text-muted-foreground hover:text-foreground transition-colors text-left"
+                >
+                  {t('landing.footer.cookies')}
+                </button>
               </li>
             </ul>
           </div>

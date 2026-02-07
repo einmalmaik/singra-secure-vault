@@ -1,73 +1,58 @@
-# Welcome to your Lovable project
+# Singra Password Manager
 
-## Project info
+Wilkommen bei **Singra PW**, deinem sicheren, Open-Source Passwort-Manager.
 
-**URL**: https://github.com/einmalmaik/singra-secure-vault
+**Live-URL**: [singrapw.mauntingstudios.de](https://singrapw.mauntingstudios.de)
 
-## How can I edit this code?
+## Was ist Singra?
 
-There are several ways of editing your application.
+Singra (abgeleitet von "Singularity") ist ein moderner, webbasierter Passwort-Manager, der deine Datensicherheit in den Mittelpunkt stellt. Er ermöglicht es dir, deine Passwörter sicher zu speichern, zu verwalten und von überall darauf zuzugreifen, ohne die Kontrolle über deine Daten aufzugeben.
 
-**Use Lovable**
+### Sicherheitsarchitektur
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+Singra verfolgt einen **Zero-Knowledge** Ansatz. Das bedeutet, dass deine Passwörter **ausschließlich auf deinem Gerät** ("Client-Side") verschlüsselt und entschlüsselt werden. Niemand – nicht einmal der Server-Administrator – kann deine Daten lesen.
 
-Changes made via Lovable will be committed automatically to this repo.
+Technische Details:
+- **Verschlüsselung**: AES-GCM (Advanced Encryption Standard im Galois/Counter Mode) für die sichere Verschlüsselung deiner Daten.
+- **Schlüsselableitung**: Argon2id Hash-Algorithmus, um dein Master-Passwort in einen kryptografisch sicheren Schlüssel zu verwandeln. Dies macht Brute-Force-Angriffe extrem schwierig.
 
-**Use your preferred IDE**
+## Installation & Lokale Entwicklung
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+Du kannst Singra ganz einfach auf deinem eigenen PC laufen lassen.
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### Voraussetzungen
+- [Node.js](https://nodejs.org/) & npm müssen installiert sein.
 
-Follow these steps:
+### Schritte
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+1. **Repository klonen**
+   ```sh
+   git clone https://github.com/einmalmaik/singra-secure-vault.git
+   cd singra-secure-vault
+   ```
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+2. **Abhängigkeiten installieren**
+   ```sh
+   npm install
+   ```
 
-# Step 3: Install the necessary dependencies.
-npm i
+3. **Umgebungsvariablen konfigurieren**
+   Erstelle eine `.env` Datei im Hauptverzeichnis (basiert auf `.env.example`) und trage deine Supabase-Zugangsdaten ein.
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
+4. **Anwendung starten**
+   ```sh
+   npm run dev
+   ```
+   Die Anwendung ist nun unter `http://localhost:8080` (oder einem ähnlichen Port) erreichbar.
 
-**Edit a file directly in GitHub**
+## Technologien
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+Dieses Projekt basiert auf modernen Web-Technologien:
+- **Frontend**: React, TypeScript, Vite
+- **UI**: Tailwind CSS, shadcn/ui
+- **Backend/Datenbank**: Supabase
+- **Kryptografie**: Web Crypto API, Argon2id
 
-**Use GitHub Codespaces**
+## Lizenz
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+Dieses Projekt ist Open Source.

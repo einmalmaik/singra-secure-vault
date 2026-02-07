@@ -65,6 +65,7 @@ export type Database = {
           display_name: string | null
           encryption_salt: string | null
           id: string
+          master_password_verifier: string | null
           master_password_hint: string | null
           preferred_language: string | null
           theme: string | null
@@ -77,6 +78,7 @@ export type Database = {
           display_name?: string | null
           encryption_salt?: string | null
           id?: string
+          master_password_verifier?: string | null
           master_password_hint?: string | null
           preferred_language?: string | null
           theme?: string | null
@@ -89,6 +91,7 @@ export type Database = {
           display_name?: string | null
           encryption_salt?: string | null
           id?: string
+          master_password_verifier?: string | null
           master_password_hint?: string | null
           preferred_language?: string | null
           theme?: string | null
@@ -279,6 +282,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      delete_my_account: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

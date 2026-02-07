@@ -175,7 +175,12 @@
       "weakPassword": "The password is too weak",
       "passwordMismatch": "Passwords do not match",
       "invalidEmail": "Please enter a valid email address",
-      "generic": "An error occurred. Please try again."
+      "generic": "An error occurred. Please try again.",
+      "passwordTooShort": "Password must be at least 8 characters",
+      "passwordNoUppercase": "At least one uppercase letter required",
+      "passwordNoLowercase": "At least one lowercase letter required",
+      "passwordNoDigit": "At least one digit required",
+      "passwordNoSymbol": "At least one special character required"
     }
   },
   "vault": {
@@ -269,51 +274,111 @@
   },
   "settings": {
     "title": "Settings",
+    "footer": "Your data is encrypted locally and stored securely.",
+    "account": {
+      "title": "Account",
+      "description": "Manage your account and login credentials.",
+      "email": "Email Address",
+      "logout": "Log Out",
+      "deleteAccount": "Delete Account",
+      "deleteConfirmTitle": "Permanently delete account?",
+      "deleteConfirmDesc": "This action cannot be undone. All your data, passwords, and settings will be permanently deleted.",
+      "deleteConfirmInput": "Type DELETE to confirm:",
+      "deleteConfirm": "Delete Account Forever",
+      "deleteSuccess": "Account Deleted",
+      "deleteSuccessDesc": "Your account and all data have been deleted.",
+      "deleteFailed": "Failed to delete account."
+    },
+    "security": {
+      "title": "Security",
+      "description": "Control the security settings of your vault.",
+      "autoLock": "Auto-Lock Timer",
+      "autoLockDesc": "The vault will automatically lock after inactivity.",
+      "autoLockUpdated": "Auto-lock setting saved.",
+      "never": "Never",
+      "manualLock": "Manual Lock",
+      "lockNow": "Lock Vault Now",
+      "vaultLocked": "Vault Locked",
+      "vaultLockedDesc": "Your vault has been successfully locked.",
+      "changeMasterPassword": "Change Master Password",
+      "enable2fa": "Enable Two-Factor Authentication",
+      "sessions": "Active Sessions"
+    },
+    "appearance": {
+      "title": "Appearance",
+      "description": "Customize the look and feel of the application.",
+      "theme": "Theme",
+      "themeLight": "Light",
+      "themeDark": "Dark",
+      "themeSystem": "System",
+      "themeUpdated": "Theme has been changed.",
+      "language": "Language",
+      "languageUpdated": "Language has been changed.",
+      "themes": {
+        "light": "Light",
+        "dark": "Dark",
+        "system": "System"
+      },
+      "languages": {
+        "de": "Deutsch",
+        "en": "English"
+      }
+    },
+    "data": {
+      "title": "Data",
+      "description": "Export or import your vault data.",
+      "export": "Export Data",
+      "exportDesc": "Export all your passwords and entries as a JSON file.",
+      "exportButton": "Export as JSON",
+      "exportSuccess": "{{count}} entries exported successfully.",
+      "exportFailed": "Export failed.",
+      "import": "Import Data",
+      "importDesc": "Import entries from a JSON export file.",
+      "importButton": "Import",
+      "importConfirmTitle": "Import data?",
+      "importConfirmDesc": "The entries will be added to your existing vault.",
+      "importSuccess": "{{count}} entries imported successfully.",
+      "importFailed": "Import failed. Make sure the file is valid.",
+      "unlockRequired": "Please unlock your vault first."
+    },
     "profile": {
       "title": "Profile",
       "displayName": "Display Name",
       "email": "Email",
       "avatar": "Profile Picture"
     },
-    "security": {
-      "title": "Security",
-      "changeMasterPassword": "Change Master Password",
-      "enable2fa": "Enable Two-Factor Authentication",
-      "sessions": "Active Sessions"
-    },
     "linkedAccounts": {
       "title": "Linked Accounts",
       "connect": "Connect",
       "disconnect": "Disconnect"
-    },
-    "appearance": {
-      "title": "Appearance",
-      "theme": "Theme",
-      "themes": {
-        "light": "Light",
-        "dark": "Dark",
-        "system": "System"
-      },
-      "language": "Language",
-      "languages": {
-        "de": "Deutsch",
-        "en": "English"
-      }
-    },
-    "export": {
-      "title": "Export Data",
-      "description": "Export your encrypted data as a backup.",
-      "button": "Start Export"
-    },
-    "import": {
-      "title": "Import Data",
-      "description": "Import data from other password managers.",
-      "button": "Start Import"
     },
     "danger": {
       "title": "Danger Zone",
       "deleteAccount": "Delete Account",
       "deleteWarning": "This action cannot be undone. All your data will be permanently deleted."
     }
+  },
+  "categories": {
+    "add": "Add Category",
+    "edit": "Edit Category",
+    "description": "Organize your entries with custom categories.",
+    "name": "Name",
+    "namePlaceholder": "e.g. Social Media",
+    "icon": "Icon",
+    "emojiPlaceholder": "Enter or select an emoji",
+    "svgHint": "Paste SVG code (24x24px recommended)",
+    "color": "Color",
+    "preview": "Preview",
+    "created": "Category created",
+    "updated": "Category updated",
+    "deleted": "Category deleted",
+    "saveFailed": "Failed to save category",
+    "deleteFailed": "Failed to delete category",
+    "deleteConfirmTitle": "Delete category?",
+    "deleteConfirmDesc": "The category will be deleted. Items in this category won't be deleted, but will no longer have a category.",
+    "empty": "No categories yet",
+    "addFirst": "Create your first category",
+    "selectPlaceholder": "Select Category",
+    "noCategory": "No Category"
   }
 }

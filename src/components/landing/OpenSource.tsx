@@ -35,17 +35,19 @@ export function OpenSource() {
                 {t('landing.openSource.description')}
               </p>
 
-              <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
                 <Button asChild className="gap-2">
-                  <a href="https://github.com" target="_blank" rel="noopener noreferrer">
+                  <a href="https://github.com/einmalmaik/zingra-secure-vault" target="_blank" rel="noopener noreferrer">
                     <Github className="w-4 h-4" />
                     {t('landing.openSource.cta')}
                     <ExternalLink className="w-4 h-4" />
                   </a>
                 </Button>
-                <Button variant="outline" className="gap-2">
-                  <Users className="w-4 h-4" />
-                  {t('landing.openSource.community')}
+                <Button asChild variant="outline" className="gap-2">
+                  <a href="https://github.com/einmalmaik/zingra-secure-vault/discussions" target="_blank" rel="noopener noreferrer">
+                    <Users className="w-4 h-4" />
+                    {t('landing.openSource.community')}
+                  </a>
                 </Button>
               </div>
             </div>

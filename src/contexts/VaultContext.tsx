@@ -1,0 +1,341 @@
+/**
+ * @fileoverview Vault Context for Singra PW
+ * 
+ * Manages vault encryption state including:
+ * - Master password unlock status
+ * - Derived encryption key (kept in memory only)
+ * - Auto-lock on inactivity
+ * - Vault item encryption/decryption helpers
+ */
+
+import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
+import {
+    deriveKey,
+    generateSalt,
+    encrypt,
+    decrypt,
+    createVerificationHash,
+    verifyKey,
+    encryptVaultItem,
+    decryptVaultItem,
+    secureClear,
+    VaultItemData
+} from '@/services/cryptoService';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from './AuthContext';
+
+// Auto-lock timeout in milliseconds (default 15 minutes)
+const DEFAULT_AUTO_LOCK_TIMEOUT = 15 * 60 * 1000;
+
+interface VaultContextType {
+    // State
+    isLocked: boolean;
+    isSetupRequired: boolean;
+    isLoading: boolean;
+
+    // Actions
+    setupMasterPassword: (masterPassword: string, hint?: string) => Promise<{ error: Error | null }>;
+    unlock: (masterPassword: string) => Promise<{ error: Error | null }>;
+    lock: () => void;
+
+    // Encryption helpers
+    encryptData: (plaintext: string) => Promise<string>;
+    decryptData: (encrypted: string) => Promise<string>;
+    encryptItem: (data: VaultItemData) => Promise<string>;
+    decryptItem: (encryptedData: string) => Promise<VaultItemData>;
+
+    // Settings
+    autoLockTimeout: number;
+    setAutoLockTimeout: (timeout: number) => void;
+    passwordHint: string | null;
+}
+
+const VaultContext = createContext<VaultContextType | undefined>(undefined);
+
+interface VaultProviderProps {
+    children: ReactNode;
+}
+
+export function VaultProvider({ children }: VaultProviderProps) {
+    const { user } = useAuth();
+
+    // State
+    const [isLocked, setIsLocked] = useState(true);
+    const [isSetupRequired, setIsSetupRequired] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
+    const [encryptionKey, setEncryptionKey] = useState<CryptoKey | null>(null);
+    const [salt, setSalt] = useState<string | null>(null);
+    const [verificationHash, setVerificationHash] = useState<string | null>(null);
+    const [passwordHint, setPasswordHint] = useState<string | null>(null);
+    const [autoLockTimeout, setAutoLockTimeout] = useState(() => {
+        const saved = localStorage.getItem('singra_autolock');
+        return saved ? parseInt(saved, 10) : DEFAULT_AUTO_LOCK_TIMEOUT;
+    });
+    const [lastActivity, setLastActivity] = useState(Date.now());
+
+    // Check if master password is set up
+    useEffect(() => {
+        async function checkSetup() {
+            if (!user) {
+                setIsLoading(false);
+                return;
+            }
+
+            try {
+                const { data: profile, error } = await supabase
+                    .from('profiles')
+                    .select('encryption_salt, master_password_hint, master_password_verifier')
+                    .eq('user_id', user.id)
+                    .single();
+
+                if (error || !profile?.encryption_salt) {
+                    setIsSetupRequired(true);
+                    setIsLocked(true);
+                } else {
+                    setIsSetupRequired(false);
+                    setSalt(profile.encryption_salt);
+                    setPasswordHint(profile.master_password_hint);
+                    setVerificationHash(profile.master_password_verifier || null);
+                }
+            } catch (err) {
+                console.error('Error checking vault setup:', err);
+                setIsSetupRequired(true);
+            } finally {
+                setIsLoading(false);
+            }
+        }
+
+        checkSetup();
+    }, [user]);
+
+    // Auto-lock on inactivity
+    useEffect(() => {
+        if (isLocked || !encryptionKey) return;
+
+        const checkInactivity = setInterval(() => {
+            const timeSinceActivity = Date.now() - lastActivity;
+            if (timeSinceActivity >= autoLockTimeout) {
+                lock();
+            }
+        }, 10000); // Check every 10 seconds
+
+        return () => clearInterval(checkInactivity);
+    }, [isLocked, encryptionKey, lastActivity, autoLockTimeout]);
+
+    // Track user activity
+    useEffect(() => {
+        if (isLocked) return;
+
+        const updateActivity = () => setLastActivity(Date.now());
+
+        const events = ['mousedown', 'keydown', 'scroll', 'touchstart'];
+        events.forEach(event => {
+            document.addEventListener(event, updateActivity, { passive: true });
+        });
+
+        return () => {
+            events.forEach(event => {
+                document.removeEventListener(event, updateActivity);
+            });
+        };
+    }, [isLocked]);
+
+    /**
+     * Sets up the master password for first-time users
+     */
+    const setupMasterPassword = useCallback(async (
+        masterPassword: string,
+        hint?: string
+    ): Promise<{ error: Error | null }> => {
+        if (!user) {
+            return { error: new Error('No user logged in') };
+        }
+
+        try {
+            // Generate new salt
+            const newSalt = generateSalt();
+
+            // Derive encryption key
+            const key = await deriveKey(masterPassword, newSalt);
+
+            // Create verification hash
+            const verifyHash = await createVerificationHash(key);
+
+            // Create default vault
+            const { data: existingVault } = await supabase
+                .from('vaults')
+                .select('id')
+                .eq('user_id', user.id)
+                .eq('is_default', true)
+                .single();
+
+            if (!existingVault) {
+                await supabase.from('vaults').insert({
+                    user_id: user.id,
+                    name: 'Persönlicher Tresor',
+                    is_default: true,
+                });
+            }
+
+            // Save salt and hint to profile (NOT the password!)
+            const { error: updateError } = await supabase
+                .from('profiles')
+                .update({
+                    encryption_salt: newSalt,
+                    master_password_hint: hint || null,
+                    master_password_verifier: verifyHash,
+                })
+                .eq('user_id', user.id);
+
+            if (updateError) {
+                return { error: new Error(updateError.message) };
+            }
+
+            // Update state
+            setSalt(newSalt);
+            setVerificationHash(verifyHash);
+            setPasswordHint(hint || null);
+            setEncryptionKey(key);
+            setIsSetupRequired(false);
+            setIsLocked(false);
+            setLastActivity(Date.now());
+
+            return { error: null };
+        } catch (err) {
+            console.error('Error setting up master password:', err);
+            return { error: err as Error };
+        }
+    }, [user]);
+
+    /**
+     * Unlocks the vault with the master password
+     */
+    const unlock = useCallback(async (
+        masterPassword: string
+    ): Promise<{ error: Error | null }> => {
+        if (!user || !salt) {
+            return { error: new Error('Vault not set up') };
+        }
+
+        try {
+            // Derive key from password
+            const key = await deriveKey(masterPassword, salt);
+
+            // Primary verifier from profile, fallback to legacy localStorage.
+            const legacyHash = localStorage.getItem(`singra_verify_${user.id}`);
+            const verifier = verificationHash || legacyHash;
+
+            if (!verifier) {
+                return { error: new Error('Vault verification data missing') };
+            }
+
+            const isValid = await verifyKey(verifier, key);
+            if (!isValid) {
+                return { error: new Error('Invalid master password') };
+            }
+
+            // One-time migration: persist legacy verifier to profile.
+            if (!verificationHash && legacyHash) {
+                const { error: migrateError } = await supabase
+                    .from('profiles')
+                    .update({ master_password_verifier: legacyHash })
+                    .eq('user_id', user.id);
+
+                if (!migrateError) {
+                    setVerificationHash(legacyHash);
+                }
+            }
+
+            // Success - store key in memory
+            setEncryptionKey(key);
+            setIsLocked(false);
+            setLastActivity(Date.now());
+
+            return { error: null };
+        } catch (err) {
+            console.error('Error unlocking vault:', err);
+            return { error: new Error('Invalid master password') };
+        }
+    }, [user, salt, verificationHash]);
+
+    /**
+     * Locks the vault and clears encryption key from memory
+     */
+    const lock = useCallback(() => {
+        setEncryptionKey(null);
+        setIsLocked(true);
+    }, []);
+
+    /**
+     * Encrypts plaintext data
+     */
+    const encryptData = useCallback(async (plaintext: string): Promise<string> => {
+        if (!encryptionKey) {
+            throw new Error('Vault is locked');
+        }
+        return encrypt(plaintext, encryptionKey);
+    }, [encryptionKey]);
+
+    /**
+     * Decrypts encrypted data
+     */
+    const decryptData = useCallback(async (encrypted: string): Promise<string> => {
+        if (!encryptionKey) {
+            throw new Error('Vault is locked');
+        }
+        return decrypt(encrypted, encryptionKey);
+    }, [encryptionKey]);
+
+    /**
+     * Encrypts a vault item
+     */
+    const encryptItem = useCallback(async (data: VaultItemData): Promise<string> => {
+        if (!encryptionKey) {
+            throw new Error('Vault is locked');
+        }
+        return encryptVaultItem(data, encryptionKey);
+    }, [encryptionKey]);
+
+    /**
+     * Decrypts a vault item
+     */
+    const decryptItem = useCallback(async (encryptedData: string): Promise<VaultItemData> => {
+        if (!encryptionKey) {
+            throw new Error('Vault is locked');
+        }
+        return decryptVaultItem(encryptedData, encryptionKey);
+    }, [encryptionKey]);
+
+    return (
+        <VaultContext.Provider
+            value={{
+                isLocked,
+                isSetupRequired,
+                isLoading,
+                setupMasterPassword,
+                unlock,
+                lock,
+                encryptData,
+                decryptData,
+                encryptItem,
+                decryptItem,
+                autoLockTimeout,
+                setAutoLockTimeout,
+                passwordHint,
+            }}
+        >
+            {children}
+        </VaultContext.Provider>
+    );
+}
+
+/**
+ * Hook to access vault context
+ */
+export function useVault() {
+    const context = useContext(VaultContext);
+    if (context === undefined) {
+        throw new Error('useVault must be used within a VaultProvider');
+    }
+    return context;
+}

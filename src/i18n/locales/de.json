@@ -175,18 +175,25 @@
       "weakPassword": "Das Passwort ist zu schwach",
       "passwordMismatch": "Die Passwörter stimmen nicht überein",
       "invalidEmail": "Bitte gib eine gültige E-Mail-Adresse ein",
-      "generic": "Ein Fehler ist aufgetreten. Bitte versuche es erneut."
+      "generic": "Ein Fehler ist aufgetreten. Bitte versuche es erneut.",
+      "passwordTooShort": "Das Passwort muss mindestens 8 Zeichen haben",
+      "passwordNoUppercase": "Mindestens ein Großbuchstabe erforderlich",
+      "passwordNoLowercase": "Mindestens ein Kleinbuchstabe erforderlich",
+      "passwordNoDigit": "Mindestens eine Ziffer erforderlich",
+      "passwordNoSymbol": "Mindestens ein Sonderzeichen erforderlich"
     }
   },
   "vault": {
     "title": "Mein Tresor",
     "empty": {
       "title": "Dein Tresor ist leer",
-      "subtitle": "Füge deinen ersten Eintrag hinzu, um loszulegen.",
-      "cta": "Ersten Eintrag hinzufügen"
+      "description": "Füge deinen ersten Eintrag hinzu, um loszulegen.",
+      "action": "Ersten Eintrag hinzufügen"
     },
     "search": {
-      "placeholder": "Suche nach Name, URL oder Tags..."
+      "placeholder": "Suche nach Name, URL oder Tags...",
+      "noResults": "Keine Ergebnisse",
+      "noResultsDescription": "Versuche es mit anderen Suchbegriffen."
     },
     "filters": {
       "all": "Alle",
@@ -197,23 +204,51 @@
     },
     "categories": {
       "title": "Kategorien",
-      "all": "Alle Einträge",
+      "all": "Alle Eintraege",
       "uncategorized": "Ohne Kategorie",
-      "addCategory": "Kategorie hinzufügen"
+      "addCategory": "Kategorie hinzufuegen"
     },
-    "item": {
-      "addNew": "Neuer Eintrag",
-      "edit": "Bearbeiten",
-      "delete": "Löschen",
-      "deleteConfirm": "Möchtest du diesen Eintrag wirklich löschen?",
-      "copyPassword": "Passwort kopieren",
-      "copyUsername": "Benutzername kopieren",
-      "openUrl": "Website öffnen",
-      "showPassword": "Passwort anzeigen",
-      "hidePassword": "Passwort verbergen",
-      "lastUsed": "Zuletzt verwendet",
-      "created": "Erstellt",
-      "updated": "Aktualisiert"
+    "sidebar": {
+      "title": "Tresor",
+      "allItems": "Alle Einträge",
+      "categories": "Kategorien",
+      "settings": "Einstellungen",
+      "lock": "Sperren"
+    },
+    "items": {
+      "decrypting": "Entschlüssele Einträge..."
+    },
+    "actions": {
+      "add": "Neuer Eintrag",
+      "copyUsername": "Benutzer",
+      "copyPassword": "Passwort"
+    },
+    "copied": "Kopiert",
+    "copiedPassword": "Passwort wurde kopiert",
+    "copiedUsername": "Benutzername wurde kopiert",
+    "copiedCode": "Code wurde kopiert",
+    "copyFailed": "Kopieren fehlgeschlagen",
+    "newItem": "Neuer Eintrag",
+    "editItem": "Eintrag bearbeiten",
+    "itemCreated": "Eintrag erstellt",
+    "itemUpdated": "Eintrag aktualisiert",
+    "itemDeleted": "Eintrag gelöscht",
+    "itemTypes": {
+      "password": "Passwort",
+      "note": "Notiz",
+      "totp": "2FA Code"
+    },
+    "fields": {
+      "title": "Titel",
+      "titlePlaceholder": "z.B. Netflix, Google, Bank...",
+      "url": "Website-URL",
+      "username": "Benutzername / E-Mail",
+      "usernamePlaceholder": "max@example.com",
+      "password": "Passwort",
+      "notes": "Notizen",
+      "notesPlaceholder": "Zusätzliche Informationen...",
+      "totpSecret": "TOTP Secret",
+      "favorite": "Favorit"
     },
     "form": {
       "title": "Titel",
@@ -245,75 +280,131 @@
   },
   "generator": {
     "title": "Passwort-Generator",
+    "placeholder": "Klicke auf Generieren...",
+    "generate": "Generieren",
+    "use": "Verwenden",
     "length": "Länge",
-    "characters": "Zeichen",
-    "options": {
-      "uppercase": "Großbuchstaben (A-Z)",
-      "lowercase": "Kleinbuchstaben (a-z)",
-      "numbers": "Zahlen (0-9)",
-      "symbols": "Sonderzeichen (!@#$%...)"
-    },
+    "wordCount": "Wörter",
+    "capitalize": "Großschreiben",
+    "includeNumber": "Zahl hinzufügen",
     "mode": {
-      "random": "Zufällig",
+      "password": "Passwort",
       "passphrase": "Passphrase"
     },
-    "passphrase": {
-      "words": "Wörter",
-      "separator": "Trennzeichen",
-      "capitalize": "Großschreiben"
-    },
-    "generate": "Neues Passwort",
-    "copy": "Kopieren",
-    "use": "Verwenden",
-    "strength": "Stärke"
+    "strength": {
+      "label": "Stärke",
+      "weak": "Schwach",
+      "fair": "Ausreichend",
+      "good": "Gut",
+      "strong": "Stark",
+      "veryStrong": "Sehr stark"
+    }
   },
   "settings": {
     "title": "Einstellungen",
+    "footer": "Deine Daten werden lokal verschlüsselt und sicher gespeichert.",
+    "account": {
+      "title": "Konto",
+      "description": "Verwalte dein Konto und deine Anmeldedaten.",
+      "email": "E-Mail-Adresse",
+      "logout": "Abmelden",
+      "deleteAccount": "Konto löschen",
+      "deleteConfirmTitle": "Konto unwiderruflich löschen?",
+      "deleteConfirmDesc": "Diese Aktion kann nicht rückgängig gemacht werden. Alle deine Daten, Passwörter und Einstellungen werden permanent gelöscht.",
+      "deleteConfirmInput": "Tippe DELETE zur Bestätigung:",
+      "deleteConfirm": "Konto endgültig löschen",
+      "deleteSuccess": "Konto gelöscht",
+      "deleteSuccessDesc": "Dein Konto und alle Daten wurden gelöscht.",
+      "deleteFailed": "Konto konnte nicht gelöscht werden."
+    },
+    "security": {
+      "title": "Sicherheit",
+      "description": "Kontrolliere die Sicherheitseinstellungen deines Tresors.",
+      "autoLock": "Auto-Lock Timer",
+      "autoLockDesc": "Der Tresor wird automatisch nach Inaktivität gesperrt.",
+      "autoLockUpdated": "Auto-Lock Einstellung gespeichert.",
+      "never": "Nie",
+      "manualLock": "Manuelles Sperren",
+      "lockNow": "Tresor jetzt sperren",
+      "vaultLocked": "Tresor gesperrt",
+      "vaultLockedDesc": "Dein Tresor wurde erfolgreich gesperrt.",
+      "changeMasterPassword": "Master-Passwort ändern",
+      "enable2fa": "Zwei-Faktor-Authentifizierung aktivieren",
+      "sessions": "Aktive Sitzungen"
+    },
+    "appearance": {
+      "title": "Darstellung",
+      "description": "Passe das Aussehen der Anwendung an.",
+      "theme": "Design",
+      "themeLight": "Hell",
+      "themeDark": "Dunkel",
+      "themeSystem": "System",
+      "themeUpdated": "Design wurde geändert.",
+      "language": "Sprache",
+      "languageUpdated": "Sprache wurde geändert.",
+      "themes": {
+        "light": "Hell",
+        "dark": "Dunkel",
+        "system": "System"
+      },
+      "languages": {
+        "de": "Deutsch",
+        "en": "English"
+      }
+    },
+    "data": {
+      "title": "Daten",
+      "description": "Exportiere oder importiere deine Tresor-Daten.",
+      "export": "Daten exportieren",
+      "exportDesc": "Exportiere alle deine Passwörter und Einträge als JSON-Datei.",
+      "exportButton": "Als JSON exportieren",
+      "exportSuccess": "{{count}} Einträge erfolgreich exportiert.",
+      "exportFailed": "Export fehlgeschlagen.",
+      "import": "Daten importieren",
+      "importDesc": "Importiere Einträge aus einer JSON-Export-Datei.",
+      "importButton": "Importieren",
+      "importConfirmTitle": "Daten importieren?",
+      "importConfirmDesc": "Die Einträge werden zu deinem bestehenden Tresor hinzugefügt.",
+      "importSuccess": "{{count}} Einträge erfolgreich importiert.",
+      "importFailed": "Import fehlgeschlagen. Stelle sicher, dass die Datei gültig ist.",
+      "unlockRequired": "Bitte entsperre zuerst deinen Tresor."
+    },
     "profile": {
       "title": "Profil",
       "displayName": "Anzeigename",
       "email": "E-Mail",
       "avatar": "Profilbild"
     },
-    "security": {
-      "title": "Sicherheit",
-      "changeMasterPassword": "Master-Passwort ändern",
-      "enable2fa": "Zwei-Faktor-Authentifizierung aktivieren",
-      "sessions": "Aktive Sitzungen"
-    },
     "linkedAccounts": {
       "title": "Verknüpfte Konten",
       "connect": "Verbinden",
       "disconnect": "Trennen"
-    },
-    "appearance": {
-      "title": "Darstellung",
-      "theme": "Design",
-      "themes": {
-        "light": "Hell",
-        "dark": "Dunkel",
-        "system": "System"
-      },
-      "language": "Sprache",
-      "languages": {
-        "de": "Deutsch",
-        "en": "English"
-      }
-    },
-    "export": {
-      "title": "Daten exportieren",
-      "description": "Exportiere deine verschlüsselten Daten als Backup.",
-      "button": "Export starten"
-    },
-    "import": {
-      "title": "Daten importieren",
-      "description": "Importiere Daten aus anderen Passwortmanagern.",
-      "button": "Import starten"
     },
     "danger": {
       "title": "Gefahrenzone",
       "deleteAccount": "Konto löschen",
       "deleteWarning": "Diese Aktion kann nicht rückgängig gemacht werden. Alle deine Daten werden unwiderruflich gelöscht."
     }
+  },
+  "categories": {
+    "add": "Kategorie hinzufügen",
+    "edit": "Kategorie bearbeiten",
+    "description": "Organisiere deine Einträge mit benutzerdefinierten Kategorien.",
+    "name": "Name",
+    "namePlaceholder": "z.B. Soziale Medien",
+    "icon": "Symbol",
+    "emojiPlaceholder": "Emoji eingeben oder auswählen",
+    "svgHint": "Füge einen SVG-Code ein (max. 24x24px empfohlen)",
+    "color": "Farbe",
+    "preview": "Vorschau",
+    "created": "Kategorie erstellt",
+    "updated": "Kategorie aktualisiert",
+    "deleted": "Kategorie gelöscht",
+    "saveFailed": "Kategorie konnte nicht gespeichert werden",
+    "deleteFailed": "Kategorie konnte nicht gelöscht werden",
+    "deleteConfirmTitle": "Kategorie löschen?",
+    "deleteConfirmDesc": "Die Kategorie wird gelöscht. Einträge in dieser Kategorie werden nicht gelöscht, aber haben keine Kategorie mehr.",
+    "empty": "Keine Kategorien vorhanden",
+    "addFirst": "Erste Kategorie erstellen"
   }
 }

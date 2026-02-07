@@ -1,0 +1,267 @@
+/**
+ * @fileoverview Vault Item Card Component
+ * 
+ * Displays a single vault item with copy actions,
+ * password visibility toggle, and favorite indicator.
+ */
+
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import {
+    Copy,
+    Eye,
+    EyeOff,
+    Star,
+    ExternalLink,
+    Key,
+    FileText,
+    Shield,
+    MoreVertical,
+    Trash2,
+    Edit
+} from 'lucide-react';
+
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
+import { ViewMode } from '@/pages/VaultPage';
+import { VaultItemData } from '@/services/cryptoService';
+import { TOTPDisplay } from './TOTPDisplay';
+
+interface VaultItemCardProps {
+    item: {
+        id: string;
+        title: string;
+        website_url: string | null;
+        item_type: 'password' | 'note' | 'totp' | 'card';
+        is_favorite: boolean | null;
+        decryptedData?: VaultItemData;
+    };
+    viewMode: ViewMode;
+    onEdit: () => void;
+}
+
+export function VaultItemCard({ item, viewMode, onEdit }: VaultItemCardProps) {
+    const { t } = useTranslation();
+    const { toast } = useToast();
+    const [showPassword, setShowPassword] = useState(false);
+
+    const getIcon = () => {
+        switch (item.item_type) {
+            case 'password':
+                return <Key className="w-5 h-5" />;
+            case 'note':
+                return <FileText className="w-5 h-5" />;
+            case 'totp':
+                return <Shield className="w-5 h-5" />;
+            default:
+                return <Key className="w-5 h-5" />;
+        }
+    };
+
+    const getDomainFromUrl = (url: string | null) => {
+        if (!url) return null;
+        try {
+            return new URL(url).hostname;
+        } catch {
+            return null;
+        }
+    };
+
+    const copyToClipboard = async (text: string, type: string) => {
+        try {
+            await navigator.clipboard.writeText(text);
+            toast({
+                title: t('vault.copied'),
+                description: t(`vault.copied${type}`),
+            });
+        } catch {
+            toast({
+                variant: 'destructive',
+                title: t('common.error'),
+                description: t('vault.copyFailed'),
+            });
+        }
+    };
+
+    const openUrl = () => {
+        if (item.website_url) {
+            window.open(item.website_url, '_blank', 'noopener,noreferrer');
+        }
+    };
+
+    const domain = getDomainFromUrl(item.website_url);
+
+    if (viewMode === 'list') {
+        return (
+            <Card className="hover:bg-accent/50 transition-colors">
+                <CardContent className="flex items-center gap-4 p-3">
+                    {/* Icon */}
+                    <div className="flex-shrink-0 p-2 rounded-lg bg-primary/10 text-primary">
+                        {getIcon()}
+                    </div>
+
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                            <h3 className="font-medium truncate">{item.title}</h3>
+                            {item.is_favorite && (
+                                <Star className="w-4 h-4 text-amber-500 fill-amber-500 flex-shrink-0" />
+                            )}
+                        </div>
+                        {item.decryptedData?.username && (
+                            <p className="text-sm text-muted-foreground truncate">
+                                {item.decryptedData.username}
+                            </p>
+                        )}
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-1">
+                        {item.decryptedData?.password && (
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => copyToClipboard(item.decryptedData!.password!, 'Password')}
+                            >
+                                <Copy className="w-4 h-4" />
+                            </Button>
+                        )}
+                        {item.website_url && (
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={openUrl}
+                            >
+                                <ExternalLink className="w-4 h-4" />
+                            </Button>
+                        )}
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                    <MoreVertical className="w-4 h-4" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={onEdit}>
+                                    <Edit className="w-4 h-4 mr-2" />
+                                    {t('common.edit')}
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem className="text-destructive">
+                                    <Trash2 className="w-4 h-4 mr-2" />
+                                    {t('common.delete')}
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
+                </CardContent>
+            </Card>
+        );
+    }
+
+    return (
+        <Card
+            className="group hover:shadow-lg transition-all duration-300 cursor-pointer"
+            onClick={onEdit}
+        >
+            <CardContent className="p-4">
+                {/* Header */}
+                <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                            {getIcon()}
+                        </div>
+                        <div>
+                            <h3 className="font-medium line-clamp-1">{item.title}</h3>
+                            {domain && (
+                                <p className="text-xs text-muted-foreground">{domain}</p>
+                            )}
+                        </div>
+                    </div>
+                    {item.is_favorite && (
+                        <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
+                    )}
+                </div>
+
+                {/* Username */}
+                {item.decryptedData?.username && (
+                    <div className="mb-2">
+                        <p className="text-sm text-muted-foreground truncate">
+                            {item.decryptedData.username}
+                        </p>
+                    </div>
+                )}
+
+                {/* Password (if password type) */}
+                {item.item_type === 'password' && item.decryptedData?.password && (
+                    <div className="flex items-center gap-2 mb-3">
+                        <code className="flex-1 text-sm bg-muted px-2 py-1 rounded font-mono truncate">
+                            {showPassword ? item.decryptedData.password : '••••••••••'}
+                        </code>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setShowPassword(!showPassword);
+                            }}
+                        >
+                            {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                        </Button>
+                    </div>
+                )}
+
+                {/* TOTP Display */}
+                {item.item_type === 'totp' && item.decryptedData?.totpSecret && (
+                    <div className="mb-3" onClick={(e) => e.stopPropagation()}>
+                        <TOTPDisplay secret={item.decryptedData.totpSecret} />
+                    </div>
+                )}
+
+                {/* Quick Actions */}
+                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {item.decryptedData?.username && (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 text-xs"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                copyToClipboard(item.decryptedData!.username!, 'Username');
+                            }}
+                        >
+                            <Copy className="w-3 h-3 mr-1" />
+                            {t('vault.actions.copyUsername')}
+                        </Button>
+                    )}
+                    {item.decryptedData?.password && (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 text-xs"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                copyToClipboard(item.decryptedData!.password!, 'Password');
+                            }}
+                        >
+                            <Copy className="w-3 h-3 mr-1" />
+                            {t('vault.actions.copyPassword')}
+                        </Button>
+                    )}
+                </div>
+            </CardContent>
+        </Card>
+    );
+}

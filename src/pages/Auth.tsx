@@ -30,11 +30,11 @@ const signupSchema = z.object({
   email: z.string().email('auth.errors.invalidEmail'),
   password: z
     .string()
-    .min(12, 'auth.errors.weakPassword')
-    .regex(/[A-Z]/, 'auth.errors.weakPassword')
-    .regex(/[a-z]/, 'auth.errors.weakPassword')
-    .regex(/[0-9]/, 'auth.errors.weakPassword')
-    .regex(/[^A-Za-z0-9]/, 'auth.errors.weakPassword'),
+    .min(8, 'auth.errors.passwordTooShort')
+    .regex(/[A-Z]/, 'auth.errors.passwordNoUppercase')
+    .regex(/[a-z]/, 'auth.errors.passwordNoLowercase')
+    .regex(/[0-9]/, 'auth.errors.passwordNoDigit')
+    .regex(/[^A-Za-z0-9]/, 'auth.errors.passwordNoSymbol'),
   confirmPassword: z.string(),
 }).refine((data) => data.password === data.confirmPassword, {
   message: 'auth.errors.passwordMismatch',

@@ -319,9 +319,23 @@ export function VaultItemDialog({ open, onOpenChange, itemId, onSave }: VaultIte
 
         setLoading(true);
         try {
-            const vaultId = await resolveDefaultVaultId(user.id);
+            let vaultId = await resolveDefaultVaultId(user.id);
             if (!vaultId) {
-                throw new Error('No vault found');
+                // Create default vault if it doesn't exist
+                const { data: newVault, error: vaultError } = await supabase
+                    .from('vaults')
+                    .insert({
+                        user_id: user.id,
+                        name: 'Encrypted Vault',
+                        is_default: true,
+                    })
+                    .select('id')
+                    .single();
+
+                if (vaultError || !newVault) {
+                    throw new Error('Failed to create vault');
+                }
+                vaultId = newVault.id;
             }
 
             // Encrypt sensitive data

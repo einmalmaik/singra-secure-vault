@@ -1,56 +1,76 @@
 /**
  * @fileoverview i18n Configuration for Singra PW
- * 
+ *
  * This module sets up internationalization using i18next and react-i18next.
  * Currently supports German (default) and English.
- * 
- * ## Adding a new language:
- * 1. Create a new JSON file in src/i18n/locales/ (e.g., fr.json for French)
- * 2. Copy the structure from en.json or de.json
- * 3. Translate all strings
- * 4. Import the new file below and add it to the resources object
- * 5. Add the language option to the language selector in settings
- * 
- * @example
- * // Using translations in components:
- * import { useTranslation } from 'react-i18next';
- * 
- * function MyComponent() {
- *   const { t } = useTranslation();
- *   return <h1>{t('landing.hero.title')}</h1>;
- * }
  */
 
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 
-// Import locale files
 import de from './locales/de.json';
 import en from './locales/en.json';
 
-// Define available languages
+function decodeMojibakeString(input: string): string {
+  const hasMojibakeMarkers = input.includes('Ã') || input.includes('Â') || input.includes('â');
+  if (!hasMojibakeMarkers) return input;
+
+  let current = input;
+  for (let i = 0; i < 3; i++) {
+    try {
+      const bytes = Uint8Array.from(Array.from(current).map((char) => char.charCodeAt(0) & 0xff));
+      const decoded = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+      if (decoded === current) break;
+      current = decoded;
+    } catch {
+      break;
+    }
+  }
+
+  return current;
+}
+
+function normalizeLocaleObject<T>(value: T): T {
+  if (typeof value === 'string') {
+    return decodeMojibakeString(value) as T;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => normalizeLocaleObject(item)) as T;
+  }
+
+  if (value && typeof value === 'object') {
+    const normalizedEntries = Object.entries(value).map(([key, nested]) => [
+      key,
+      normalizeLocaleObject(nested),
+    ]);
+    return Object.fromEntries(normalizedEntries) as T;
+  }
+
+  return value;
+}
+
+const normalizedDe = normalizeLocaleObject(de);
+const normalizedEn = normalizeLocaleObject(en);
+
 export const languages = {
-  de: { name: 'Deutsch', flag: '🇩🇪' },
-  en: { name: 'English', flag: '🇬🇧' },
+  de: { name: 'Deutsch', flag: '\u{1F1E9}\u{1F1EA}' },
+  en: { name: 'English', flag: '\u{1F1EC}\u{1F1E7}' },
 } as const;
 
 export type LanguageCode = keyof typeof languages;
 
-// Get stored language or browser language or default to German
 const getInitialLanguage = (): LanguageCode => {
-  // Check localStorage first
   const stored = localStorage.getItem('Singra-language');
   if (stored && stored in languages) {
     return stored as LanguageCode;
   }
 
-  // Check browser language
   const browserLang = navigator.language.split('-')[0];
   if (browserLang in languages) {
     return browserLang as LanguageCode;
   }
 
-  // Default to German
   return 'de';
 };
 
@@ -58,35 +78,30 @@ i18n
   .use(initReactI18next)
   .init({
     resources: {
-      de: { translation: de },
-      en: { translation: en },
+      de: { translation: normalizedDe },
+      en: { translation: normalizedEn },
     },
     lng: getInitialLanguage(),
     fallbackLng: 'de',
     interpolation: {
-      escapeValue: false, // React already escapes values
+      escapeValue: false,
     },
-    // Enable debug in development
     debug: import.meta.env.DEV,
   });
 
-/**
- * Change the current language
- * @param lang - The language code to switch to
- */
 export const changeLanguage = (lang: LanguageCode) => {
-  // Check for optional cookie consent
-  const consent = localStorage.getItem("singra-cookie-consent");
+  const consent = localStorage.getItem('singra-cookie-consent');
   if (consent) {
     try {
       const parsed = JSON.parse(consent);
       if (parsed.optional) {
         localStorage.setItem('Singra-language', lang);
       }
-    } catch (e) {
-      // If parse fails, err on safe side and don't save
+    } catch {
+      // If parse fails, err on safe side and don't save.
     }
   }
+
   i18n.changeLanguage(lang);
 };
 

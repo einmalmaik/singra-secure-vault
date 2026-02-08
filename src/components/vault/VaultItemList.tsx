@@ -25,6 +25,7 @@ interface VaultItem {
     vault_id: string;
     title: string;
     website_url: string | null;
+    icon_url: string | null;
     item_type: 'password' | 'note' | 'totp' | 'card';
     is_favorite: boolean | null;
     category_id: string | null;
@@ -96,13 +97,30 @@ export function VaultItemList({
                             const decryptedData = await decryptItem(item.encrypted_data);
                             const hasLegacyPlaintextMeta =
                                 (!decryptedData.title && item.title && item.title !== ENCRYPTED_ITEM_TITLE_PLACEHOLDER) ||
-                                (!decryptedData.websiteUrl && !!item.website_url);
+                                (!decryptedData.websiteUrl && !!item.website_url) ||
+                                (!decryptedData.itemType && !!item.item_type) ||
+                                (typeof decryptedData.isFavorite !== 'boolean' && item.is_favorite !== null) ||
+                                (typeof decryptedData.categoryId === 'undefined' && item.category_id !== null);
+                            const hasPlaintextColumnsToCleanup =
+                                item.title !== ENCRYPTED_ITEM_TITLE_PLACEHOLDER ||
+                                item.website_url !== null ||
+                                item.icon_url !== null ||
+                                item.item_type !== 'password' ||
+                                !!item.is_favorite ||
+                                item.category_id !== null;
 
-                            if (hasLegacyPlaintextMeta) {
+                            if (hasLegacyPlaintextMeta || hasPlaintextColumnsToCleanup) {
                                 const migratedEncryptedData = await encryptItem({
                                     ...decryptedData,
                                     title: decryptedData.title || item.title,
                                     websiteUrl: decryptedData.websiteUrl || item.website_url || undefined,
+                                    itemType: decryptedData.itemType || item.item_type || 'password',
+                                    isFavorite: typeof decryptedData.isFavorite === 'boolean'
+                                        ? decryptedData.isFavorite
+                                        : !!item.is_favorite,
+                                    categoryId: typeof decryptedData.categoryId !== 'undefined'
+                                        ? decryptedData.categoryId
+                                        : item.category_id,
                                 });
 
                                 await supabase
@@ -111,18 +129,35 @@ export function VaultItemList({
                                         encrypted_data: migratedEncryptedData,
                                         title: ENCRYPTED_ITEM_TITLE_PLACEHOLDER,
                                         website_url: null,
+                                        icon_url: null,
+                                        item_type: 'password',
+                                        is_favorite: false,
+                                        category_id: null,
                                     })
                                     .eq('id', item.id);
+
+                                const resolvedDecryptedData = {
+                                    ...decryptedData,
+                                    title: decryptedData.title || item.title,
+                                    websiteUrl: decryptedData.websiteUrl || item.website_url || undefined,
+                                    itemType: decryptedData.itemType || item.item_type || 'password',
+                                    isFavorite: typeof decryptedData.isFavorite === 'boolean'
+                                        ? decryptedData.isFavorite
+                                        : !!item.is_favorite,
+                                    categoryId: typeof decryptedData.categoryId !== 'undefined'
+                                        ? decryptedData.categoryId
+                                        : item.category_id,
+                                };
 
                                 return {
                                     ...item,
                                     title: ENCRYPTED_ITEM_TITLE_PLACEHOLDER,
                                     website_url: null,
-                                    decryptedData: {
-                                        ...decryptedData,
-                                        title: decryptedData.title || item.title,
-                                        websiteUrl: decryptedData.websiteUrl || item.website_url || undefined,
-                                    },
+                                    icon_url: null,
+                                    item_type: 'password',
+                                    is_favorite: false,
+                                    category_id: null,
+                                    decryptedData: resolvedDecryptedData,
                                 };
                             }
 
@@ -149,14 +184,20 @@ export function VaultItemList({
     // Filter items
     const filteredItems = useMemo(() => {
         return items.filter((item) => {
+            const resolvedCategoryId = item.decryptedData?.categoryId ?? item.category_id;
+            const resolvedItemType = item.decryptedData?.itemType || item.item_type;
+            const resolvedIsFavorite = typeof item.decryptedData?.isFavorite === 'boolean'
+                ? item.decryptedData.isFavorite
+                : !!item.is_favorite;
+
             // Category filter
-            if (categoryId && item.category_id !== categoryId) return false;
+            if (categoryId && resolvedCategoryId !== categoryId) return false;
 
             // Type filter
-            if (filter === 'passwords' && item.item_type !== 'password') return false;
-            if (filter === 'notes' && item.item_type !== 'note') return false;
-            if (filter === 'totp' && item.item_type !== 'totp') return false;
-            if (filter === 'favorites' && !item.is_favorite) return false;
+            if (filter === 'passwords' && resolvedItemType !== 'password') return false;
+            if (filter === 'notes' && resolvedItemType !== 'note') return false;
+            if (filter === 'totp' && resolvedItemType !== 'totp') return false;
+            if (filter === 'favorites' && !resolvedIsFavorite) return false;
 
             // Search filter
             if (searchQuery) {

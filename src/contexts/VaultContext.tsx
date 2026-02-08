@@ -185,7 +185,7 @@ export function VaultProvider({ children }: VaultProviderProps) {
             if (!existingVault) {
                 await supabase.from('vaults').insert({
                     user_id: user.id,
-                    name: 'Persönlicher Tresor',
+                    name: 'Encrypted Vault',
                     is_default: true,
                 });
             }
@@ -349,3 +349,4 @@ export function useVault() {
     }
     return context;
 }
+

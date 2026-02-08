@@ -147,6 +147,8 @@ export function VaultItemDialog({ open, onOpenChange, itemId, onSave }: VaultIte
             const resolvedCategories = await Promise.all(
                 data.map(async (cat) => {
                     let resolvedName = cat.name;
+                    let resolvedIcon = cat.icon;
+                    let resolvedColor = cat.color;
 
                     if (cat.name.startsWith(ENCRYPTED_CATEGORY_PREFIX)) {
                         try {
@@ -167,9 +169,49 @@ export function VaultItemDialog({ open, onOpenChange, itemId, onSave }: VaultIte
                         }
                     }
 
+                    if (cat.icon && cat.icon.startsWith(ENCRYPTED_CATEGORY_PREFIX)) {
+                        try {
+                            resolvedIcon = await decryptData(cat.icon.slice(ENCRYPTED_CATEGORY_PREFIX.length));
+                        } catch (err) {
+                            console.error('Failed to decrypt category icon:', cat.id, err);
+                            resolvedIcon = null;
+                        }
+                    } else if (cat.icon) {
+                        try {
+                            const encryptedIcon = await encryptData(cat.icon);
+                            await supabase
+                                .from('categories')
+                                .update({ icon: `${ENCRYPTED_CATEGORY_PREFIX}${encryptedIcon}` })
+                                .eq('id', cat.id);
+                        } catch (err) {
+                            console.error('Failed to migrate category icon:', cat.id, err);
+                        }
+                    }
+
+                    if (cat.color && cat.color.startsWith(ENCRYPTED_CATEGORY_PREFIX)) {
+                        try {
+                            resolvedColor = await decryptData(cat.color.slice(ENCRYPTED_CATEGORY_PREFIX.length));
+                        } catch (err) {
+                            console.error('Failed to decrypt category color:', cat.id, err);
+                            resolvedColor = '#3b82f6';
+                        }
+                    } else if (cat.color) {
+                        try {
+                            const encryptedColor = await encryptData(cat.color);
+                            await supabase
+                                .from('categories')
+                                .update({ color: `${ENCRYPTED_CATEGORY_PREFIX}${encryptedColor}` })
+                                .eq('id', cat.id);
+                        } catch (err) {
+                            console.error('Failed to migrate category color:', cat.id, err);
+                        }
+                    }
+
                     return {
                         ...cat,
                         name: resolvedName,
+                        icon: resolvedIcon,
+                        color: resolvedColor,
                     };
                 })
             );
@@ -202,6 +244,13 @@ export function VaultItemDialog({ open, onOpenChange, itemId, onSave }: VaultIte
                 const decrypted = await decryptItem(item.encrypted_data);
                 const resolvedTitle = decrypted.title || item.title || '';
                 const resolvedUrl = decrypted.websiteUrl || item.website_url || '';
+                const resolvedFavorite = typeof decrypted.isFavorite === 'boolean'
+                    ? decrypted.isFavorite
+                    : !!item.is_favorite;
+                const candidateType = decrypted.itemType || item.item_type || 'password';
+                const resolvedType: 'password' | 'note' | 'totp' =
+                    candidateType === 'note' || candidateType === 'totp' ? candidateType : 'password';
+                const resolvedCategoryId = decrypted.categoryId ?? item.category_id ?? null;
 
                 form.reset({
                     title: resolvedTitle,
@@ -210,11 +259,11 @@ export function VaultItemDialog({ open, onOpenChange, itemId, onSave }: VaultIte
                     password: decrypted.password || '',
                     notes: decrypted.notes || '',
                     totpSecret: decrypted.totpSecret || '',
-                    isFavorite: item.is_favorite,
+                    isFavorite: resolvedFavorite,
                 });
 
-                setItemType(item.item_type as 'password' | 'note' | 'totp');
-                setSelectedCategoryId(item.category_id || null);
+                setItemType(resolvedType);
+                setSelectedCategoryId(resolvedCategoryId);
             } catch (err) {
                 console.error('Error loading item:', err);
                 toast({
@@ -263,6 +312,9 @@ export function VaultItemDialog({ open, onOpenChange, itemId, onSave }: VaultIte
             const encryptedData = await encryptItem({
                 title: data.title,
                 websiteUrl: normalizeUrl(data.url) || undefined,
+                itemType,
+                isFavorite: data.isFavorite,
+                categoryId: selectedCategoryId,
                 username: data.username,
                 password: data.password,
                 notes: data.notes,
@@ -274,10 +326,11 @@ export function VaultItemDialog({ open, onOpenChange, itemId, onSave }: VaultIte
                 vault_id: vault.id,
                 title: ENCRYPTED_ITEM_TITLE_PLACEHOLDER,
                 website_url: null,
-                item_type: itemType,
-                is_favorite: data.isFavorite,
+                icon_url: null,
+                item_type: 'password' as const,
+                is_favorite: false,
                 encrypted_data: encryptedData,
-                category_id: selectedCategoryId,
+                category_id: null,
             };
 
             if (isEditing) {

@@ -124,7 +124,7 @@
     "zeroKnowledge": {
       "title": "Zero-Knowledge Architecture",
       "description": "Your data belongs only to you.",
-      "details": "Singra PW is built on a Zero-Knowledge principle. This means your passwords and sensitive data are encrypted exclusively on your device before ever being stored or transmitted. We as operators have technically no way to view your decrypted data. Your Master Password never leaves your device."
+      "details": "Singra PW is built on a Zero-Knowledge principle. This means your passwords and sensitive data are encrypted exclusively on your device before ever being stored or transmitted. We as operators have technically no way to view your decrypted data. Your Master Password never leaves your device.\n\nTransparency note: In the current web architecture, 100% absolute Zero-Knowledge is not fully possible because some technical metadata must remain processable on the server (for example IDs, timestamps, ownership references, and session/authentication state). We minimize this metadata, encrypt all sensitive vault content and major vault metadata, and continuously reduce plaintext wherever technically feasible."
     },
     "general": {
       "title": "General",
@@ -132,11 +132,11 @@
     },
     "collection": {
       "title": "Data Collection",
-      "content": "We collect only what is necessary to provide the service:\n\n- Email address (for authentication and account recovery)\n- Encrypted vault data (we cannot read the content)\n- Master Password Hash (for verification, not the password itself)\n- Encrypted 2FA/TOTP secret (for two-factor authentication)\n- Authentication metadata (login time)"
+      "content": "We collect only what is necessary to provide the service:\n\n- Email address (for authentication and account recovery)\n- Encrypted vault data (we cannot read the content)\n- Encrypted vault metadata (e.g. item title, URL, type, favorite flag, category reference)\n- Master Password Hash (for verification, not the password itself)\n- Encrypted 2FA/TOTP secret (for two-factor authentication)\n- Authentication metadata (login time)"
     },
     "security": {
       "title": "Security Measures",
-      "content": "To protect your data, we use state-of-the-art encryption technologies:\n\n- AES-256-GCM for data encryption\n- Argon2id for key derivation\n- Server-side encryption for stored 2FA/TOTP secrets\n- HTTPS/TLS for all transmissions\n\nAll cryptographic operations for vault data take place locally in your browser."
+      "content": "To protect your data, we use state-of-the-art encryption technologies:\n\n- AES-256-GCM for data encryption\n- Argon2id for key derivation\n- Client-side encryption for vault content and vault metadata\n- Server-side encryption for stored 2FA/TOTP secrets\n- HTTPS/TLS for all transmissions\n\nAll cryptographic operations for vault data take place locally in your browser."
     },
     "storage": {
       "title": "Data Storage",

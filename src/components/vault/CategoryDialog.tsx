@@ -67,12 +67,13 @@ interface CategoryDialogProps {
 }
 
 const ENCRYPTED_CATEGORY_PREFIX = 'enc:cat:v1:';
+const ENCRYPTED_ITEM_TITLE_PLACEHOLDER = 'Encrypted Item';
 
 export function CategoryDialog({ open, onOpenChange, category, onSave }: CategoryDialogProps) {
     const { t } = useTranslation();
     const { toast } = useToast();
     const { user } = useAuth();
-    const { encryptData } = useVault();
+    const { encryptData, decryptItem, encryptItem } = useVault();
 
     const [name, setName] = useState('');
     const [icon, setIcon] = useState('');
@@ -121,8 +122,10 @@ export function CategoryDialog({ open, onOpenChange, category, onSave }: Categor
 
             const categoryData = {
                 name: `${ENCRYPTED_CATEGORY_PREFIX}${await encryptData(name.trim())}`,
-                icon: normalizedIcon,
-                color: color,
+                icon: normalizedIcon
+                    ? `${ENCRYPTED_CATEGORY_PREFIX}${await encryptData(normalizedIcon)}`
+                    : null,
+                color: `${ENCRYPTED_CATEGORY_PREFIX}${await encryptData(color)}`,
                 user_id: user.id,
             };
 
@@ -166,11 +169,66 @@ export function CategoryDialog({ open, onOpenChange, category, onSave }: Categor
     };
 
     const handleDelete = async () => {
-        if (!category) return;
+        if (!category || !user) return;
 
         setLoading(true);
         try {
-            // First, unlink all items from this category
+            // First, unlink all items from this category in encrypted payload and legacy columns
+            const { data: vault } = await supabase
+                .from('vaults')
+                .select('id')
+                .eq('user_id', user.id)
+                .eq('is_default', true)
+                .single();
+
+            if (vault) {
+                const { data: items, error: itemsError } = await supabase
+                    .from('vault_items')
+                    .select('id, title, website_url, icon_url, item_type, is_favorite, category_id, encrypted_data')
+                    .eq('vault_id', vault.id);
+
+                if (itemsError) throw itemsError;
+
+                await Promise.all(
+                    (items || []).map(async (item) => {
+                        try {
+                            const decryptedData = await decryptItem(item.encrypted_data);
+                            const resolvedCategoryId = decryptedData.categoryId ?? item.category_id ?? null;
+                            if (resolvedCategoryId !== category.id) {
+                                return;
+                            }
+
+                            const migratedEncryptedData = await encryptItem({
+                                ...decryptedData,
+                                title: decryptedData.title || item.title,
+                                websiteUrl: decryptedData.websiteUrl || item.website_url || undefined,
+                                itemType: decryptedData.itemType || item.item_type || 'password',
+                                isFavorite: typeof decryptedData.isFavorite === 'boolean'
+                                    ? decryptedData.isFavorite
+                                    : !!item.is_favorite,
+                                categoryId: null,
+                            });
+
+                            await supabase
+                                .from('vault_items')
+                                .update({
+                                    encrypted_data: migratedEncryptedData,
+                                    title: ENCRYPTED_ITEM_TITLE_PLACEHOLDER,
+                                    website_url: null,
+                                    icon_url: null,
+                                    item_type: 'password',
+                                    is_favorite: false,
+                                    category_id: null,
+                                })
+                                .eq('id', item.id);
+                        } catch (err) {
+                            console.error('Failed to unlink encrypted category reference:', item.id, err);
+                        }
+                    })
+                );
+            }
+
+            // Fallback cleanup for legacy rows
             const { error: unlinkError } = await supabase
                 .from('vault_items')
                 .update({ category_id: null })

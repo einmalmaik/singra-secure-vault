@@ -83,11 +83,17 @@ export function DataSettings() {
                         const decrypted = await decryptItem(item.encrypted_data);
                         const resolvedTitle = decrypted.title || item.title;
                         const resolvedWebsiteUrl = decrypted.websiteUrl || item.website_url;
+                        const resolvedItemType = decrypted.itemType || item.item_type || 'password';
+                        const resolvedFavorite = typeof decrypted.isFavorite === 'boolean'
+                            ? decrypted.isFavorite
+                            : !!item.is_favorite;
+                        const resolvedCategoryId = decrypted.categoryId ?? item.category_id ?? null;
                         return {
                             title: resolvedTitle,
                             website_url: resolvedWebsiteUrl,
-                            item_type: item.item_type,
-                            is_favorite: item.is_favorite,
+                            item_type: resolvedItemType,
+                            is_favorite: resolvedFavorite,
+                            category_id: resolvedCategoryId,
                             data: decrypted,
                         };
                     } catch {
@@ -178,6 +184,11 @@ export function DataSettings() {
                         ...item.data,
                         title: item.title || item.data?.title || 'Imported Item',
                         websiteUrl: item.website_url || item.data?.websiteUrl || undefined,
+                        itemType: item.item_type || item.data?.itemType || 'password',
+                        isFavorite: typeof item.is_favorite === 'boolean'
+                            ? item.is_favorite
+                            : !!item.data?.isFavorite,
+                        categoryId: item.category_id ?? item.data?.categoryId ?? null,
                     });
 
                     // Insert into database
@@ -186,8 +197,10 @@ export function DataSettings() {
                         vault_id: vault.id,
                         title: ENCRYPTED_ITEM_TITLE_PLACEHOLDER,
                         website_url: null,
-                        item_type: item.item_type || 'password',
-                        is_favorite: item.is_favorite || false,
+                        icon_url: null,
+                        item_type: 'password',
+                        is_favorite: false,
+                        category_id: null,
                         encrypted_data: encryptedData,
                     });
 

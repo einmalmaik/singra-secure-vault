@@ -229,6 +229,9 @@ function base64ToUint8Array(base64: string): Uint8Array {
 export interface VaultItemData {
     title?: string;
     websiteUrl?: string;
+    itemType?: 'password' | 'note' | 'totp' | 'card';
+    isFavorite?: boolean;
+    categoryId?: string | null;
     username?: string;
     password?: string;
     notes?: string;
@@ -243,6 +246,9 @@ export interface VaultItemData {
 export function secureClear(data: VaultItemData): void {
     if (data.title) data.title = '';
     if (data.websiteUrl) data.websiteUrl = '';
+    if (data.itemType) data.itemType = 'password';
+    if (typeof data.isFavorite === 'boolean') data.isFavorite = false;
+    if (typeof data.categoryId !== 'undefined') data.categoryId = null;
     if (data.username) data.username = '';
     if (data.password) data.password = '';
     if (data.notes) data.notes = '';

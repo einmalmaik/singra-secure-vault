@@ -55,9 +55,13 @@ export function VaultItemCard({ item, viewMode, onEdit }: VaultItemCardProps) {
     const [showPassword, setShowPassword] = useState(false);
     const resolvedTitle = item.decryptedData?.title || item.title;
     const resolvedWebsiteUrl = item.decryptedData?.websiteUrl || item.website_url;
+    const resolvedItemType = item.decryptedData?.itemType || item.item_type;
+    const resolvedIsFavorite = typeof item.decryptedData?.isFavorite === 'boolean'
+        ? item.decryptedData.isFavorite
+        : !!item.is_favorite;
 
     const getIcon = () => {
-        switch (item.item_type) {
+        switch (resolvedItemType) {
             case 'password':
                 return <Key className="w-5 h-5" />;
             case 'note':
@@ -115,7 +119,7 @@ export function VaultItemCard({ item, viewMode, onEdit }: VaultItemCardProps) {
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                             <h3 className="font-medium truncate">{resolvedTitle}</h3>
-                            {item.is_favorite && (
+                            {resolvedIsFavorite && (
                                 <Star className="w-4 h-4 text-amber-500 fill-amber-500 flex-shrink-0" />
                             )}
                         </div>
@@ -191,7 +195,7 @@ export function VaultItemCard({ item, viewMode, onEdit }: VaultItemCardProps) {
                             )}
                         </div>
                     </div>
-                    {item.is_favorite && (
+                    {resolvedIsFavorite && (
                         <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
                     )}
                 </div>
@@ -206,7 +210,7 @@ export function VaultItemCard({ item, viewMode, onEdit }: VaultItemCardProps) {
                 )}
 
                 {/* Password (if password type) */}
-                {item.item_type === 'password' && item.decryptedData?.password && (
+                {resolvedItemType === 'password' && item.decryptedData?.password && (
                     <div className="flex items-center gap-2 mb-3">
                         <code className="flex-1 text-sm bg-muted px-2 py-1 rounded font-mono truncate">
                             {showPassword ? item.decryptedData.password : '••••••••••'}
@@ -226,7 +230,7 @@ export function VaultItemCard({ item, viewMode, onEdit }: VaultItemCardProps) {
                 )}
 
                 {/* TOTP Display */}
-                {item.item_type === 'totp' && item.decryptedData?.totpSecret && (
+                {resolvedItemType === 'totp' && item.decryptedData?.totpSecret && (
                     <div className="mb-3" onClick={(e) => e.stopPropagation()}>
                         <TOTPDisplay secret={item.decryptedData.totpSecret} />
                     </div>

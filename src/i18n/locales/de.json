@@ -132,11 +132,11 @@
     },
     "collection": {
       "title": "Datenerfassung",
-      "content": "Wir erfassen nur das Nötigste, um den Dienst bereitzustellen:\n\n• E-Mail-Adresse (für Authentifizierung und Kontowiederherstellung)\n• Verschlüsselte Tresor-Daten (wir können den Inhalt nicht lesen)\n• Master-Passwort-Hash (zur Verifizierung, nicht das Passwort selbst)\n• Authentifizierungs-Metadaten (Anmeldezeitpunkt)"
+      "content": "Wir erfassen nur das Noetigste, um den Dienst bereitzustellen:\n\n- E-Mail-Adresse (fuer Authentifizierung und Kontowiederherstellung)\n- Verschluesselte Tresor-Daten (wir koennen den Inhalt nicht lesen)\n- Master-Passwort-Hash (zur Verifizierung, nicht das Passwort selbst)\n- Verschluesseltes 2FA/TOTP-Secret (fuer Zwei-Faktor-Authentifizierung)\n- Authentifizierungs-Metadaten (Anmeldezeitpunkt)"
     },
     "security": {
-      "title": "Sicherheitsmaßnahmen",
-      "content": "Zum Schutz deiner Daten setzen wir modernste Verschlüsselungstechnologien ein:\n\n• AES-256-GCM für die Datenverschlüsselung\n• Argon2id für die Schlüsselableitung\n• HTTPS/TLS für alle Übertragungen\n\nAlle kryptographischen Operationen finden lokal in deinem Browser statt."
+      "title": "Sicherheitsmassnahmen",
+      "content": "Zum Schutz deiner Daten setzen wir moderne Verschluesselungstechnologien ein:\n\n- AES-256-GCM fuer die Datenverschluesselung\n- Argon2id fuer die Schluesselableitung\n- Serverseitige Verschluesselung fuer gespeicherte 2FA/TOTP-Secrets\n- HTTPS/TLS fuer alle Uebertragungen\n\nAlle kryptographischen Operationen fuer Tresor-Daten finden lokal in deinem Browser statt."
     },
     "storage": {
       "title": "Datenspeicherung",
@@ -514,3 +514,4 @@
     "addFirst": "Erste Kategorie erstellen"
   }
 }
+

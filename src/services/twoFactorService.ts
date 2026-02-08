@@ -174,18 +174,16 @@ export async function get2FAStatus(userId: string): Promise<TwoFactorStatus | nu
  * @returns Secret or null
  */
 export async function getTOTPSecret(userId: string): Promise<string | null> {
-    const { data, error } = await supabase
-        .from('user_2fa')
-        .select('totp_secret')
-        .eq('user_id', userId)
-        .eq('is_enabled', true)
-        .single();
+    const { data, error } = await supabase.rpc('get_user_2fa_secret', {
+        p_user_id: userId,
+        p_require_enabled: true,
+    });
 
     if (error || !data) {
         return null;
     }
 
-    return data.totp_secret;
+    return data;
 }
 
 /**
@@ -198,17 +196,9 @@ export async function initializeTwoFactorSetup(
     userId: string,
     secret: string
 ): Promise<{ success: boolean; error?: string }> {
-    // Delete any existing incomplete setup
-    await supabase
-        .from('user_2fa')
-        .delete()
-        .eq('user_id', userId)
-        .eq('is_enabled', false);
-
-    const { error } = await supabase.from('user_2fa').insert({
-        user_id: userId,
-        totp_secret: secret,
-        is_enabled: false,
+    const { error } = await supabase.rpc('initialize_user_2fa_secret', {
+        p_user_id: userId,
+        p_secret: secret,
     });
 
     if (error) {
@@ -232,19 +222,17 @@ export async function enableTwoFactor(
     backupCodes: string[]
 ): Promise<{ success: boolean; error?: string }> {
     // Get the pending secret
-    const { data: setupData, error: fetchError } = await supabase
-        .from('user_2fa')
-        .select('totp_secret')
-        .eq('user_id', userId)
-        .eq('is_enabled', false)
-        .single();
+    const { data: pendingSecret, error: fetchError } = await supabase.rpc('get_user_2fa_secret', {
+        p_user_id: userId,
+        p_require_enabled: false,
+    });
 
-    if (fetchError || !setupData) {
+    if (fetchError || !pendingSecret) {
         return { success: false, error: '2FA setup not found. Please start again.' };
     }
 
     // Verify the code
-    if (!verifyTOTPCode(setupData.totp_secret, code)) {
+    if (!verifyTOTPCode(pendingSecret, code)) {
         return { success: false, error: 'Invalid code. Please try again.' };
     }
 

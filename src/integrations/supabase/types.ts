@@ -349,12 +349,32 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: Json
       }
+      get_user_2fa_secret: {
+        Args: {
+          p_require_enabled?: boolean
+          p_user_id: string
+        }
+        Returns: string
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
         Returns: boolean
+      }
+      initialize_user_2fa_secret: {
+        Args: {
+          p_secret: string
+          p_user_id: string
+        }
+        Returns: undefined
+      }
+      rotate_totp_encryption_key: {
+        Args: {
+          p_new_key: string
+        }
+        Returns: number
       }
     }
     Enums: {

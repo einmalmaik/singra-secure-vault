@@ -4,19 +4,65 @@
  * Top navigation bar with logo, links, and auth buttons.
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
-import { Shield, Menu, X, Moon, Sun } from 'lucide-react';
+import { Shield, Menu, X, Moon, Sun, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTheme } from '@/contexts/ThemeProvider';
 import { useAuth } from '@/contexts/AuthContext';
+
+// Type for the BeforeInstallPromptEvent
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+}
 
 export function Header() {
   const { t } = useTranslation();
   const { resolvedTheme, setTheme } = useTheme();
   const { user } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [isInstallable, setIsInstallable] = useState(false);
+
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e: Event) => {
+      // Prevent the mini-infobar from appearing on mobile
+      e.preventDefault();
+      // Save the event so it can be triggered later
+      setDeferredPrompt(e as BeforeInstallPromptEvent);
+      setIsInstallable(true);
+    };
+
+    const handleAppInstalled = () => {
+      setDeferredPrompt(null);
+      setIsInstallable(false);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('appinstalled', handleAppInstalled);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', handleAppInstalled);
+    };
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return;
+
+    // Show the install prompt
+    await deferredPrompt.prompt();
+
+    // Wait for the user's response
+    const { outcome } = await deferredPrompt.userChoice;
+
+    if (outcome === 'accepted') {
+      setDeferredPrompt(null);
+      setIsInstallable(false);
+    }
+  };
 
   const toggleTheme = () => {
     setTheme(resolvedTheme === 'dark' ? 'light' : 'dark');
@@ -57,6 +103,20 @@ export function Header() {
                 <Moon className="w-5 h-5" />
               )}
             </Button>
+
+            {/* PWA Install Button */}
+            {isInstallable && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleInstallClick}
+                aria-label={t('pwa.install', 'App installieren')}
+                title={t('pwa.install', 'App installieren')}
+                className="text-primary"
+              >
+                <Download className="w-5 h-5" />
+              </Button>
+            )}
 
             {/* Auth Buttons */}
             <div className="hidden sm:flex items-center gap-2">
@@ -114,7 +174,21 @@ export function Header() {
               >
                 Vergleich
               </a>
-              <div className="flex gap-2 pt-4 border-t">
+              <div className="flex flex-col gap-2 pt-4 border-t">
+                {/* PWA Install Button for Mobile */}
+                {isInstallable && (
+                  <Button
+                    onClick={() => {
+                      handleInstallClick();
+                      setMobileMenuOpen(false);
+                    }}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    {t('pwa.install', 'App installieren')}
+                  </Button>
+                )}
                 {user ? (
                   <Button asChild className="flex-1">
                     <Link to="/vault">{t('nav.vault')}</Link>

@@ -30,6 +30,9 @@
     "login": "Anmelden",
     "signup": "Registrieren"
   },
+  "pwa": {
+    "install": "App installieren"
+  },
   "landing": {
     "hero": {
       "title": "Deine PasswÃ¶rter.",

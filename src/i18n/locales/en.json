@@ -30,6 +30,9 @@
     "login": "Login",
     "signup": "Sign up"
   },
+  "pwa": {
+    "install": "Install App"
+  },
   "landing": {
     "hero": {
       "title": "Your Passwords.",

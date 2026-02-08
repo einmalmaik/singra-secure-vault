@@ -218,7 +218,8 @@
       "subtitle": "Gib dein Master-Passwort ein, um auf deine Daten zuzugreifen",
       "password": "Master-Passwort",
       "submit": "Entsperren",
-      "logout": "Abmelden"
+      "logout": "Abmelden",
+      "sessionRestore": "Bitte gib dein Master-Passwort erneut ein, um deine Sitzung fortzusetzen."
     },
     "providers": {
       "google": "Google",
@@ -388,7 +389,7 @@
       "title": "Sicherheit",
       "description": "Kontrolliere die Sicherheitseinstellungen deines Tresors.",
       "autoLock": "Auto-Lock Timer",
-      "autoLockDesc": "Der Tresor wird automatisch nach InaktivitÃ¤t gesperrt.",
+      "autoLockDesc": "Der Tresor wird automatisch nach Inaktivität gesperrt. Hinweis: Ein Neuladen der Seite erfordert aus Sicherheitsgründen immer die erneute Eingabe des Master-Passworts.",
       "autoLockUpdated": "Auto-Lock Einstellung gespeichert.",
       "never": "Nie",
       "manualLock": "Manuelles Sperren",

@@ -23,7 +23,7 @@ import { get2FAStatus, verifyTwoFactorForLogin } from '@/services/twoFactorServi
 export function VaultUnlock() {
     const { t } = useTranslation();
     const { toast } = useToast();
-    const { unlock } = useVault();
+    const { unlock, pendingSessionRestore } = useVault();
     const { signOut, user } = useAuth();
 
     const [password, setPassword] = useState('');
@@ -121,6 +121,11 @@ export function VaultUnlock() {
                     <CardDescription>
                         {t('auth.unlock.subtitle')}
                     </CardDescription>
+                    {pendingSessionRestore && (
+                        <div className="mt-3 px-3 py-2 rounded-lg bg-blue-500/10 border border-blue-500/20 text-sm text-blue-600 dark:text-blue-400">
+                            {t('auth.unlock.sessionRestore', 'Please re-enter your master password to continue your session.')}
+                        </div>
+                    )}
                 </CardHeader>
 
                 <CardContent>

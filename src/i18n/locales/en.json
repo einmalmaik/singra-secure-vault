@@ -218,7 +218,8 @@
       "subtitle": "Enter your master password to access your data",
       "password": "Master Password",
       "submit": "Unlock",
-      "logout": "Logout"
+      "logout": "Logout",
+      "sessionRestore": "Please re-enter your master password to continue your session."
     },
     "providers": {
       "google": "Google",
@@ -360,7 +361,7 @@
       "title": "Security",
       "description": "Control the security settings of your vault.",
       "autoLock": "Auto-Lock Timer",
-      "autoLockDesc": "The vault will automatically lock after inactivity.",
+      "autoLockDesc": "The vault will automatically lock after inactivity. Note: Reloading the page always requires re-entering your master password for security reasons.",
       "autoLockUpdated": "Auto-lock setting saved.",
       "never": "Never",
       "manualLock": "Manual Lock",

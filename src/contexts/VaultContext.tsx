@@ -27,11 +27,17 @@ import { useAuth } from './AuthContext';
 // Auto-lock timeout in milliseconds (default 15 minutes)
 const DEFAULT_AUTO_LOCK_TIMEOUT = 15 * 60 * 1000;
 
+// Session storage keys
+const SESSION_KEY = 'singra_session';
+const SESSION_TIMESTAMP_KEY = 'singra_session_ts';
+const SESSION_PASSWORD_HINT_KEY = 'singra_session_hint';
+
 interface VaultContextType {
     // State
     isLocked: boolean;
     isSetupRequired: boolean;
     isLoading: boolean;
+    pendingSessionRestore: boolean;
 
     // Actions
     setupMasterPassword: (masterPassword: string) => Promise<{ error: Error | null }>;
@@ -58,17 +64,39 @@ interface VaultProviderProps {
 export function VaultProvider({ children }: VaultProviderProps) {
     const { user } = useAuth();
 
-    // State
+    // Get initial auto-lock timeout from localStorage
+    const getInitialAutoLockTimeout = () => {
+        const saved = localStorage.getItem('singra_autolock');
+        return saved ? parseInt(saved, 10) : DEFAULT_AUTO_LOCK_TIMEOUT;
+    };
+
+    // Check if session is still valid based on timestamp and auto-lock settings
+    const isSessionValid = () => {
+        const sessionData = sessionStorage.getItem(SESSION_KEY);
+        const timestamp = sessionStorage.getItem(SESSION_TIMESTAMP_KEY);
+        const timeout = getInitialAutoLockTimeout();
+
+        if (!sessionData || !timestamp) return false;
+
+        // If auto-lock is disabled (0 = never), session is always valid
+        if (timeout === 0) return true;
+
+        // Check if session has expired based on auto-lock timeout
+        const elapsed = Date.now() - parseInt(timestamp, 10);
+        return elapsed < timeout;
+    };
+
+    // State - isLocked always starts true because encryptionKey cannot be persisted
+    // pendingSessionRestore indicates if we should show the session restore hint
     const [isLocked, setIsLocked] = useState(true);
     const [isSetupRequired, setIsSetupRequired] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [encryptionKey, setEncryptionKey] = useState<CryptoKey | null>(null);
     const [salt, setSalt] = useState<string | null>(null);
     const [verificationHash, setVerificationHash] = useState<string | null>(null);
-    const [autoLockTimeout, setAutoLockTimeoutState] = useState(() => {
-        const saved = localStorage.getItem('singra_autolock');
-        return saved ? parseInt(saved, 10) : DEFAULT_AUTO_LOCK_TIMEOUT;
-    });
+    const [autoLockTimeout, setAutoLockTimeoutState] = useState(getInitialAutoLockTimeout);
+    // Show session restore hint if session is still valid (user just needs to re-enter password)
+    const [pendingSessionRestore, setPendingSessionRestore] = useState(() => isSessionValid());
 
     const setAutoLockTimeout = (timeout: number) => {
         // Check for optional cookie consent
@@ -211,6 +239,11 @@ export function VaultProvider({ children }: VaultProviderProps) {
             setIsLocked(false);
             setLastActivity(Date.now());
 
+            // Store session indicator in sessionStorage
+            sessionStorage.setItem(SESSION_KEY, 'active');
+            sessionStorage.setItem(SESSION_TIMESTAMP_KEY, Date.now().toString());
+            setPendingSessionRestore(false);
+
             return { error: null };
         } catch (err) {
             console.error('Error setting up master password:', err);
@@ -262,6 +295,11 @@ export function VaultProvider({ children }: VaultProviderProps) {
             setIsLocked(false);
             setLastActivity(Date.now());
 
+            // Store session indicator in sessionStorage
+            sessionStorage.setItem(SESSION_KEY, 'active');
+            sessionStorage.setItem(SESSION_TIMESTAMP_KEY, Date.now().toString());
+            setPendingSessionRestore(false);
+
             return { error: null };
         } catch (err) {
             console.error('Error unlocking vault:', err);
@@ -275,6 +313,10 @@ export function VaultProvider({ children }: VaultProviderProps) {
     const lock = useCallback(() => {
         setEncryptionKey(null);
         setIsLocked(true);
+        // Clear session data
+        sessionStorage.removeItem(SESSION_KEY);
+        sessionStorage.removeItem(SESSION_TIMESTAMP_KEY);
+        setPendingSessionRestore(false);
     }, []);
 
     /**
@@ -332,6 +374,7 @@ export function VaultProvider({ children }: VaultProviderProps) {
                 decryptItem,
                 autoLockTimeout,
                 setAutoLockTimeout,
+                pendingSessionRestore,
             }}
         >
             {children}

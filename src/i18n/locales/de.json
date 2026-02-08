@@ -144,7 +144,7 @@
     },
     "cookies": {
       "title": "Cookies & Lokale Daten",
-      "content": "Wir verwenden lokale Speichertechnologien (LocalStorage), um deine Einstellungen (z.B. Theme, Sprache) und Sitzungsinformationen zu speichern. Wir verwenden keine Tracking-Cookies von Drittanbietern."
+      "content": "Wir verwenden lokale Speichertechnologien (LocalStorage und IndexedDB), um deine Einstellungen (z.B. Theme, Sprache), Sitzungsinformationen und den verschlüsselten Offline-Tresor-Cache für die PWA-Nutzung zu speichern. Wir verwenden keine Tracking-Cookies von Drittanbietern."
     },
     "rights": {
       "title": "Deine Rechte",

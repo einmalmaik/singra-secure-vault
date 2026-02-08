@@ -5,7 +5,7 @@
  * secure notes, and TOTP entries.
  */
 
-import { useState, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 import {
@@ -17,7 +17,10 @@ import {
     Star,
     Grid3X3,
     List,
-    Loader2
+    Loader2,
+    Menu,
+    WifiOff,
+    RefreshCw
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -30,6 +33,10 @@ import { VaultUnlock } from '@/components/vault/VaultUnlock';
 import { VaultSidebar } from '@/components/vault/VaultSidebar';
 import { VaultItemList } from '@/components/vault/VaultItemList';
 import { VaultItemDialog } from '@/components/vault/VaultItemDialog';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { syncOfflineMutations } from '@/services/offlineVaultService';
+import { useToast } from '@/hooks/use-toast';
 
 export type ItemFilter = 'all' | 'passwords' | 'notes' | 'totp' | 'favorites';
 export type ViewMode = 'grid' | 'list';
@@ -37,6 +44,8 @@ export type ViewMode = 'grid' | 'list';
 export default function VaultPage() {
     const { t } = useTranslation();
     const navigate = useNavigate();
+    const { toast } = useToast();
+    const isMobile = useIsMobile();
     const { user, loading: authLoading } = useAuth();
     const { isLocked, isSetupRequired, isLoading: vaultLoading } = useVault();
 
@@ -48,6 +57,56 @@ export default function VaultPage() {
     const [dialogOpen, setDialogOpen] = useState(false);
     const [editingItemId, setEditingItemId] = useState<string | null>(null);
     const [refreshKey, setRefreshKey] = useState(0);
+    const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [isOnline, setIsOnline] = useState(() => navigator.onLine);
+    const [isSyncing, setIsSyncing] = useState(false);
+
+    useEffect(() => {
+        const goOnline = () => setIsOnline(true);
+        const goOffline = () => setIsOnline(false);
+        window.addEventListener('online', goOnline);
+        window.addEventListener('offline', goOffline);
+        return () => {
+            window.removeEventListener('online', goOnline);
+            window.removeEventListener('offline', goOffline);
+        };
+    }, []);
+
+    useEffect(() => {
+        if (!user || isLocked || isSetupRequired || !isOnline) return;
+        let cancelled = false;
+
+        const syncQueuedChanges = async () => {
+            setIsSyncing(true);
+            try {
+                const result = await syncOfflineMutations(user.id);
+                if (cancelled) return;
+                if (result.processed > 0) {
+                    setRefreshKey((prev) => prev + 1);
+                    toast({
+                        title: t('common.success'),
+                        description: t('vault.syncedAfterOffline', {
+                            defaultValue: '{{count}} Offline-Änderungen synchronisiert.',
+                            count: result.processed,
+                        }),
+                    });
+                }
+            } catch (err) {
+                if (!cancelled) {
+                    console.error('Failed to sync offline changes:', err);
+                }
+            } finally {
+                if (!cancelled) {
+                    setIsSyncing(false);
+                }
+            }
+        };
+
+        syncQueuedChanges();
+        return () => {
+            cancelled = true;
+        };
+    }, [user, isLocked, isSetupRequired, isOnline, toast, t]);
 
     // Redirect if not authenticated
     if (!authLoading && !user) {
@@ -93,20 +152,35 @@ export default function VaultPage() {
     };
 
     return (
-        <div className="min-h-screen bg-background flex">
+        <div className="min-h-screen bg-background flex overflow-hidden">
             {/* Sidebar */}
-            <VaultSidebar
-                selectedCategory={selectedCategory}
-                onSelectCategory={setSelectedCategory}
-            />
+            {!isMobile && (
+                <VaultSidebar
+                    selectedCategory={selectedCategory}
+                    onSelectCategory={setSelectedCategory}
+                />
+            )}
+
+            {isMobile && (
+                <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
+                    <SheetContent side="left" className="p-0 w-[88vw] max-w-[20rem]">
+                        <VaultSidebar
+                            compactMode
+                            selectedCategory={selectedCategory}
+                            onSelectCategory={setSelectedCategory}
+                            onActionComplete={() => setSidebarOpen(false)}
+                        />
+                    </SheetContent>
+                </Sheet>
+            )}
 
             {/* Main Content */}
-            <div className="flex-1 flex flex-col">
+            <div className="flex-1 flex flex-col min-w-0">
                 {/* Header */}
                 <header className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b px-4 lg:px-6 py-4">
-                    <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:gap-4 items-start sm:items-center justify-between">
                         {/* Search */}
-                        <div className="relative w-full sm:max-w-md">
+                        <div className="relative w-full sm:max-w-md min-w-0">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                             <Input
                                 placeholder={t('vault.search.placeholder')}
@@ -117,7 +191,18 @@ export default function VaultPage() {
                         </div>
 
                         {/* Actions */}
-                        <div className="flex items-center gap-2">
+                        <div className="flex w-full sm:w-auto items-center gap-2 flex-wrap sm:flex-nowrap">
+                            {isMobile && (
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={() => setSidebarOpen(true)}
+                                    aria-label={t('vault.sidebar.title')}
+                                >
+                                    <Menu className="w-4 h-4" />
+                                </Button>
+                            )}
+
                             <Button asChild variant="outline">
                                 <Link to="/">{t('nav.home')}</Link>
                             </Button>
@@ -143,7 +228,7 @@ export default function VaultPage() {
                             </div>
 
                             {/* New Item Button */}
-                            <Button onClick={handleOpenNewItem}>
+                            <Button onClick={handleOpenNewItem} className="ml-auto sm:ml-0">
                                 <Plus className="w-4 h-4 mr-2" />
                                 {t('vault.actions.add')}
                             </Button>
@@ -152,33 +237,54 @@ export default function VaultPage() {
 
                     {/* Filters */}
                     <Tabs value={activeFilter} onValueChange={(v) => setActiveFilter(v as ItemFilter)} className="mt-4">
-                        <TabsList>
-                            <TabsTrigger value="all" className="flex items-center gap-1.5">
-                                <Shield className="w-4 h-4" />
-                                <span className="hidden sm:inline">{t('vault.filters.all')}</span>
-                            </TabsTrigger>
-                            <TabsTrigger value="passwords" className="flex items-center gap-1.5">
-                                <Key className="w-4 h-4" />
-                                <span className="hidden sm:inline">{t('vault.filters.passwords')}</span>
-                            </TabsTrigger>
-                            <TabsTrigger value="notes" className="flex items-center gap-1.5">
-                                <FileText className="w-4 h-4" />
-                                <span className="hidden sm:inline">{t('vault.filters.notes')}</span>
-                            </TabsTrigger>
-                            <TabsTrigger value="totp" className="flex items-center gap-1.5">
-                                <Shield className="w-4 h-4" />
-                                <span className="hidden sm:inline">{t('vault.filters.totp')}</span>
-                            </TabsTrigger>
-                            <TabsTrigger value="favorites" className="flex items-center gap-1.5">
-                                <Star className="w-4 h-4" />
-                                <span className="hidden sm:inline">{t('vault.filters.favorites')}</span>
-                            </TabsTrigger>
-                        </TabsList>
+                        <div className="-mx-1 overflow-x-auto px-1 pb-1">
+                            <TabsList className="inline-flex w-max min-w-full sm:min-w-0">
+                                <TabsTrigger value="all" className="flex items-center gap-1.5 whitespace-nowrap">
+                                    <Shield className="w-4 h-4" />
+                                    <span className="hidden sm:inline">{t('vault.filters.all')}</span>
+                                </TabsTrigger>
+                                <TabsTrigger value="passwords" className="flex items-center gap-1.5 whitespace-nowrap">
+                                    <Key className="w-4 h-4" />
+                                    <span className="hidden sm:inline">{t('vault.filters.passwords')}</span>
+                                </TabsTrigger>
+                                <TabsTrigger value="notes" className="flex items-center gap-1.5 whitespace-nowrap">
+                                    <FileText className="w-4 h-4" />
+                                    <span className="hidden sm:inline">{t('vault.filters.notes')}</span>
+                                </TabsTrigger>
+                                <TabsTrigger value="totp" className="flex items-center gap-1.5 whitespace-nowrap">
+                                    <Shield className="w-4 h-4" />
+                                    <span className="hidden sm:inline">{t('vault.filters.totp')}</span>
+                                </TabsTrigger>
+                                <TabsTrigger value="favorites" className="flex items-center gap-1.5 whitespace-nowrap">
+                                    <Star className="w-4 h-4" />
+                                    <span className="hidden sm:inline">{t('vault.filters.favorites')}</span>
+                                </TabsTrigger>
+                            </TabsList>
+                        </div>
                     </Tabs>
+
+                    <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                        {!isOnline && (
+                            <p className="inline-flex items-center gap-1 rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-amber-700 dark:text-amber-300">
+                                <WifiOff className="w-3 h-3" />
+                                {t('vault.offlineMode', {
+                                    defaultValue: 'Offline-Modus aktiv: Änderungen werden lokal gespeichert.',
+                                })}
+                            </p>
+                        )}
+                        {isOnline && isSyncing && (
+                            <p className="inline-flex items-center gap-1 rounded-md border border-primary/40 bg-primary/10 px-2 py-1 text-primary">
+                                <RefreshCw className="w-3 h-3 animate-spin" />
+                                {t('vault.syncingOfflineChanges', {
+                                    defaultValue: 'Synchronisiere Offline-Änderungen...',
+                                })}
+                            </p>
+                        )}
+                    </div>
                 </header>
 
                 {/* Item List */}
-                <main className="flex-1 p-4 lg:p-6">
+                <main className="flex-1 p-3 sm:p-4 lg:p-6 min-w-0">
                     <VaultItemList
                         searchQuery={searchQuery}
                         filter={activeFilter}

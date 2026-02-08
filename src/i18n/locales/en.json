@@ -144,7 +144,7 @@
     },
     "cookies": {
       "title": "Cookies & Local Data",
-      "content": "We use local storage technologies (LocalStorage) to store your settings (e.g., theme, language) and session information. We do not use third-party tracking cookies."
+      "content": "We use local storage technologies (LocalStorage and IndexedDB) to store your settings (e.g., theme, language), session information, and encrypted offline vault cache for PWA use. We do not use third-party tracking cookies."
     },
     "rights": {
       "title": "Your Rights",
@@ -488,4 +488,3 @@
     "noCategory": "No Category"
   }
 }
-

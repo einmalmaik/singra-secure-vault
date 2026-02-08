@@ -64,6 +64,17 @@ import { PasswordGenerator } from './PasswordGenerator';
 import { CategoryIcon } from './CategoryIcon';
 import { CategoryDialog } from './CategoryDialog';
 import { cn } from '@/lib/utils';
+import {
+    buildVaultItemRowFromInsert,
+    enqueueOfflineMutation,
+    isAppOnline,
+    isLikelyOfflineError,
+    loadVaultSnapshot,
+    removeOfflineItemRow,
+    resolveDefaultVaultId,
+    upsertOfflineCategoryRow,
+    upsertOfflineItemRow,
+} from '@/services/offlineVaultService';
 
 interface Category {
     id: string;
@@ -136,19 +147,17 @@ export function VaultItemDialog({ open, onOpenChange, itemId, onSave }: VaultIte
 
     const fetchCategories = useCallback(async () => {
         if (!user || !open) return;
-
-        const { data, error } = await supabase
-            .from('categories')
-            .select('id, name, icon, color')
-            .eq('user_id', user.id)
-            .order('sort_order', { ascending: true });
-
-        if (!error && data) {
+        try {
+            const { snapshot, source } = await loadVaultSnapshot(user.id);
+            const canPersistMigrations = source === 'remote' && isAppOnline();
             const resolvedCategories = await Promise.all(
-                data.map(async (cat) => {
+                snapshot.categories.map(async (cat) => {
                     let resolvedName = cat.name;
                     let resolvedIcon = cat.icon;
                     let resolvedColor = cat.color;
+                    let migratedName = cat.name;
+                    let migratedIcon = cat.icon;
+                    let migratedColor = cat.color;
 
                     if (cat.name.startsWith(ENCRYPTED_CATEGORY_PREFIX)) {
                         try {
@@ -157,12 +166,13 @@ export function VaultItemDialog({ open, onOpenChange, itemId, onSave }: VaultIte
                             console.error('Failed to decrypt category name:', cat.id, err);
                             resolvedName = 'Encrypted Category';
                         }
-                    } else {
+                    } else if (canPersistMigrations) {
                         try {
                             const encryptedName = await encryptData(cat.name);
+                            migratedName = `${ENCRYPTED_CATEGORY_PREFIX}${encryptedName}`;
                             await supabase
                                 .from('categories')
-                                .update({ name: `${ENCRYPTED_CATEGORY_PREFIX}${encryptedName}` })
+                                .update({ name: migratedName })
                                 .eq('id', cat.id);
                         } catch (err) {
                             console.error('Failed to migrate category name:', cat.id, err);
@@ -176,12 +186,13 @@ export function VaultItemDialog({ open, onOpenChange, itemId, onSave }: VaultIte
                             console.error('Failed to decrypt category icon:', cat.id, err);
                             resolvedIcon = null;
                         }
-                    } else if (cat.icon) {
+                    } else if (cat.icon && canPersistMigrations) {
                         try {
                             const encryptedIcon = await encryptData(cat.icon);
+                            migratedIcon = `${ENCRYPTED_CATEGORY_PREFIX}${encryptedIcon}`;
                             await supabase
                                 .from('categories')
-                                .update({ icon: `${ENCRYPTED_CATEGORY_PREFIX}${encryptedIcon}` })
+                                .update({ icon: migratedIcon })
                                 .eq('id', cat.id);
                         } catch (err) {
                             console.error('Failed to migrate category icon:', cat.id, err);
@@ -195,16 +206,27 @@ export function VaultItemDialog({ open, onOpenChange, itemId, onSave }: VaultIte
                             console.error('Failed to decrypt category color:', cat.id, err);
                             resolvedColor = '#3b82f6';
                         }
-                    } else if (cat.color) {
+                    } else if (cat.color && canPersistMigrations) {
                         try {
                             const encryptedColor = await encryptData(cat.color);
+                            migratedColor = `${ENCRYPTED_CATEGORY_PREFIX}${encryptedColor}`;
                             await supabase
                                 .from('categories')
-                                .update({ color: `${ENCRYPTED_CATEGORY_PREFIX}${encryptedColor}` })
+                                .update({ color: migratedColor })
                                 .eq('id', cat.id);
                         } catch (err) {
                             console.error('Failed to migrate category color:', cat.id, err);
                         }
+                    }
+
+                    if (canPersistMigrations && (migratedName !== cat.name || migratedIcon !== cat.icon || migratedColor !== cat.color)) {
+                        await upsertOfflineCategoryRow(user.id, {
+                            ...cat,
+                            name: migratedName,
+                            icon: migratedIcon,
+                            color: migratedColor,
+                            updated_at: new Date().toISOString(),
+                        });
                     }
 
                     return {
@@ -213,10 +235,13 @@ export function VaultItemDialog({ open, onOpenChange, itemId, onSave }: VaultIte
                         icon: resolvedIcon,
                         color: resolvedColor,
                     };
-                })
+                }),
             );
 
             setCategories(resolvedCategories);
+        } catch (err) {
+            console.error('Failed to load categories:', err);
+            setCategories([]);
         }
     }, [user, open, decryptData, encryptData]);
 
@@ -228,17 +253,15 @@ export function VaultItemDialog({ open, onOpenChange, itemId, onSave }: VaultIte
     // Load existing item data
     useEffect(() => {
         async function loadItem() {
-            if (!itemId || !open) return;
+            if (!itemId || !open || !user) return;
 
             setLoading(true);
             try {
-                const { data: item, error } = await supabase
-                    .from('vault_items')
-                    .select('*')
-                    .eq('id', itemId)
-                    .single();
-
-                if (error) throw error;
+                const { snapshot } = await loadVaultSnapshot(user.id);
+                const item = snapshot.items.find((entry) => entry.id === itemId);
+                if (!item) {
+                    throw new Error('Item not found');
+                }
 
                 // Decrypt data
                 const decrypted = await decryptItem(item.encrypted_data);
@@ -277,7 +300,7 @@ export function VaultItemDialog({ open, onOpenChange, itemId, onSave }: VaultIte
         }
 
         loadItem();
-    }, [itemId, open, decryptItem, form, toast, t]);
+    }, [itemId, open, user, decryptItem, form, toast, t]);
 
     // Reset form when dialog closes
     useEffect(() => {
@@ -296,15 +319,8 @@ export function VaultItemDialog({ open, onOpenChange, itemId, onSave }: VaultIte
 
         setLoading(true);
         try {
-            // Get the default vault
-            const { data: vault, error: vaultError } = await supabase
-                .from('vaults')
-                .select('id')
-                .eq('user_id', user.id)
-                .eq('is_default', true)
-                .single();
-
-            if (vaultError || !vault) {
+            const vaultId = await resolveDefaultVaultId(user.id);
+            if (!vaultId) {
                 throw new Error('No vault found');
             }
 
@@ -321,9 +337,11 @@ export function VaultItemDialog({ open, onOpenChange, itemId, onSave }: VaultIte
                 totpSecret: data.totpSecret,
             });
 
+            const targetItemId = itemId ?? crypto.randomUUID();
             const itemData = {
+                id: targetItemId,
                 user_id: user.id,
-                vault_id: vault.id,
+                vault_id: vaultId,
                 title: ENCRYPTED_ITEM_TITLE_PLACEHOLDER,
                 website_url: null,
                 icon_url: null,
@@ -333,32 +351,45 @@ export function VaultItemDialog({ open, onOpenChange, itemId, onSave }: VaultIte
                 category_id: null,
             };
 
-            if (isEditing) {
-                // Update existing item
-                const { error } = await supabase
-                    .from('vault_items')
-                    .update(itemData)
-                    .eq('id', itemId);
+            let syncedOnline = false;
 
-                if (error) throw error;
+            if (isAppOnline()) {
+                try {
+                    const { data: savedItem, error } = await supabase
+                        .from('vault_items')
+                        .upsert(itemData, { onConflict: 'id' })
+                        .select('*')
+                        .single();
 
-                toast({
-                    title: t('common.success'),
-                    description: t('vault.itemUpdated'),
-                });
-            } else {
-                // Create new item
-                const { error } = await supabase
-                    .from('vault_items')
-                    .insert(itemData);
+                    if (error) throw error;
+                    if (savedItem) {
+                        await upsertOfflineItemRow(user.id, savedItem, vaultId);
+                    }
+                    syncedOnline = true;
+                } catch (err) {
+                    if (!isLikelyOfflineError(err)) {
+                        throw err;
+                    }
+                }
+            }
 
-                if (error) throw error;
-
-                toast({
-                    title: t('common.success'),
-                    description: t('vault.itemCreated'),
+            if (!syncedOnline) {
+                await upsertOfflineItemRow(user.id, buildVaultItemRowFromInsert(itemData), vaultId);
+                await enqueueOfflineMutation({
+                    userId: user.id,
+                    type: 'upsert_item',
+                    payload: itemData,
                 });
             }
+
+            toast({
+                title: t('common.success'),
+                description: syncedOnline
+                    ? (isEditing ? t('vault.itemUpdated') : t('vault.itemCreated'))
+                    : t('vault.offlineSaved', {
+                        defaultValue: 'Offline gespeichert. Wird bei Internet automatisch synchronisiert.',
+                    }),
+            });
 
             onOpenChange(false);
             // Trigger data refresh without page reload
@@ -376,22 +407,46 @@ export function VaultItemDialog({ open, onOpenChange, itemId, onSave }: VaultIte
     };
 
     const handleDelete = async () => {
-        if (!itemId) return;
+        if (!itemId || !user) return;
 
         setDeleting(true);
         try {
-            const { error } = await supabase
-                .from('vault_items')
-                .delete()
-                .eq('id', itemId);
+            let syncedOnline = false;
+            if (isAppOnline()) {
+                try {
+                    const { error } = await supabase
+                        .from('vault_items')
+                        .delete()
+                        .eq('id', itemId);
 
-            if (error) throw error;
+                    if (error) throw error;
+                    syncedOnline = true;
+                } catch (err) {
+                    if (!isLikelyOfflineError(err)) {
+                        throw err;
+                    }
+                }
+            }
+
+            await removeOfflineItemRow(user.id, itemId);
+            if (!syncedOnline) {
+                await enqueueOfflineMutation({
+                    userId: user.id,
+                    type: 'delete_item',
+                    payload: { id: itemId },
+                });
+            }
 
             toast({
                 title: t('common.success'),
-                description: t('vault.itemDeleted'),
+                description: syncedOnline
+                    ? t('vault.itemDeleted')
+                    : t('vault.offlineDeleteQueued', {
+                        defaultValue: 'Offline gelöscht. Löschung wird bei Internet synchronisiert.',
+                    }),
             });
             onOpenChange(false);
+            onSave?.();
         } catch (err) {
             console.error('Error deleting item:', err);
             toast({

@@ -16,8 +16,7 @@ import {
     Lock,
     Home,
     MoreHorizontal,
-    Pencil,
-    Trash2
+    Pencil
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -41,6 +40,12 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { CategoryIcon } from './CategoryIcon';
 import { CategoryDialog } from './CategoryDialog';
+import {
+    isAppOnline,
+    loadVaultSnapshot,
+    upsertOfflineCategoryRow,
+    upsertOfflineItemRow,
+} from '@/services/offlineVaultService';
 
 interface Category {
     id: string;
@@ -53,12 +58,19 @@ interface Category {
 interface VaultSidebarProps {
     selectedCategory: string | null;
     onSelectCategory: (categoryId: string | null) => void;
+    compactMode?: boolean;
+    onActionComplete?: () => void;
 }
 
 const ENCRYPTED_CATEGORY_PREFIX = 'enc:cat:v1:';
 const ENCRYPTED_ITEM_TITLE_PLACEHOLDER = 'Encrypted Item';
 
-export function VaultSidebar({ selectedCategory, onSelectCategory }: VaultSidebarProps) {
+export function VaultSidebar({
+    selectedCategory,
+    onSelectCategory,
+    compactMode = false,
+    onActionComplete,
+}: VaultSidebarProps) {
     const { t } = useTranslation();
     const navigate = useNavigate();
     const { lock, encryptData, decryptData, decryptItem, encryptItem } = useVault();
@@ -78,97 +90,91 @@ export function VaultSidebar({ selectedCategory, onSelectCategory }: VaultSideba
         if (!user) return;
 
         try {
-            // Get categories
-            const { data: cats, error } = await supabase
-                .from('categories')
-                .select('id, name, icon, color')
-                .eq('user_id', user.id)
-                .order('sort_order', { ascending: true });
+            const { snapshot, source } = await loadVaultSnapshot(user.id);
+            const canPersistMigrations = source === 'remote' && isAppOnline();
+            const counts: Record<string, number> = {};
 
-            if (error) throw error;
+            await Promise.all(
+                snapshot.items.map(async (item) => {
+                    try {
+                        const decryptedData = await decryptItem(item.encrypted_data);
+                        const resolvedCategoryId = decryptedData.categoryId ?? item.category_id;
+                        const resolvedTitle = decryptedData.title || item.title;
+                        const resolvedWebsiteUrl = decryptedData.websiteUrl || item.website_url || undefined;
+                        const resolvedItemType = decryptedData.itemType || item.item_type || 'password';
+                        const resolvedIsFavorite = typeof decryptedData.isFavorite === 'boolean'
+                            ? decryptedData.isFavorite
+                            : !!item.is_favorite;
+                        const hasLegacyPlaintextMeta =
+                            (!decryptedData.title && item.title && item.title !== ENCRYPTED_ITEM_TITLE_PLACEHOLDER) ||
+                            (!decryptedData.websiteUrl && !!item.website_url) ||
+                            (!decryptedData.itemType && !!item.item_type) ||
+                            (typeof decryptedData.isFavorite !== 'boolean' && item.is_favorite !== null) ||
+                            (typeof decryptedData.categoryId === 'undefined' && item.category_id !== null);
+                        const hasPlaintextColumnsToCleanup =
+                            item.title !== ENCRYPTED_ITEM_TITLE_PLACEHOLDER ||
+                            item.website_url !== null ||
+                            item.icon_url !== null ||
+                            item.item_type !== 'password' ||
+                            !!item.is_favorite ||
+                            item.category_id !== null;
 
-            // Get item counts per category
-            const { data: vault } = await supabase
-                .from('vaults')
-                .select('id')
-                .eq('user_id', user.id)
-                .eq('is_default', true)
-                .single();
+                        if (canPersistMigrations && (hasLegacyPlaintextMeta || hasPlaintextColumnsToCleanup)) {
+                            const migratedEncryptedData = await encryptItem({
+                                ...decryptedData,
+                                title: resolvedTitle,
+                                websiteUrl: resolvedWebsiteUrl,
+                                itemType: resolvedItemType,
+                                isFavorite: resolvedIsFavorite,
+                                categoryId: resolvedCategoryId,
+                            });
 
-            if (vault) {
-                const { data: items } = await supabase
-                    .from('vault_items')
-                    .select('id, title, website_url, icon_url, item_type, is_favorite, category_id, encrypted_data')
-                    .eq('vault_id', vault.id);
+                            await supabase
+                                .from('vault_items')
+                                .update({
+                                    encrypted_data: migratedEncryptedData,
+                                    title: ENCRYPTED_ITEM_TITLE_PLACEHOLDER,
+                                    website_url: null,
+                                    icon_url: null,
+                                    item_type: 'password',
+                                    is_favorite: false,
+                                    category_id: null,
+                                })
+                                .eq('id', item.id);
 
-                // Count items per category
-                const counts: Record<string, number> = {};
-                await Promise.all(
-                    (items || []).map(async (item) => {
-                        try {
-                            const decryptedData = await decryptItem(item.encrypted_data);
-                            const resolvedCategoryId = decryptedData.categoryId ?? item.category_id;
-                            const resolvedTitle = decryptedData.title || item.title;
-                            const resolvedWebsiteUrl = decryptedData.websiteUrl || item.website_url || undefined;
-                            const resolvedItemType = decryptedData.itemType || item.item_type || 'password';
-                            const resolvedIsFavorite = typeof decryptedData.isFavorite === 'boolean'
-                                ? decryptedData.isFavorite
-                                : !!item.is_favorite;
-                            const hasLegacyPlaintextMeta =
-                                (!decryptedData.title && item.title && item.title !== ENCRYPTED_ITEM_TITLE_PLACEHOLDER) ||
-                                (!decryptedData.websiteUrl && !!item.website_url) ||
-                                (!decryptedData.itemType && !!item.item_type) ||
-                                (typeof decryptedData.isFavorite !== 'boolean' && item.is_favorite !== null) ||
-                                (typeof decryptedData.categoryId === 'undefined' && item.category_id !== null);
-                            const hasPlaintextColumnsToCleanup =
-                                item.title !== ENCRYPTED_ITEM_TITLE_PLACEHOLDER ||
-                                item.website_url !== null ||
-                                item.icon_url !== null ||
-                                item.item_type !== 'password' ||
-                                !!item.is_favorite ||
-                                item.category_id !== null;
-
-                            if (hasLegacyPlaintextMeta || hasPlaintextColumnsToCleanup) {
-                                const migratedEncryptedData = await encryptItem({
-                                    ...decryptedData,
-                                    title: resolvedTitle,
-                                    websiteUrl: resolvedWebsiteUrl,
-                                    itemType: resolvedItemType,
-                                    isFavorite: resolvedIsFavorite,
-                                    categoryId: resolvedCategoryId,
-                                });
-
-                                await supabase
-                                    .from('vault_items')
-                                    .update({
-                                        encrypted_data: migratedEncryptedData,
-                                        title: ENCRYPTED_ITEM_TITLE_PLACEHOLDER,
-                                        website_url: null,
-                                        icon_url: null,
-                                        item_type: 'password',
-                                        is_favorite: false,
-                                        category_id: null,
-                                    })
-                                    .eq('id', item.id);
-                            }
-
-                            if (resolvedCategoryId) {
-                                counts[resolvedCategoryId] = (counts[resolvedCategoryId] || 0) + 1;
-                            }
-                        } catch (err) {
-                            console.error('Failed to decrypt vault item for category counts:', item.id, err);
-                            if (item.category_id) {
-                                counts[item.category_id] = (counts[item.category_id] || 0) + 1;
-                            }
+                            await upsertOfflineItemRow(user.id, {
+                                ...item,
+                                encrypted_data: migratedEncryptedData,
+                                title: ENCRYPTED_ITEM_TITLE_PLACEHOLDER,
+                                website_url: null,
+                                icon_url: null,
+                                item_type: 'password',
+                                is_favorite: false,
+                                category_id: null,
+                                updated_at: new Date().toISOString(),
+                            }, snapshot.vaultId);
                         }
-                    })
-                );
 
-                const resolvedCategories = await Promise.all(
-                    (cats || []).map(async (cat) => {
+                        if (resolvedCategoryId) {
+                            counts[resolvedCategoryId] = (counts[resolvedCategoryId] || 0) + 1;
+                        }
+                    } catch (err) {
+                        console.error('Failed to decrypt vault item for category counts:', item.id, err);
+                        if (item.category_id) {
+                            counts[item.category_id] = (counts[item.category_id] || 0) + 1;
+                        }
+                    }
+                }),
+            );
+
+            const resolvedCategories = await Promise.all(
+                snapshot.categories.map(async (cat) => {
                         let resolvedName = cat.name;
                         let resolvedIcon = cat.icon;
                         let resolvedColor = cat.color;
+                        let migratedName = cat.name;
+                        let migratedIcon = cat.icon;
+                        let migratedColor = cat.color;
 
                         if (cat.name.startsWith(ENCRYPTED_CATEGORY_PREFIX)) {
                             try {
@@ -177,12 +183,13 @@ export function VaultSidebar({ selectedCategory, onSelectCategory }: VaultSideba
                                 console.error('Failed to decrypt category name:', cat.id, err);
                                 resolvedName = 'Encrypted Category';
                             }
-                        } else {
+                        } else if (canPersistMigrations) {
                             try {
                                 const encryptedName = await encryptData(cat.name);
+                                migratedName = `${ENCRYPTED_CATEGORY_PREFIX}${encryptedName}`;
                                 await supabase
                                     .from('categories')
-                                    .update({ name: `${ENCRYPTED_CATEGORY_PREFIX}${encryptedName}` })
+                                    .update({ name: migratedName })
                                     .eq('id', cat.id);
                             } catch (err) {
                                 console.error('Failed to migrate category name:', cat.id, err);
@@ -196,12 +203,13 @@ export function VaultSidebar({ selectedCategory, onSelectCategory }: VaultSideba
                                 console.error('Failed to decrypt category icon:', cat.id, err);
                                 resolvedIcon = null;
                             }
-                        } else if (cat.icon) {
+                        } else if (cat.icon && canPersistMigrations) {
                             try {
                                 const encryptedIcon = await encryptData(cat.icon);
+                                migratedIcon = `${ENCRYPTED_CATEGORY_PREFIX}${encryptedIcon}`;
                                 await supabase
                                     .from('categories')
-                                    .update({ icon: `${ENCRYPTED_CATEGORY_PREFIX}${encryptedIcon}` })
+                                    .update({ icon: migratedIcon })
                                     .eq('id', cat.id);
                             } catch (err) {
                                 console.error('Failed to migrate category icon:', cat.id, err);
@@ -215,16 +223,27 @@ export function VaultSidebar({ selectedCategory, onSelectCategory }: VaultSideba
                                 console.error('Failed to decrypt category color:', cat.id, err);
                                 resolvedColor = '#3b82f6';
                             }
-                        } else if (cat.color) {
+                        } else if (cat.color && canPersistMigrations) {
                             try {
                                 const encryptedColor = await encryptData(cat.color);
+                                migratedColor = `${ENCRYPTED_CATEGORY_PREFIX}${encryptedColor}`;
                                 await supabase
                                     .from('categories')
-                                    .update({ color: `${ENCRYPTED_CATEGORY_PREFIX}${encryptedColor}` })
+                                    .update({ color: migratedColor })
                                     .eq('id', cat.id);
                             } catch (err) {
                                 console.error('Failed to migrate category color:', cat.id, err);
                             }
+                        }
+
+                        if (canPersistMigrations && (migratedName !== cat.name || migratedIcon !== cat.icon || migratedColor !== cat.color)) {
+                            await upsertOfflineCategoryRow(user.id, {
+                                ...cat,
+                                name: migratedName,
+                                icon: migratedIcon,
+                                color: migratedColor,
+                                updated_at: new Date().toISOString(),
+                            });
                         }
 
                         return {
@@ -234,61 +253,22 @@ export function VaultSidebar({ selectedCategory, onSelectCategory }: VaultSideba
                             color: resolvedColor,
                             count: counts[cat.id] || 0,
                         };
-                    })
-                );
+                }),
+            );
 
-                setCategories(resolvedCategories);
-            } else {
-                const resolvedCategories = await Promise.all(
-                    (cats || []).map(async (cat) => {
-                        let resolvedName = cat.name;
-                        let resolvedIcon = cat.icon;
-                        let resolvedColor = cat.color;
-
-                        if (cat.name.startsWith(ENCRYPTED_CATEGORY_PREFIX)) {
-                            try {
-                                resolvedName = await decryptData(cat.name.slice(ENCRYPTED_CATEGORY_PREFIX.length));
-                            } catch (err) {
-                                console.error('Failed to decrypt category name:', cat.id, err);
-                                resolvedName = 'Encrypted Category';
-                            }
-                        }
-
-                        if (cat.icon && cat.icon.startsWith(ENCRYPTED_CATEGORY_PREFIX)) {
-                            try {
-                                resolvedIcon = await decryptData(cat.icon.slice(ENCRYPTED_CATEGORY_PREFIX.length));
-                            } catch (err) {
-                                console.error('Failed to decrypt category icon:', cat.id, err);
-                                resolvedIcon = null;
-                            }
-                        }
-
-                        if (cat.color && cat.color.startsWith(ENCRYPTED_CATEGORY_PREFIX)) {
-                            try {
-                                resolvedColor = await decryptData(cat.color.slice(ENCRYPTED_CATEGORY_PREFIX.length));
-                            } catch (err) {
-                                console.error('Failed to decrypt category color:', cat.id, err);
-                                resolvedColor = '#3b82f6';
-                            }
-                        }
-
-                        return {
-                            ...cat,
-                            name: resolvedName,
-                            icon: resolvedIcon,
-                            color: resolvedColor,
-                        };
-                    })
-                );
-
-                setCategories(resolvedCategories);
-            }
+            setCategories(resolvedCategories);
         } catch (err) {
             console.error('Error fetching categories:', err);
         } finally {
             setLoading(false);
         }
     }, [user, encryptData, decryptData, decryptItem, encryptItem]);
+
+    useEffect(() => {
+        if (compactMode) {
+            setCollapsed(false);
+        }
+    }, [compactMode]);
 
     useEffect(() => {
         fetchCategories();
@@ -312,8 +292,10 @@ export function VaultSidebar({ selectedCategory, onSelectCategory }: VaultSideba
         <>
             <aside
                 className={cn(
-                    'h-screen bg-card border-r flex flex-col transition-all duration-300',
-                    collapsed ? 'w-16' : 'w-64'
+                    'bg-card border-r flex flex-col',
+                    compactMode
+                        ? 'h-full w-full'
+                        : cn('h-screen transition-all duration-300', collapsed ? 'w-16' : 'w-64')
                 )}
             >
                 {/* Header */}
@@ -323,14 +305,16 @@ export function VaultSidebar({ selectedCategory, onSelectCategory }: VaultSideba
                             {t('vault.sidebar.title')}
                         </h2>
                     )}
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => setCollapsed(!collapsed)}
-                    >
-                        {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-                    </Button>
+                    {!compactMode && (
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => setCollapsed(!collapsed)}
+                        >
+                            {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+                        </Button>
+                    )}
                 </div>
 
                 {/* Quick Navigation */}
@@ -340,7 +324,10 @@ export function VaultSidebar({ selectedCategory, onSelectCategory }: VaultSideba
                         label={t('vault.sidebar.allItems')}
                         collapsed={collapsed}
                         active={!selectedCategory}
-                        onClick={() => onSelectCategory(null)}
+                        onClick={() => {
+                            onSelectCategory(null);
+                            onActionComplete?.();
+                        }}
                     />
                 </div>
 
@@ -401,7 +388,10 @@ export function VaultSidebar({ selectedCategory, onSelectCategory }: VaultSideba
                                         count={category.count}
                                         collapsed={collapsed}
                                         active={selectedCategory === category.id}
-                                        onClick={() => onSelectCategory(category.id)}
+                                        onClick={() => {
+                                            onSelectCategory(category.id);
+                                            onActionComplete?.();
+                                        }}
                                         color={category.color}
                                     />
 
@@ -437,7 +427,10 @@ export function VaultSidebar({ selectedCategory, onSelectCategory }: VaultSideba
                         icon={<Settings className="w-4 h-4" />}
                         label={t('vault.sidebar.settings')}
                         collapsed={collapsed}
-                        onClick={() => navigate('/settings')}
+                        onClick={() => {
+                            onActionComplete?.();
+                            navigate('/settings');
+                        }}
                     />
                     <SidebarItem
                         icon={<Lock className="w-4 h-4" />}
@@ -445,6 +438,7 @@ export function VaultSidebar({ selectedCategory, onSelectCategory }: VaultSideba
                         collapsed={collapsed}
                         onClick={() => {
                             lock();
+                            onActionComplete?.();
                             navigate('/vault', { replace: true });
                         }}
                         variant="destructive"

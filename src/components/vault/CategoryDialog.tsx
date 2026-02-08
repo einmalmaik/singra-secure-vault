@@ -38,6 +38,18 @@ import { useVault } from '@/contexts/VaultContext';
 import { useToast } from '@/hooks/use-toast';
 import { CategoryIcon } from './CategoryIcon';
 import { sanitizeInlineSvg } from '@/lib/sanitizeSvg';
+import {
+    buildCategoryRowFromInsert,
+    buildVaultItemRowFromInsert,
+    enqueueOfflineMutation,
+    isAppOnline,
+    isLikelyOfflineError,
+    loadVaultSnapshot,
+    removeOfflineCategoryRow,
+    resolveDefaultVaultId,
+    upsertOfflineCategoryRow,
+    upsertOfflineItemRow,
+} from '@/services/offlineVaultService';
 
 // Common emojis for quick selection
 const COMMON_EMOJIS = [
@@ -120,39 +132,58 @@ export function CategoryDialog({ open, onOpenChange, category, onSave }: Categor
                 normalizedIcon = normalizedIcon.replace(/[<>]/g, '').slice(0, 4);
             }
 
+            const categoryId = isEditing ? category.id : crypto.randomUUID();
             const categoryData = {
+                id: categoryId,
                 name: `${ENCRYPTED_CATEGORY_PREFIX}${await encryptData(name.trim())}`,
                 icon: normalizedIcon
                     ? `${ENCRYPTED_CATEGORY_PREFIX}${await encryptData(normalizedIcon)}`
                     : null,
                 color: `${ENCRYPTED_CATEGORY_PREFIX}${await encryptData(color)}`,
                 user_id: user.id,
+                parent_id: null,
+                sort_order: null,
             };
 
-            if (isEditing) {
-                const { error } = await supabase
-                    .from('categories')
-                    .update(categoryData)
-                    .eq('id', category.id);
+            let syncedOnline = false;
 
-                if (error) throw error;
+            if (isAppOnline()) {
+                try {
+                    const { data: savedCategory, error } = await supabase
+                        .from('categories')
+                        .upsert(categoryData, { onConflict: 'id' })
+                        .select('*')
+                        .single();
 
-                toast({
-                    title: t('common.success'),
-                    description: t('categories.updated'),
-                });
-            } else {
-                const { error } = await supabase
-                    .from('categories')
-                    .insert(categoryData);
+                    if (error) throw error;
+                    if (savedCategory) {
+                        await upsertOfflineCategoryRow(user.id, savedCategory);
+                    }
+                    syncedOnline = true;
+                } catch (err) {
+                    if (!isLikelyOfflineError(err)) {
+                        throw err;
+                    }
+                }
+            }
 
-                if (error) throw error;
-
-                toast({
-                    title: t('common.success'),
-                    description: t('categories.created'),
+            if (!syncedOnline) {
+                await upsertOfflineCategoryRow(user.id, buildCategoryRowFromInsert(categoryData));
+                await enqueueOfflineMutation({
+                    userId: user.id,
+                    type: 'upsert_category',
+                    payload: categoryData,
                 });
             }
+
+            toast({
+                title: t('common.success'),
+                description: syncedOnline
+                    ? (isEditing ? t('categories.updated') : t('categories.created'))
+                    : t('vault.offlineSaved', {
+                        defaultValue: 'Offline gespeichert. Wird bei Internet automatisch synchronisiert.',
+                    }),
+            });
 
             onOpenChange(false);
             onSave?.();
@@ -173,79 +204,122 @@ export function CategoryDialog({ open, onOpenChange, category, onSave }: Categor
 
         setLoading(true);
         try {
-            // First, unlink all items from this category in encrypted payload and legacy columns
-            const { data: vault } = await supabase
-                .from('vaults')
-                .select('id')
-                .eq('user_id', user.id)
-                .eq('is_default', true)
-                .single();
+            const vaultId = await resolveDefaultVaultId(user.id);
+            const { snapshot } = await loadVaultSnapshot(user.id);
+            const items = vaultId
+                ? snapshot.items.filter((item) => item.vault_id === vaultId)
+                : snapshot.items;
 
-            if (vault) {
-                const { data: items, error: itemsError } = await supabase
-                    .from('vault_items')
-                    .select('id, title, website_url, icon_url, item_type, is_favorite, category_id, encrypted_data')
-                    .eq('vault_id', vault.id);
+            for (const item of items) {
+                try {
+                    const decryptedData = await decryptItem(item.encrypted_data);
+                    const resolvedCategoryId = decryptedData.categoryId ?? item.category_id ?? null;
+                    if (resolvedCategoryId !== category.id) {
+                        continue;
+                    }
 
-                if (itemsError) throw itemsError;
+                    const migratedEncryptedData = await encryptItem({
+                        ...decryptedData,
+                        title: decryptedData.title || item.title,
+                        websiteUrl: decryptedData.websiteUrl || item.website_url || undefined,
+                        itemType: decryptedData.itemType || item.item_type || 'password',
+                        isFavorite: typeof decryptedData.isFavorite === 'boolean'
+                            ? decryptedData.isFavorite
+                            : !!item.is_favorite,
+                        categoryId: null,
+                    });
 
-                await Promise.all(
-                    (items || []).map(async (item) => {
+                    const itemPayload = {
+                        id: item.id,
+                        user_id: item.user_id,
+                        vault_id: item.vault_id,
+                        title: ENCRYPTED_ITEM_TITLE_PLACEHOLDER,
+                        website_url: null,
+                        icon_url: null,
+                        item_type: 'password' as const,
+                        is_favorite: false,
+                        encrypted_data: migratedEncryptedData,
+                        category_id: null,
+                    };
+
+                    let syncedItemOnline = false;
+                    if (isAppOnline()) {
                         try {
-                            const decryptedData = await decryptItem(item.encrypted_data);
-                            const resolvedCategoryId = decryptedData.categoryId ?? item.category_id ?? null;
-                            if (resolvedCategoryId !== category.id) {
-                                return;
-                            }
-
-                            const migratedEncryptedData = await encryptItem({
-                                ...decryptedData,
-                                title: decryptedData.title || item.title,
-                                websiteUrl: decryptedData.websiteUrl || item.website_url || undefined,
-                                itemType: decryptedData.itemType || item.item_type || 'password',
-                                isFavorite: typeof decryptedData.isFavorite === 'boolean'
-                                    ? decryptedData.isFavorite
-                                    : !!item.is_favorite,
-                                categoryId: null,
-                            });
-
-                            await supabase
+                            const { data: savedItem, error } = await supabase
                                 .from('vault_items')
-                                .update({
-                                    encrypted_data: migratedEncryptedData,
-                                    title: ENCRYPTED_ITEM_TITLE_PLACEHOLDER,
-                                    website_url: null,
-                                    icon_url: null,
-                                    item_type: 'password',
-                                    is_favorite: false,
-                                    category_id: null,
-                                })
-                                .eq('id', item.id);
+                                .upsert(itemPayload, { onConflict: 'id' })
+                                .select('*')
+                                .single();
+                            if (error) throw error;
+                            if (savedItem) {
+                                await upsertOfflineItemRow(user.id, savedItem, item.vault_id);
+                            }
+                            syncedItemOnline = true;
                         } catch (err) {
-                            console.error('Failed to unlink encrypted category reference:', item.id, err);
+                            if (!isLikelyOfflineError(err)) {
+                                throw err;
+                            }
                         }
-                    })
-                );
+                    }
+
+                    if (!syncedItemOnline) {
+                        await upsertOfflineItemRow(user.id, buildVaultItemRowFromInsert(itemPayload), item.vault_id);
+                        await enqueueOfflineMutation({
+                            userId: user.id,
+                            type: 'upsert_item',
+                            payload: itemPayload,
+                        });
+                    }
+                } catch (err) {
+                    console.error('Failed to unlink encrypted category reference:', item.id, err);
+                }
             }
 
-            // Fallback cleanup for legacy rows
-            const { error: unlinkError } = await supabase
-                .from('vault_items')
-                .update({ category_id: null })
-                .eq('category_id', category.id);
-            if (unlinkError) throw unlinkError;
+            if (isAppOnline()) {
+                try {
+                    await supabase
+                        .from('vault_items')
+                        .update({ category_id: null })
+                        .eq('category_id', category.id);
+                } catch (err) {
+                    if (!isLikelyOfflineError(err)) {
+                        throw err;
+                    }
+                }
+            }
 
-            // Then delete the category
-            const { error } = await supabase
-                .from('categories')
-                .delete()
-                .eq('id', category.id);
+            let syncedCategoryDelete = false;
+            if (isAppOnline()) {
+                try {
+                    const { error } = await supabase
+                        .from('categories')
+                        .delete()
+                        .eq('id', category.id);
+                    if (error) throw error;
+                    syncedCategoryDelete = true;
+                } catch (err) {
+                    if (!isLikelyOfflineError(err)) {
+                        throw err;
+                    }
+                }
+            }
 
-            if (error) throw error;
+            await removeOfflineCategoryRow(user.id, category.id);
+            if (!syncedCategoryDelete) {
+                await enqueueOfflineMutation({
+                    userId: user.id,
+                    type: 'delete_category',
+                    payload: { id: category.id },
+                });
+            }
 
             toast({
                 title: t('common.success'),
-                description: t('categories.deleted'),
+                description: syncedCategoryDelete
+                    ? t('categories.deleted')
+                    : t('vault.offlineDeleteQueued', {
+                        defaultValue: 'Offline gelöscht. Löschung wird bei Internet synchronisiert.',
+                    }),
             });
 
             setShowDeleteConfirm(false);

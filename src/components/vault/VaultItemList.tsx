@@ -17,6 +17,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { VaultItemData } from '@/services/cryptoService';
 import { cn } from '@/lib/utils';
+import {
+    isAppOnline,
+    loadVaultSnapshot,
+    upsertOfflineItemRow,
+} from '@/services/offlineVaultService';
 
 const ENCRYPTED_ITEM_TITLE_PLACEHOLDER = 'Encrypted Item';
 
@@ -67,27 +72,8 @@ export function VaultItemList({
 
             setLoading(true);
             try {
-                // Get default vault
-                const { data: vault } = await supabase
-                    .from('vaults')
-                    .select('id')
-                    .eq('user_id', user.id)
-                    .eq('is_default', true)
-                    .single();
-
-                if (!vault) {
-                    setItems([]);
-                    return;
-                }
-
-                // Fetch items
-                const { data: vaultItems, error } = await supabase
-                    .from('vault_items')
-                    .select('*')
-                    .eq('vault_id', vault.id)
-                    .order('updated_at', { ascending: false });
-
-                if (error) throw error;
+                const { snapshot, source } = await loadVaultSnapshot(user.id);
+                const vaultItems = [...snapshot.items].sort((a, b) => b.updated_at.localeCompare(a.updated_at));
 
                 // Decrypt items
                 setDecrypting(true);
@@ -110,32 +96,6 @@ export function VaultItemList({
                                 item.category_id !== null;
 
                             if (hasLegacyPlaintextMeta || hasPlaintextColumnsToCleanup) {
-                                const migratedEncryptedData = await encryptItem({
-                                    ...decryptedData,
-                                    title: decryptedData.title || item.title,
-                                    websiteUrl: decryptedData.websiteUrl || item.website_url || undefined,
-                                    itemType: decryptedData.itemType || item.item_type || 'password',
-                                    isFavorite: typeof decryptedData.isFavorite === 'boolean'
-                                        ? decryptedData.isFavorite
-                                        : !!item.is_favorite,
-                                    categoryId: typeof decryptedData.categoryId !== 'undefined'
-                                        ? decryptedData.categoryId
-                                        : item.category_id,
-                                });
-
-                                await supabase
-                                    .from('vault_items')
-                                    .update({
-                                        encrypted_data: migratedEncryptedData,
-                                        title: ENCRYPTED_ITEM_TITLE_PLACEHOLDER,
-                                        website_url: null,
-                                        icon_url: null,
-                                        item_type: 'password',
-                                        is_favorite: false,
-                                        category_id: null,
-                                    })
-                                    .eq('id', item.id);
-
                                 const resolvedDecryptedData = {
                                     ...decryptedData,
                                     title: decryptedData.title || item.title,
@@ -148,6 +108,35 @@ export function VaultItemList({
                                         ? decryptedData.categoryId
                                         : item.category_id,
                                 };
+
+                                if (source === 'remote' && isAppOnline()) {
+                                    const migratedEncryptedData = await encryptItem(resolvedDecryptedData);
+
+                                    await supabase
+                                        .from('vault_items')
+                                        .update({
+                                            encrypted_data: migratedEncryptedData,
+                                            title: ENCRYPTED_ITEM_TITLE_PLACEHOLDER,
+                                            website_url: null,
+                                            icon_url: null,
+                                            item_type: 'password',
+                                            is_favorite: false,
+                                            category_id: null,
+                                        })
+                                        .eq('id', item.id);
+
+                                    await upsertOfflineItemRow(user.id, {
+                                        ...item,
+                                        encrypted_data: migratedEncryptedData,
+                                        title: ENCRYPTED_ITEM_TITLE_PLACEHOLDER,
+                                        website_url: null,
+                                        icon_url: null,
+                                        item_type: 'password',
+                                        is_favorite: false,
+                                        category_id: null,
+                                        updated_at: new Date().toISOString(),
+                                    }, snapshot.vaultId);
+                                }
 
                                 return {
                                     ...item,

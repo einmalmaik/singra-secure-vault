@@ -54,7 +54,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
    * Helper to get the redirect URL
    */
   const getRedirectUrl = () => {
-    let siteUrl = import.meta.env.VITE_SITE_URL;
+    let siteUrl = import.meta.env.VITE_SITE_URL?.trim();
+    const currentOrigin = window.location.origin.replace(/\/$/, '');
+    const currentHost = window.location.hostname.toLowerCase();
+    const currentIsLocal =
+      currentHost === 'localhost' ||
+      currentHost === '127.0.0.1' ||
+      currentHost === '[::1]';
 
     // Defensive fix for common typo (comma instead of dot)
     if (siteUrl && siteUrl.includes('mauntingstudios,de')) {
@@ -62,9 +68,29 @@ export function AuthProvider({ children }: AuthProviderProps) {
       siteUrl = siteUrl.replace('mauntingstudios,de', 'mauntingstudios.de');
     }
 
-    const origin = siteUrl ? siteUrl : window.location.origin;
-    // Remove trailing slash if present to avoid double slashes when appending paths
-    return origin.replace(/\/$/, '');
+    if (!siteUrl) {
+      return currentOrigin;
+    }
+
+    try {
+      const configuredUrl = new URL(siteUrl);
+      const configuredHost = configuredUrl.hostname.toLowerCase();
+      const configuredIsLocal =
+        configuredHost === 'localhost' ||
+        configuredHost === '127.0.0.1' ||
+        configuredHost === '[::1]';
+
+      // Prevent production deployments from redirecting back to localhost.
+      if (!currentIsLocal && configuredIsLocal) {
+        console.warn('Ignoring localhost VITE_SITE_URL on non-localhost deployment.');
+        return currentOrigin;
+      }
+
+      return configuredUrl.origin.replace(/\/$/, '');
+    } catch {
+      console.warn('Invalid VITE_SITE_URL. Falling back to current origin.');
+      return currentOrigin;
+    }
   };
 
   /**

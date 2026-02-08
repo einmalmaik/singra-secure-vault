@@ -1,0 +1,140 @@
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import process from 'node:process';
+import { createClient } from '@supabase/supabase-js';
+
+function argValue(flag, fallback) {
+  const idx = process.argv.indexOf(flag);
+  if (idx === -1 || idx + 1 >= process.argv.length) return fallback;
+  return process.argv[idx + 1];
+}
+
+function intValue(flag, fallback) {
+  const raw = argValue(flag, String(fallback));
+  const parsed = Number(raw);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw new Error(`Invalid integer for ${flag}: ${raw}`);
+  }
+  return parsed;
+}
+
+function requiredEnvAny(names) {
+  for (const name of names) {
+    const value = process.env[name];
+    if (value && value.trim()) {
+      return value.trim();
+    }
+  }
+  throw new Error(`Missing one of env vars: ${names.join(', ')}`);
+}
+
+async function ensureDirForFile(filePath) {
+  const dir = path.dirname(filePath);
+  await fs.mkdir(dir, { recursive: true });
+}
+
+async function listAllUsers(adminClient) {
+  const all = [];
+  let page = 1;
+  const perPage = 1000;
+
+  while (true) {
+    const { data, error } = await adminClient.auth.admin.listUsers({
+      page,
+      perPage,
+    });
+
+    if (error) {
+      throw new Error(`Failed to list users (page ${page}): ${error.message}`);
+    }
+
+    const users = data?.users ?? [];
+    all.push(...users);
+
+    if (users.length < perPage) {
+      break;
+    }
+    page += 1;
+  }
+
+  return all;
+}
+
+function buildEmail(index, prefix, domain) {
+  const padded = String(index).padStart(5, '0');
+  return `${prefix}${padded}@${domain}`;
+}
+
+async function main() {
+  const supabaseUrl = requiredEnvAny(['SUPABASE_URL', 'VITE_SUPABASE_URL']);
+  const serviceRoleKey = requiredEnvAny(['SUPABASE_SERVICE_ROLE_KEY']);
+  const password = requiredEnvAny(['TEST_USER_PASSWORD']);
+
+  const count = intValue('--count', Number(process.env.TEST_USERS_COUNT || 50));
+  const startIndex = intValue('--start-index', Number(process.env.TEST_USERS_START_INDEX || 1));
+  const emailPrefix = argValue('--prefix', process.env.TEST_USERS_EMAIL_PREFIX || 'loadtest.user.');
+  const emailDomain = argValue('--domain', process.env.TEST_USERS_EMAIL_DOMAIN || 'example.test');
+  const outputPath = path.resolve(
+    process.cwd(),
+    argValue('--output', process.env.LOADTEST_USERS_FILE || 'loadtest/users.txt'),
+  );
+
+  const adminClient = createClient(supabaseUrl, serviceRoleKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
+  });
+
+  const existingUsers = await listAllUsers(adminClient);
+  const existingEmails = new Set(
+    existingUsers.map((user) => user.email).filter((email) => typeof email === 'string'),
+  );
+
+  const targetCredentials = [];
+  for (let i = 0; i < count; i += 1) {
+    const index = startIndex + i;
+    targetCredentials.push({
+      index,
+      email: buildEmail(index, emailPrefix, emailDomain),
+      password,
+    });
+  }
+
+  let created = 0;
+  for (const credential of targetCredentials) {
+    if (existingEmails.has(credential.email)) {
+      continue;
+    }
+
+    const { error } = await adminClient.auth.admin.createUser({
+      email: credential.email,
+      password: credential.password,
+      email_confirm: true,
+      user_metadata: {
+        loadtest: true,
+        loadtest_index: credential.index,
+      },
+    });
+
+    if (error) {
+      throw new Error(`Failed to create user ${credential.email}: ${error.message}`);
+    }
+
+    existingEmails.add(credential.email);
+    created += 1;
+  }
+
+  await ensureDirForFile(outputPath);
+  const userLines = targetCredentials.map((entry) => `${entry.email},${entry.password}`);
+  await fs.writeFile(outputPath, `${userLines.join('\n')}\n`, 'utf8');
+
+  console.log(`Seed complete. Requested: ${count}, created: ${created}, existing: ${count - created}`);
+  console.log(`Users file written: ${outputPath}`);
+}
+
+main().catch((error) => {
+  console.error(error.message || error);
+  process.exit(1);
+});

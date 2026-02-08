@@ -26,6 +26,8 @@ dist-ssr
 .env
 .env.*
 !.env.example
+loadtest/users.txt
+loadtest/tokens.txt
 
 Agent.md
 AGENTS.md

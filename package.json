@@ -13,7 +13,16 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "loadtest:smoke": "node --env-file=.env scripts/loadtest/run-k6-with-env.mjs run -e K6_PROFILE=smoke loadtest/scenarios/vault-read.js",
+    "loadtest:login": "node --env-file=.env scripts/loadtest/run-k6-with-env.mjs run loadtest/scenarios/login.js",
+    "loadtest:vault-read": "node --env-file=.env scripts/loadtest/run-k6-with-env.mjs run loadtest/scenarios/vault-read.js",
+    "loadtest:10k": "node --env-file=.env scripts/loadtest/run-k6-with-env.mjs run -e K6_PROFILE=10k loadtest/scenarios/vault-read.js",
+    "loadtest:vault-mutate": "node --env-file=.env scripts/loadtest/run-k6-with-env.mjs run loadtest/scenarios/vault-mutate.js",
+    "loadtest:offline-sync": "node --env-file=.env scripts/loadtest/run-k6-with-env.mjs run loadtest/scenarios/offline-sync-replay.js",
+    "loadtest:seed-users": "node --env-file=.env scripts/loadtest/create-test-users.mjs",
+    "loadtest:gen-tokens": "node --env-file=.env scripts/loadtest/generate-tokens.mjs",
+    "loadtest:prepare": "npm run loadtest:seed-users && npm run loadtest:gen-tokens"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

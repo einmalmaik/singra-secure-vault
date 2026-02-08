@@ -3,6 +3,7 @@
  * 
  * Displayed when the vault is locked. Prompts user to enter
  * their master password to derive the encryption key.
+ * Optionally requires 2FA if vault 2FA protection is enabled.
  */
 
 import { useState } from 'react';
@@ -16,25 +17,53 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useVault } from '@/contexts/VaultContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { TwoFactorVerificationModal } from '@/components/auth/TwoFactorVerificationModal';
+import { get2FAStatus, verifyTwoFactorForLogin } from '@/services/twoFactorService';
 
 export function VaultUnlock() {
     const { t } = useTranslation();
     const { toast } = useToast();
     const { unlock, passwordHint } = useVault();
-    const { signOut } = useAuth();
+    const { signOut, user } = useAuth();
 
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [showHint, setShowHint] = useState(false);
     const [loading, setLoading] = useState(false);
 
+    // Vault 2FA state
+    const [show2FAModal, setShow2FAModal] = useState(false);
+    const [pendingPassword, setPendingPassword] = useState('');
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (!password) return;
+        if (!password || !user) return;
 
         setLoading(true);
-        const { error } = await unlock(password);
+
+        // First, check if vault 2FA is enabled
+        try {
+            const status = await get2FAStatus(user.id);
+            if (status && status.vaultTwoFactorEnabled) {
+                // Vault 2FA is enabled - validate master password first (without unlocking)
+                setPendingPassword(password);
+                setShow2FAModal(true);
+                setLoading(false);
+                return;
+            }
+        } catch (err) {
+            console.error('Error checking vault 2FA status:', err);
+            // Continue without 2FA if check fails
+        }
+
+        // No vault 2FA - proceed with normal unlock
+        await performUnlock(password);
+    };
+
+    const performUnlock = async (masterPassword: string) => {
+        setLoading(true);
+        const { error } = await unlock(masterPassword);
         setLoading(false);
 
         if (error) {
@@ -44,7 +73,34 @@ export function VaultUnlock() {
                 description: t('auth.errors.invalidCredentials'),
             });
             setPassword('');
+            setPendingPassword('');
         }
+    };
+
+    const handle2FAVerify = async (code: string, isBackupCode: boolean): Promise<boolean> => {
+        if (!user || !pendingPassword) return false;
+
+        try {
+            const isValid = await verifyTwoFactorForLogin(user.id, code, isBackupCode);
+
+            if (isValid) {
+                setShow2FAModal(false);
+                // Now unlock with the stored password
+                await performUnlock(pendingPassword);
+                setPendingPassword('');
+                return true;
+            }
+            return false;
+        } catch (err) {
+            console.error('2FA verification error:', err);
+            return false;
+        }
+    };
+
+    const handle2FACancel = () => {
+        setShow2FAModal(false);
+        setPendingPassword('');
+        setPassword('');
     };
 
     const handleLogout = async () => {
@@ -140,6 +196,13 @@ export function VaultUnlock() {
                     </form>
                 </CardContent>
             </Card>
+
+            {/* Two-Factor Verification Modal for Vault */}
+            <TwoFactorVerificationModal
+                open={show2FAModal}
+                onVerify={handle2FAVerify}
+                onCancel={handle2FACancel}
+            />
         </div>
     );
 }

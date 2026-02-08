@@ -240,6 +240,17 @@
       "passwordNoLowercase": "Mindestens ein Kleinbuchstabe erforderlich",
       "passwordNoDigit": "Mindestens eine Ziffer erforderlich",
       "passwordNoSymbol": "Mindestens ein Sonderzeichen erforderlich"
+    },
+    "twoFactor": {
+      "title": "Zwei-Faktor-Authentifizierung",
+      "description": "Gib den 6-stelligen Code aus deiner Authenticator-App ein.",
+      "backupCodeDesc": "Gib einen deiner Backup-Codes ein, um dich anzumelden.",
+      "codeLabel": "Verifizierungscode",
+      "backupCodeLabel": "Backup-Code",
+      "verify": "Verifizieren",
+      "useBackupCode": "Backup-Code verwenden",
+      "useAuthenticator": "Authenticator-App verwenden",
+      "newCodeIn": "Neuer Code in {{seconds}}s"
     }
   },
   "vault": {
@@ -389,7 +400,46 @@
       "vaultLockedDesc": "Dein Tresor wurde erfolgreich gesperrt.",
       "changeMasterPassword": "Master-Passwort ändern",
       "enable2fa": "Zwei-Faktor-Authentifizierung aktivieren",
-      "sessions": "Aktive Sitzungen"
+      "sessions": "Aktive Sitzungen",
+      "twoFactor": {
+        "title": "Zwei-Faktor-Authentifizierung",
+        "description": "Füge eine zusätzliche Sicherheitsebene mit einer Authenticator-App hinzu.",
+        "enabled": "2FA aktiviert",
+        "disabled": "2FA deaktiviert",
+        "disabledDesc": "Dein Konto ist nicht durch Zwei-Faktor-Authentifizierung geschützt.",
+        "enable": "2FA aktivieren",
+        "disable": "2FA deaktivieren",
+        "regenerateCodes": "Backup-Codes neu generieren",
+        "backupCodesRemaining": "{{count}} Backup-Codes verbleibend",
+        "setup": {
+          "step1Title": "QR-Code scannen",
+          "step1Desc": "Öffne deine Authenticator-App (Google Authenticator, Authy, etc.) und scanne diesen QR-Code.",
+          "step2Title": "Code verifizieren",
+          "step2Desc": "Gib den 6-stelligen Code aus deiner Authenticator-App ein, um die Einrichtung zu bestätigen.",
+          "step3Title": "Backup-Codes speichern",
+          "step3Desc": "Speichere diese Backup-Codes an einem sicheren Ort. Du kannst sie verwenden, wenn du keinen Zugriff auf deine Authenticator-App hast.",
+          "cantScan": "QR-Code kann nicht gescannt werden?",
+          "manualEntry": "Manueller Schlüssel",
+          "downloadCodes": "Backup-Codes herunterladen",
+          "codesWarning": "Jeder Code kann nur einmal verwendet werden. Bewahre sie sicher auf und teile sie nicht."
+        },
+        "verify": {
+          "title": "Verifizierungscode eingeben",
+          "invalid": "Ungültiger Code. Bitte versuche es erneut."
+        },
+        "disableDialog": {
+          "title": "Zwei-Faktor-Authentifizierung deaktivieren",
+          "description": "Gib den aktuellen Code aus deiner Authenticator-App ein, um 2FA zu deaktivieren.",
+          "backupCodeNotAllowed": "Backup-Codes können nicht zum Deaktivieren von 2FA verwendet werden. Bitte nutze deine Authenticator-App.",
+          "success": "Zwei-Faktor-Authentifizierung wurde deaktiviert."
+        },
+        "vault": {
+          "title": "2FA für Tresor erforderlich",
+          "description": "Authenticator-Code zusätzlich zum Master-Passwort beim Entsperren des Tresors verlangen.",
+          "enabled": "Tresor-2FA-Schutz aktiviert.",
+          "disabled": "Tresor-2FA-Schutz deaktiviert."
+        }
+      }
     },
     "appearance": {
       "title": "Darstellung",

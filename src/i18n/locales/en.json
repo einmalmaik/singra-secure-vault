@@ -240,6 +240,17 @@
       "passwordNoLowercase": "At least one lowercase letter required",
       "passwordNoDigit": "At least one digit required",
       "passwordNoSymbol": "At least one special character required"
+    },
+    "twoFactor": {
+      "title": "Two-Factor Authentication",
+      "description": "Enter the 6-digit code from your authenticator app.",
+      "backupCodeDesc": "Enter one of your backup codes to sign in.",
+      "codeLabel": "Verification Code",
+      "backupCodeLabel": "Backup Code",
+      "verify": "Verify",
+      "useBackupCode": "Use backup code instead",
+      "useAuthenticator": "Use authenticator app",
+      "newCodeIn": "New code in {{seconds}}s"
     }
   },
   "vault": {
@@ -361,7 +372,46 @@
       "vaultLockedDesc": "Your vault has been successfully locked.",
       "changeMasterPassword": "Change Master Password",
       "enable2fa": "Enable Two-Factor Authentication",
-      "sessions": "Active Sessions"
+      "sessions": "Active Sessions",
+      "twoFactor": {
+        "title": "Two-Factor Authentication",
+        "description": "Add an extra layer of security to your account using an authenticator app.",
+        "enabled": "2FA Enabled",
+        "disabled": "2FA Disabled",
+        "disabledDesc": "Your account is not protected by two-factor authentication.",
+        "enable": "Enable 2FA",
+        "disable": "Disable 2FA",
+        "regenerateCodes": "Regenerate Backup Codes",
+        "backupCodesRemaining": "{{count}} backup codes remaining",
+        "setup": {
+          "step1Title": "Scan QR Code",
+          "step1Desc": "Open your authenticator app (Google Authenticator, Authy, etc.) and scan this QR code.",
+          "step2Title": "Verify Code",
+          "step2Desc": "Enter the 6-digit code from your authenticator app to verify the setup.",
+          "step3Title": "Save Backup Codes",
+          "step3Desc": "Save these backup codes in a safe place. You can use them if you lose access to your authenticator app.",
+          "cantScan": "Can't scan the QR code?",
+          "manualEntry": "Manual Entry Key",
+          "downloadCodes": "Download Backup Codes",
+          "codesWarning": "Each code can only be used once. Store them securely and do not share them."
+        },
+        "verify": {
+          "title": "Enter Verification Code",
+          "invalid": "Invalid code. Please try again."
+        },
+        "disableDialog": {
+          "title": "Disable Two-Factor Authentication",
+          "description": "Enter the current code from your authenticator app to disable 2FA.",
+          "backupCodeNotAllowed": "Backup codes cannot be used to disable 2FA. Please use your authenticator app.",
+          "success": "Two-factor authentication has been disabled."
+        },
+        "vault": {
+          "title": "Require 2FA for Vault",
+          "description": "Require authenticator code in addition to master password when unlocking the vault.",
+          "enabled": "Vault 2FA protection enabled.",
+          "disabled": "Vault 2FA protection disabled."
+        }
+      }
     },
     "appearance": {
       "title": "Appearance",

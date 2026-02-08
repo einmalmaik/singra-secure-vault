@@ -1,7 +1,7 @@
 /**
  * @fileoverview Authentication Page
  * 
- * Handles login and signup flows.
+ * Handles login and signup flows with optional 2FA verification.
  */
 
 import { useState, useEffect } from 'react';
@@ -19,6 +19,9 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { TwoFactorVerificationModal } from '@/components/auth/TwoFactorVerificationModal';
+import { get2FAStatus, verifyTwoFactorForLogin } from '@/services/twoFactorService';
+import { supabase } from '@/integrations/supabase/client';
 
 // Validation schemas
 const loginSchema = z.object({
@@ -57,6 +60,10 @@ export default function Auth() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  // 2FA state
+  const [show2FAModal, setShow2FAModal] = useState(false);
+  const [pending2FAUserId, setPending2FAUserId] = useState<string | null>(null);
+
   // Redirect if already logged in
   useEffect(() => {
     if (user) {
@@ -79,17 +86,66 @@ export default function Auth() {
   const handleLogin = async (data: LoginFormData) => {
     setLoading(true);
     const { error } = await signIn(data.email, data.password);
-    setLoading(false);
 
     if (error) {
+      setLoading(false);
       toast({
         variant: 'destructive',
         title: t('common.error'),
         description: t('auth.errors.invalidCredentials'),
       });
-    } else {
-      navigate('/vault');
+      return;
     }
+
+    // After successful sign-in, check session for 2FA
+    const { data: sessionData } = await supabase.auth.getSession();
+    const loggedInUser = sessionData?.session?.user;
+
+    if (loggedInUser) {
+      try {
+        const status = await get2FAStatus(loggedInUser.id);
+        if (status && status.isEnabled) {
+          // User has 2FA enabled - show verification modal
+          setPending2FAUserId(loggedInUser.id);
+          setShow2FAModal(true);
+          setLoading(false);
+          return;
+        }
+      } catch (err) {
+        console.error('Error checking 2FA status:', err);
+        // Continue with login if 2FA check fails
+      }
+    }
+
+    setLoading(false);
+    navigate('/vault');
+  };
+
+  const handle2FAVerify = async (code: string, isBackupCode: boolean): Promise<boolean> => {
+    if (!pending2FAUserId) return false;
+
+    try {
+      const isValid = await verifyTwoFactorForLogin(pending2FAUserId, code, isBackupCode);
+
+      if (isValid) {
+        setShow2FAModal(false);
+        setPending2FAUserId(null);
+        navigate('/vault');
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.error('2FA verification error:', err);
+      return false;
+    }
+  };
+
+  const handle2FACancel = async () => {
+    // User cancelled 2FA - sign them out
+    setShow2FAModal(false);
+    setPending2FAUserId(null);
+    // Sign out the partially authenticated user
+    await supabase.auth.signOut();
   };
 
   const handleSignup = async (data: SignupFormData) => {
@@ -369,6 +425,13 @@ export default function Auth() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Two-Factor Verification Modal */}
+      <TwoFactorVerificationModal
+        open={show2FAModal}
+        onVerify={handle2FAVerify}
+        onCancel={handle2FACancel}
+      />
     </div>
   );
 }

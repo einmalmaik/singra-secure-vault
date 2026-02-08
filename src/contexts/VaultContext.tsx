@@ -34,7 +34,7 @@ interface VaultContextType {
     isLoading: boolean;
 
     // Actions
-    setupMasterPassword: (masterPassword: string, hint?: string) => Promise<{ error: Error | null }>;
+    setupMasterPassword: (masterPassword: string) => Promise<{ error: Error | null }>;
     unlock: (masterPassword: string) => Promise<{ error: Error | null }>;
     lock: () => void;
 
@@ -47,7 +47,6 @@ interface VaultContextType {
     // Settings
     autoLockTimeout: number;
     setAutoLockTimeout: (timeout: number) => void;
-    passwordHint: string | null;
 }
 
 const VaultContext = createContext<VaultContextType | undefined>(undefined);
@@ -66,7 +65,6 @@ export function VaultProvider({ children }: VaultProviderProps) {
     const [encryptionKey, setEncryptionKey] = useState<CryptoKey | null>(null);
     const [salt, setSalt] = useState<string | null>(null);
     const [verificationHash, setVerificationHash] = useState<string | null>(null);
-    const [passwordHint, setPasswordHint] = useState<string | null>(null);
     const [autoLockTimeout, setAutoLockTimeoutState] = useState(() => {
         const saved = localStorage.getItem('singra_autolock');
         return saved ? parseInt(saved, 10) : DEFAULT_AUTO_LOCK_TIMEOUT;
@@ -101,7 +99,7 @@ export function VaultProvider({ children }: VaultProviderProps) {
             try {
                 const { data: profile, error } = await supabase
                     .from('profiles')
-                    .select('encryption_salt, master_password_hint, master_password_verifier')
+                    .select('encryption_salt, master_password_verifier')
                     .eq('user_id', user.id)
                     .single();
 
@@ -111,7 +109,6 @@ export function VaultProvider({ children }: VaultProviderProps) {
                 } else {
                     setIsSetupRequired(false);
                     setSalt(profile.encryption_salt);
-                    setPasswordHint(profile.master_password_hint);
                     setVerificationHash(profile.master_password_verifier || null);
                 }
             } catch (err) {
@@ -161,8 +158,7 @@ export function VaultProvider({ children }: VaultProviderProps) {
      * Sets up the master password for first-time users
      */
     const setupMasterPassword = useCallback(async (
-        masterPassword: string,
-        hint?: string
+        masterPassword: string
     ): Promise<{ error: Error | null }> => {
         if (!user) {
             return { error: new Error('No user logged in') };
@@ -194,12 +190,11 @@ export function VaultProvider({ children }: VaultProviderProps) {
                 });
             }
 
-            // Save salt and hint to profile (NOT the password!)
+            // Save salt and verifier to profile (NOT the password!)
             const { error: updateError } = await supabase
                 .from('profiles')
                 .update({
                     encryption_salt: newSalt,
-                    master_password_hint: hint || null,
                     master_password_verifier: verifyHash,
                 })
                 .eq('user_id', user.id);
@@ -211,7 +206,6 @@ export function VaultProvider({ children }: VaultProviderProps) {
             // Update state
             setSalt(newSalt);
             setVerificationHash(verifyHash);
-            setPasswordHint(hint || null);
             setEncryptionKey(key);
             setIsSetupRequired(false);
             setIsLocked(false);
@@ -338,7 +332,6 @@ export function VaultProvider({ children }: VaultProviderProps) {
                 decryptItem,
                 autoLockTimeout,
                 setAutoLockTimeout,
-                passwordHint,
             }}
         >
             {children}

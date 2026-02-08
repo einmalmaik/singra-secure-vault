@@ -204,8 +204,6 @@
       "warning": "If you forget your master password, we cannot recover your data!",
       "password": "Master Password",
       "confirmPassword": "Confirm Master Password",
-      "hint": "Hint (optional)",
-      "hintHelp": "A hint to help you remember your password.",
       "submit": "Set up vault",
       "strength": {
         "weak": "Weak",
@@ -220,7 +218,6 @@
       "subtitle": "Enter your master password to access your data",
       "password": "Master Password",
       "submit": "Unlock",
-      "forgot": "Forgot master password?",
       "logout": "Logout"
     },
     "providers": {

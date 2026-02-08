@@ -28,6 +28,8 @@ import { useVault } from '@/contexts/VaultContext';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
+const ENCRYPTED_ITEM_TITLE_PLACEHOLDER = 'Encrypted Item';
+
 export function DataSettings() {
     const { t } = useTranslation();
     const { user } = useAuth();
@@ -79,9 +81,11 @@ export function DataSettings() {
                 items.map(async (item) => {
                     try {
                         const decrypted = await decryptItem(item.encrypted_data);
+                        const resolvedTitle = decrypted.title || item.title;
+                        const resolvedWebsiteUrl = decrypted.websiteUrl || item.website_url;
                         return {
-                            title: item.title,
-                            website_url: item.website_url,
+                            title: resolvedTitle,
+                            website_url: resolvedWebsiteUrl,
                             item_type: item.item_type,
                             is_favorite: item.is_favorite,
                             data: decrypted,
@@ -170,14 +174,18 @@ export function DataSettings() {
             for (const item of data.items) {
                 try {
                     // Encrypt the data
-                    const encryptedData = await encryptItem(item.data);
+                    const encryptedData = await encryptItem({
+                        ...item.data,
+                        title: item.title || item.data?.title || 'Imported Item',
+                        websiteUrl: item.website_url || item.data?.websiteUrl || undefined,
+                    });
 
                     // Insert into database
                     await supabase.from('vault_items').insert({
                         user_id: user.id,
                         vault_id: vault.id,
-                        title: item.title || 'Imported Item',
-                        website_url: item.website_url || null,
+                        title: ENCRYPTED_ITEM_TITLE_PLACEHOLDER,
+                        website_url: null,
                         item_type: item.item_type || 'password',
                         is_favorite: item.is_favorite || false,
                         encrypted_data: encryptedData,

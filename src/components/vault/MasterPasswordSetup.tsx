@@ -7,7 +7,7 @@
 
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Shield, Lock, Eye, EyeOff, AlertTriangle, Loader2, Info, Wand2 } from 'lucide-react';
+import { Shield, Lock, Eye, EyeOff, AlertTriangle, Loader2, Wand2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -44,7 +44,6 @@ export function MasterPasswordSetup() {
 
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
-    const [hint, setHint] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [strength, setStrength] = useState<PasswordStrength | null>(null);
@@ -135,7 +134,7 @@ export function MasterPasswordSetup() {
         }
 
         setLoading(true);
-        const { error } = await setupMasterPassword(password, hint || undefined);
+        const { error } = await setupMasterPassword(password);
         setLoading(false);
 
         if (error) {
@@ -278,20 +277,6 @@ export function MasterPasswordSetup() {
                                     {t('auth.errors.passwordMismatch')}
                                 </p>
                             )}
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label htmlFor="hint" className="flex items-center gap-1">
-                                {t('auth.masterPassword.hint')}
-                                <Info className="w-3 h-3 text-muted-foreground" />
-                            </Label>
-                            <Input
-                                id="hint"
-                                type="text"
-                                value={hint}
-                                onChange={(e) => setHint(e.target.value)}
-                                placeholder={t('auth.masterPassword.hintHelp')}
-                            />
                         </div>
 
                         <Button

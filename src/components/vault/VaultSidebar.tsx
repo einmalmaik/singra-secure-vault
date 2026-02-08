@@ -55,10 +55,12 @@ interface VaultSidebarProps {
     onSelectCategory: (categoryId: string | null) => void;
 }
 
+const ENCRYPTED_CATEGORY_PREFIX = 'enc:cat:v1:';
+
 export function VaultSidebar({ selectedCategory, onSelectCategory }: VaultSidebarProps) {
     const { t } = useTranslation();
     const navigate = useNavigate();
-    const { lock } = useVault();
+    const { lock, encryptData, decryptData } = useVault();
     const { user } = useAuth();
     const [collapsed, setCollapsed] = useState(false);
 
@@ -106,14 +108,57 @@ export function VaultSidebar({ selectedCategory, onSelectCategory }: VaultSideba
                     }
                 });
 
-                setCategories(
-                    (cats || []).map(cat => ({
-                        ...cat,
-                        count: counts[cat.id] || 0,
-                    }))
+                const resolvedCategories = await Promise.all(
+                    (cats || []).map(async (cat) => {
+                        let resolvedName = cat.name;
+
+                        if (cat.name.startsWith(ENCRYPTED_CATEGORY_PREFIX)) {
+                            try {
+                                resolvedName = await decryptData(cat.name.slice(ENCRYPTED_CATEGORY_PREFIX.length));
+                            } catch (err) {
+                                console.error('Failed to decrypt category name:', cat.id, err);
+                                resolvedName = 'Encrypted Category';
+                            }
+                        } else {
+                            try {
+                                const encryptedName = await encryptData(cat.name);
+                                await supabase
+                                    .from('categories')
+                                    .update({ name: `${ENCRYPTED_CATEGORY_PREFIX}${encryptedName}` })
+                                    .eq('id', cat.id);
+                            } catch (err) {
+                                console.error('Failed to migrate category name:', cat.id, err);
+                            }
+                        }
+
+                        return {
+                            ...cat,
+                            name: resolvedName,
+                            count: counts[cat.id] || 0,
+                        };
+                    })
                 );
+
+                setCategories(resolvedCategories);
             } else {
-                setCategories(cats || []);
+                const resolvedCategories = await Promise.all(
+                    (cats || []).map(async (cat) => {
+                        let resolvedName = cat.name;
+
+                        if (cat.name.startsWith(ENCRYPTED_CATEGORY_PREFIX)) {
+                            try {
+                                resolvedName = await decryptData(cat.name.slice(ENCRYPTED_CATEGORY_PREFIX.length));
+                            } catch (err) {
+                                console.error('Failed to decrypt category name:', cat.id, err);
+                                resolvedName = 'Encrypted Category';
+                            }
+                        }
+
+                        return { ...cat, name: resolvedName };
+                    })
+                );
+
+                setCategories(resolvedCategories);
             }
         } catch (err) {
             console.error('Error fetching categories:', err);
@@ -124,7 +169,7 @@ export function VaultSidebar({ selectedCategory, onSelectCategory }: VaultSideba
 
     useEffect(() => {
         fetchCategories();
-    }, [user]);
+    }, [user, encryptData, decryptData, t]);
 
     const handleAddCategory = () => {
         setEditingCategory(null);

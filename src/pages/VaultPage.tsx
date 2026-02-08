@@ -7,7 +7,7 @@
 
 import { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
     Plus,
     Search,
@@ -118,6 +118,10 @@ export default function VaultPage() {
 
                         {/* Actions */}
                         <div className="flex items-center gap-2">
+                            <Button asChild variant="outline">
+                                <Link to="/">{t('nav.home')}</Link>
+                            </Button>
+
                             {/* View Mode Toggle */}
                             <div className="hidden sm:flex border rounded-lg p-0.5">
                                 <Button
@@ -184,6 +188,24 @@ export default function VaultPage() {
                         refreshKey={refreshKey}
                     />
                 </main>
+
+                <footer className="border-t px-4 lg:px-6 py-3 text-xs text-muted-foreground">
+                    <nav className="flex flex-wrap items-center gap-3">
+                        <Link to="/privacy" className="hover:text-foreground transition-colors">
+                            {t('landing.footer.privacy')}
+                        </Link>
+                        <Link to="/impressum" className="hover:text-foreground transition-colors">
+                            {t('landing.footer.imprint')}
+                        </Link>
+                        <button
+                            type="button"
+                            onClick={() => window.dispatchEvent(new Event('singra:open-cookie-settings'))}
+                            className="hover:text-foreground transition-colors"
+                        >
+                            {t('landing.footer.cookies')}
+                        </button>
+                    </nav>
+                </footer>
             </div>
 
             {/* Create/Edit Dialog */}

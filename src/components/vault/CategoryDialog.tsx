@@ -34,6 +34,7 @@ import {
 
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useVault } from '@/contexts/VaultContext';
 import { useToast } from '@/hooks/use-toast';
 import { CategoryIcon } from './CategoryIcon';
 import { sanitizeInlineSvg } from '@/lib/sanitizeSvg';
@@ -65,10 +66,13 @@ interface CategoryDialogProps {
     onSave?: () => void;
 }
 
+const ENCRYPTED_CATEGORY_PREFIX = 'enc:cat:v1:';
+
 export function CategoryDialog({ open, onOpenChange, category, onSave }: CategoryDialogProps) {
     const { t } = useTranslation();
     const { toast } = useToast();
     const { user } = useAuth();
+    const { encryptData } = useVault();
 
     const [name, setName] = useState('');
     const [icon, setIcon] = useState('');
@@ -116,7 +120,7 @@ export function CategoryDialog({ open, onOpenChange, category, onSave }: Categor
             }
 
             const categoryData = {
-                name: name.trim(),
+                name: `${ENCRYPTED_CATEGORY_PREFIX}${await encryptData(name.trim())}`,
                 icon: normalizedIcon,
                 color: color,
                 user_id: user.id,

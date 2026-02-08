@@ -227,6 +227,8 @@ function base64ToUint8Array(base64: string): Uint8Array {
  * Sensitive vault item data that gets encrypted
  */
 export interface VaultItemData {
+    title?: string;
+    websiteUrl?: string;
     username?: string;
     password?: string;
     notes?: string;
@@ -239,6 +241,8 @@ export interface VaultItemData {
  * Note: JavaScript doesn't guarantee memory clearing, but this helps
  */
 export function secureClear(data: VaultItemData): void {
+    if (data.title) data.title = '';
+    if (data.websiteUrl) data.websiteUrl = '';
     if (data.username) data.username = '';
     if (data.password) data.password = '';
     if (data.notes) data.notes = '';

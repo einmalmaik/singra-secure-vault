@@ -8,7 +8,7 @@
 
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Shield, Lock, Eye, EyeOff, Loader2, Info, LogOut } from 'lucide-react';
+import { Shield, Lock, Eye, EyeOff, Loader2, LogOut } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,12 +23,11 @@ import { get2FAStatus, verifyTwoFactorForLogin } from '@/services/twoFactorServi
 export function VaultUnlock() {
     const { t } = useTranslation();
     const { toast } = useToast();
-    const { unlock, passwordHint } = useVault();
+    const { unlock } = useVault();
     const { signOut, user } = useAuth();
 
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
-    const [showHint, setShowHint] = useState(false);
     const [loading, setLoading] = useState(false);
 
     // Vault 2FA state
@@ -153,25 +152,6 @@ export function VaultUnlock() {
                                 </Button>
                             </div>
                         </div>
-
-                        {/* Password Hint */}
-                        {passwordHint && (
-                            <div className="space-y-2">
-                                <button
-                                    type="button"
-                                    className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1"
-                                    onClick={() => setShowHint(!showHint)}
-                                >
-                                    <Info className="w-3 h-3" />
-                                    {t('auth.unlock.forgot')}
-                                </button>
-                                {showHint && (
-                                    <p className="text-sm p-2 bg-muted rounded">
-                                        <span className="font-medium">Hinweis:</span> {passwordHint}
-                                    </p>
-                                )}
-                            </div>
-                        )}
 
                         <Button
                             type="submit"

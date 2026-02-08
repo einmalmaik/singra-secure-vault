@@ -18,6 +18,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { VaultItemData } from '@/services/cryptoService';
 import { cn } from '@/lib/utils';
 
+const ENCRYPTED_ITEM_TITLE_PLACEHOLDER = 'Encrypted Item';
+
 interface VaultItem {
     id: string;
     vault_id: string;
@@ -51,7 +53,7 @@ export function VaultItemList({
 }: VaultItemListProps) {
     const { t } = useTranslation();
     const { user } = useAuth();
-    const { decryptItem } = useVault();
+    const { decryptItem, encryptItem } = useVault();
 
     const [items, setItems] = useState<VaultItem[]>([]);
     const [loading, setLoading] = useState(true);
@@ -92,6 +94,38 @@ export function VaultItemList({
                     (vaultItems || []).map(async (item) => {
                         try {
                             const decryptedData = await decryptItem(item.encrypted_data);
+                            const hasLegacyPlaintextMeta =
+                                (!decryptedData.title && item.title && item.title !== ENCRYPTED_ITEM_TITLE_PLACEHOLDER) ||
+                                (!decryptedData.websiteUrl && !!item.website_url);
+
+                            if (hasLegacyPlaintextMeta) {
+                                const migratedEncryptedData = await encryptItem({
+                                    ...decryptedData,
+                                    title: decryptedData.title || item.title,
+                                    websiteUrl: decryptedData.websiteUrl || item.website_url || undefined,
+                                });
+
+                                await supabase
+                                    .from('vault_items')
+                                    .update({
+                                        encrypted_data: migratedEncryptedData,
+                                        title: ENCRYPTED_ITEM_TITLE_PLACEHOLDER,
+                                        website_url: null,
+                                    })
+                                    .eq('id', item.id);
+
+                                return {
+                                    ...item,
+                                    title: ENCRYPTED_ITEM_TITLE_PLACEHOLDER,
+                                    website_url: null,
+                                    decryptedData: {
+                                        ...decryptedData,
+                                        title: decryptedData.title || item.title,
+                                        websiteUrl: decryptedData.websiteUrl || item.website_url || undefined,
+                                    },
+                                };
+                            }
+
                             return { ...item, decryptedData };
                         } catch (err) {
                             console.error('Failed to decrypt item:', item.id, err);
@@ -110,7 +144,7 @@ export function VaultItemList({
         }
 
         fetchItems();
-    }, [user, decryptItem, refreshKey]); // Added refreshKey to trigger refetch
+    }, [user, decryptItem, encryptItem, refreshKey]); // Added refreshKey to trigger refetch
 
     // Filter items
     const filteredItems = useMemo(() => {
@@ -127,8 +161,10 @@ export function VaultItemList({
             // Search filter
             if (searchQuery) {
                 const query = searchQuery.toLowerCase();
-                const matchTitle = item.title.toLowerCase().includes(query);
-                const matchUrl = item.website_url?.toLowerCase().includes(query);
+                const resolvedTitle = item.decryptedData?.title || item.title;
+                const resolvedUrl = item.decryptedData?.websiteUrl || item.website_url;
+                const matchTitle = resolvedTitle.toLowerCase().includes(query);
+                const matchUrl = resolvedUrl?.toLowerCase().includes(query);
                 const matchUsername = item.decryptedData?.username?.toLowerCase().includes(query);
                 if (!matchTitle && !matchUrl && !matchUsername) return false;
             }

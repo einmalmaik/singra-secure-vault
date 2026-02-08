@@ -204,8 +204,6 @@
       "warning": "Wenn du dein Master-Passwort vergisst, können wir deine Daten nicht wiederherstellen!",
       "password": "Master-Passwort",
       "confirmPassword": "Master-Passwort bestätigen",
-      "hint": "Hinweis (optional)",
-      "hintHelp": "Ein Hinweis, der dir hilft, dich an dein Passwort zu erinnern.",
       "submit": "Tresor einrichten",
       "strength": {
         "weak": "Schwach",
@@ -220,7 +218,6 @@
       "subtitle": "Gib dein Master-Passwort ein, um auf deine Daten zuzugreifen",
       "password": "Master-Passwort",
       "submit": "Entsperren",
-      "forgot": "Master-Passwort vergessen?",
       "logout": "Abmelden"
     },
     "providers": {

@@ -93,6 +93,7 @@ const normalizeUrl = (url: string | undefined): string | null => {
 };
 
 type ItemFormData = z.infer<typeof itemSchema>;
+const ENCRYPTED_ITEM_TITLE_PLACEHOLDER = 'Encrypted Item';
 
 interface VaultItemDialogProps {
     open: boolean;
@@ -101,11 +102,13 @@ interface VaultItemDialogProps {
     onSave?: () => void; // Callback when item is saved
 }
 
+const ENCRYPTED_CATEGORY_PREFIX = 'enc:cat:v1:';
+
 export function VaultItemDialog({ open, onOpenChange, itemId, onSave }: VaultItemDialogProps) {
     const { t } = useTranslation();
     const { toast } = useToast();
     const { user } = useAuth();
-    const { encryptItem, decryptItem } = useVault();
+    const { encryptItem, decryptItem, encryptData, decryptData } = useVault();
 
     const [itemType, setItemType] = useState<'password' | 'note' | 'totp'>('password');
     const [showPassword, setShowPassword] = useState(false);
@@ -141,9 +144,39 @@ export function VaultItemDialog({ open, onOpenChange, itemId, onSave }: VaultIte
             .order('sort_order', { ascending: true });
 
         if (!error && data) {
-            setCategories(data);
+            const resolvedCategories = await Promise.all(
+                data.map(async (cat) => {
+                    let resolvedName = cat.name;
+
+                    if (cat.name.startsWith(ENCRYPTED_CATEGORY_PREFIX)) {
+                        try {
+                            resolvedName = await decryptData(cat.name.slice(ENCRYPTED_CATEGORY_PREFIX.length));
+                        } catch (err) {
+                            console.error('Failed to decrypt category name:', cat.id, err);
+                            resolvedName = 'Encrypted Category';
+                        }
+                    } else {
+                        try {
+                            const encryptedName = await encryptData(cat.name);
+                            await supabase
+                                .from('categories')
+                                .update({ name: `${ENCRYPTED_CATEGORY_PREFIX}${encryptedName}` })
+                                .eq('id', cat.id);
+                        } catch (err) {
+                            console.error('Failed to migrate category name:', cat.id, err);
+                        }
+                    }
+
+                    return {
+                        ...cat,
+                        name: resolvedName,
+                    };
+                })
+            );
+
+            setCategories(resolvedCategories);
         }
-    }, [user, open]);
+    }, [user, open, decryptData, encryptData]);
 
     // Fetch categories
     useEffect(() => {
@@ -167,10 +200,12 @@ export function VaultItemDialog({ open, onOpenChange, itemId, onSave }: VaultIte
 
                 // Decrypt data
                 const decrypted = await decryptItem(item.encrypted_data);
+                const resolvedTitle = decrypted.title || item.title || '';
+                const resolvedUrl = decrypted.websiteUrl || item.website_url || '';
 
                 form.reset({
-                    title: item.title,
-                    url: item.website_url || '',
+                    title: resolvedTitle,
+                    url: resolvedUrl,
                     username: decrypted.username || '',
                     password: decrypted.password || '',
                     notes: decrypted.notes || '',
@@ -226,6 +261,8 @@ export function VaultItemDialog({ open, onOpenChange, itemId, onSave }: VaultIte
 
             // Encrypt sensitive data
             const encryptedData = await encryptItem({
+                title: data.title,
+                websiteUrl: normalizeUrl(data.url) || undefined,
                 username: data.username,
                 password: data.password,
                 notes: data.notes,
@@ -235,8 +272,8 @@ export function VaultItemDialog({ open, onOpenChange, itemId, onSave }: VaultIte
             const itemData = {
                 user_id: user.id,
                 vault_id: vault.id,
-                title: data.title,
-                website_url: normalizeUrl(data.url),
+                title: ENCRYPTED_ITEM_TITLE_PLACEHOLDER,
+                website_url: null,
                 item_type: itemType,
                 is_favorite: data.isFavorite,
                 encrypted_data: encryptedData,

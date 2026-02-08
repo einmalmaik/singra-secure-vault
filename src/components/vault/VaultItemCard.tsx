@@ -53,6 +53,8 @@ export function VaultItemCard({ item, viewMode, onEdit }: VaultItemCardProps) {
     const { t } = useTranslation();
     const { toast } = useToast();
     const [showPassword, setShowPassword] = useState(false);
+    const resolvedTitle = item.decryptedData?.title || item.title;
+    const resolvedWebsiteUrl = item.decryptedData?.websiteUrl || item.website_url;
 
     const getIcon = () => {
         switch (item.item_type) {
@@ -93,12 +95,12 @@ export function VaultItemCard({ item, viewMode, onEdit }: VaultItemCardProps) {
     };
 
     const openUrl = () => {
-        if (item.website_url) {
-            window.open(item.website_url, '_blank', 'noopener,noreferrer');
+        if (resolvedWebsiteUrl) {
+            window.open(resolvedWebsiteUrl, '_blank', 'noopener,noreferrer');
         }
     };
 
-    const domain = getDomainFromUrl(item.website_url);
+    const domain = getDomainFromUrl(resolvedWebsiteUrl);
 
     if (viewMode === 'list') {
         return (
@@ -112,7 +114,7 @@ export function VaultItemCard({ item, viewMode, onEdit }: VaultItemCardProps) {
                     {/* Info */}
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                            <h3 className="font-medium truncate">{item.title}</h3>
+                            <h3 className="font-medium truncate">{resolvedTitle}</h3>
                             {item.is_favorite && (
                                 <Star className="w-4 h-4 text-amber-500 fill-amber-500 flex-shrink-0" />
                             )}
@@ -136,7 +138,7 @@ export function VaultItemCard({ item, viewMode, onEdit }: VaultItemCardProps) {
                                 <Copy className="w-4 h-4" />
                             </Button>
                         )}
-                        {item.website_url && (
+                        {resolvedWebsiteUrl && (
                             <Button
                                 variant="ghost"
                                 size="icon"
@@ -183,7 +185,7 @@ export function VaultItemCard({ item, viewMode, onEdit }: VaultItemCardProps) {
                             {getIcon()}
                         </div>
                         <div>
-                            <h3 className="font-medium line-clamp-1">{item.title}</h3>
+                            <h3 className="font-medium line-clamp-1">{resolvedTitle}</h3>
                             {domain && (
                                 <p className="text-xs text-muted-foreground">{domain}</p>
                             )}

@@ -54,13 +54,22 @@ export function AuthProvider({ children }: AuthProviderProps) {
    * Helper to get the redirect URL
    */
   const getRedirectUrl = () => {
-    let siteUrl = import.meta.env.VITE_SITE_URL?.trim();
     const currentOrigin = window.location.origin.replace(/\/$/, '');
     const currentHost = window.location.hostname.toLowerCase();
     const currentIsLocal =
       currentHost === 'localhost' ||
       currentHost === '127.0.0.1' ||
       currentHost === '[::1]';
+
+    // Prefer window.location.origin if we're in the browser, as it's always accurate
+    // for the currently running instance.
+    if (typeof window !== 'undefined' && window.location && !currentIsLocal) {
+      console.log('Using current origin for redirect:', currentOrigin);
+      return currentOrigin;
+    }
+
+    let siteUrl = import.meta.env.VITE_SITE_URL?.trim();
+    console.log('Site URL from env:', siteUrl);
 
     // Defensive fix for common typo (comma instead of dot)
     if (siteUrl && siteUrl.includes('mauntingstudios,de')) {
@@ -97,7 +106,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
    * Sign up with email and password
    */
   const signUp = async (email: string, password: string) => {
-    const redirectUrl = `${getRedirectUrl()}/`;
+    const redirectUrl = `${getRedirectUrl()}/vault`;
 
     const { error } = await supabase.auth.signUp({
       email,
@@ -126,10 +135,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
    * Sign in with OAuth provider (Google, Discord, GitHub)
    */
   const signInWithOAuth = async (provider: 'google' | 'discord' | 'github') => {
+    const redirectUrl = `${getRedirectUrl()}/vault`;
+    console.log(`Starting OAuth with ${provider}, redirecting to: ${redirectUrl}`);
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
-        redirectTo: `${getRedirectUrl()}/vault`,
+        redirectTo: redirectUrl,
       },
     });
 

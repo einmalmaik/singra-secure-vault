@@ -21,6 +21,11 @@ import {
     secureClear,
     VaultItemData
 } from '@/services/cryptoService';
+import {
+    isLikelyOfflineError,
+    getOfflineCredentials,
+    saveOfflineCredentials,
+} from '@/services/offlineVaultService';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
 
@@ -132,15 +137,45 @@ export function VaultProvider({ children }: VaultProviderProps) {
                     .single();
 
                 if (error || !profile?.encryption_salt) {
+                    // Online but no profile found - check if it's a network error
+                    if (error && isLikelyOfflineError(error)) {
+                        // Offline: try to use cached credentials
+                        const cached = await getOfflineCredentials(user.id);
+                        if (cached) {
+                            setIsSetupRequired(false);
+                            setSalt(cached.salt);
+                            setVerificationHash(cached.verifier);
+                            setIsLoading(false);
+                            return;
+                        }
+                    }
+                    // No cached data or truly no profile - setup required
                     setIsSetupRequired(true);
                     setIsLocked(true);
                 } else {
                     setIsSetupRequired(false);
                     setSalt(profile.encryption_salt);
                     setVerificationHash(profile.master_password_verifier || null);
+                    // Cache credentials for offline use
+                    await saveOfflineCredentials(
+                        user.id,
+                        profile.encryption_salt,
+                        profile.master_password_verifier || null
+                    );
                 }
             } catch (err) {
                 console.error('Error checking vault setup:', err);
+                // Try offline fallback on any error
+                if (isLikelyOfflineError(err)) {
+                    const cached = await getOfflineCredentials(user.id);
+                    if (cached) {
+                        setIsSetupRequired(false);
+                        setSalt(cached.salt);
+                        setVerificationHash(cached.verifier);
+                        setIsLoading(false);
+                        return;
+                    }
+                }
                 setIsSetupRequired(true);
             } finally {
                 setIsLoading(false);
@@ -243,6 +278,9 @@ export function VaultProvider({ children }: VaultProviderProps) {
             sessionStorage.setItem(SESSION_KEY, 'active');
             sessionStorage.setItem(SESSION_TIMESTAMP_KEY, Date.now().toString());
             setPendingSessionRestore(false);
+
+            // Cache credentials for offline use
+            await saveOfflineCredentials(user.id, newSalt, verifyHash);
 
             return { error: null };
         } catch (err) {

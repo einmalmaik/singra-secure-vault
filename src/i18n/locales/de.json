@@ -108,8 +108,61 @@
         "totp": "TOTP/2FA Support"
       }
     },
+    "pwa": {
+      "badge": "Progressive Web App",
+      "title": "Wie funktioniert die PWA?",
+      "subtitle": "Singra PW ist eine Progressive Web App – eine moderne Webanwendung, die wie eine native App funktioniert und auch offline nutzbar ist.",
+      "features": {
+        "whatIsPwa": {
+          "title": "Was ist eine PWA?",
+          "description": "Eine Progressive Web App kombiniert das Beste aus Web und nativen Apps. Du kannst sie direkt aus dem Browser installieren – ohne App Store – und sie verhält sich wie eine echte App auf deinem Gerät."
+        },
+        "offlineAccess": {
+          "title": "Offline-Zugriff",
+          "description": "Sobald du dich einmal online angemeldet hast, kannst du auf deine gespeicherten Passwörter auch ohne Internetverbindung zugreifen. Deine Daten werden verschlüsselt lokal zwischengespeichert."
+        },
+        "installable": {
+          "title": "Installierbar",
+          "description": "Installiere Singra PW auf deinem Startbildschirm für schnellen Zugriff. In Chrome/Edge: Menü → 'App installieren'. Auf iOS: Teilen → 'Zum Home-Bildschirm'."
+        },
+        "autoSync": {
+          "title": "Automatische Synchronisation",
+          "description": "Änderungen, die du offline machst, werden automatisch synchronisiert, sobald du wieder online bist. Keine Daten gehen verloren."
+        }
+      },
+      "security": {
+        "title": "Sicherheit im Offline-Modus",
+        "localEncryption": {
+          "title": "Lokale Verschlüsselung bleibt aktiv",
+          "description": "Auch offline werden alle deine Daten mit AES-256-GCM verschlüsselt gespeichert. Dein Master-Passwort ist weiterhin erforderlich, um den Tresor zu entsperren."
+        },
+        "offlineCache": {
+          "title": "Verschlüsselter Offline-Cache",
+          "description": "Der lokale Cache in IndexedDB enthält nur verschlüsselte Daten. Ohne dein Master-Passwort sind die Daten nicht lesbar – selbst wenn jemand Zugriff auf dein Gerät hat."
+        }
+      },
+      "notes": {
+        "title": "Wichtige Hinweise",
+        "firstLogin": {
+          "title": "Erstmalige Anmeldung benötigt Internet",
+          "content": "Für die erstmalige Anmeldung und das Einrichten deines Master-Passworts ist eine Internetverbindung erforderlich. Danach kannst du offline zugreifen."
+        },
+        "masterPassword": {
+          "title": "Master-Passwort immer erforderlich",
+          "content": "Auch im Offline-Modus musst du dein Master-Passwort eingeben. Dies ist ein wichtiges Sicherheitsfeature – ohne das Passwort bleiben deine Daten verschlüsselt."
+        },
+        "offlineChanges": {
+          "title": "Offline-Änderungen werden gespeichert",
+          "content": "Wenn du offline neue Einträge erstellst oder bestehende bearbeitest, werden diese lokal gespeichert und automatisch synchronisiert, sobald du wieder online bist."
+        },
+        "browserSupport": {
+          "title": "Browser-Kompatibilität",
+          "content": "PWA-Funktionen werden von allen modernen Browsern unterstützt (Chrome, Edge, Firefox, Safari). Für das beste Erlebnis empfehlen wir Chrome oder Edge auf Desktop und Safari auf iOS."
+        }
+      }
+    },
     "footer": {
-      "tagline": "Deine PasswÃ¶rter. Deine Kontrolle.",
+      "tagline": "Deine Passwörter. Deine Kontrolle.",
       "security": "Sicherheit",
       "docs": "Dokumentation",
       "github": "GitHub",

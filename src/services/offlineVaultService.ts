@@ -26,37 +26,40 @@ export interface OfflineVaultSnapshot {
   categories: CategoryRow[];
   lastSyncedAt: string | null;
   updatedAt: string;
+  // Credentials for offline unlock
+  encryptionSalt?: string | null;
+  masterPasswordVerifier?: string | null;
 }
 
 type OfflineMutation =
   | {
-      id: string;
-      userId: string;
-      createdAt: string;
-      type: 'upsert_item';
-      payload: VaultItemInsert & { id: string };
-    }
+    id: string;
+    userId: string;
+    createdAt: string;
+    type: 'upsert_item';
+    payload: VaultItemInsert & { id: string };
+  }
   | {
-      id: string;
-      userId: string;
-      createdAt: string;
-      type: 'delete_item';
-      payload: { id: string };
-    }
+    id: string;
+    userId: string;
+    createdAt: string;
+    type: 'delete_item';
+    payload: { id: string };
+  }
   | {
-      id: string;
-      userId: string;
-      createdAt: string;
-      type: 'upsert_category';
-      payload: CategoryInsert & { id: string };
-    }
+    id: string;
+    userId: string;
+    createdAt: string;
+    type: 'upsert_category';
+    payload: CategoryInsert & { id: string };
+  }
   | {
-      id: string;
-      userId: string;
-      createdAt: string;
-      type: 'delete_category';
-      payload: { id: string };
-    };
+    id: string;
+    userId: string;
+    createdAt: string;
+    type: 'delete_category';
+    payload: { id: string };
+  };
 
 let dbPromise: Promise<IDBDatabase> | null = null;
 
@@ -110,9 +113,9 @@ function withStore<T>(
   return new Promise((resolve, reject) => {
     openDb()
       .then((db) => {
-      const tx = db.transaction(storeName, mode);
-      const store = tx.objectStore(storeName);
-      handler(store, resolve, reject);
+        const tx = db.transaction(storeName, mode);
+        const store = tx.objectStore(storeName);
+        handler(store, resolve, reject);
       })
       .catch(reject);
   });
@@ -183,6 +186,38 @@ export async function saveOfflineSnapshot(snapshot: OfflineVaultSnapshot): Promi
     req.onsuccess = () => resolve();
     req.onerror = () => reject(req.error);
   });
+}
+
+/**
+ * Saves encryption credentials for offline unlock.
+ * Call this after successful vault setup or online profile fetch.
+ */
+export async function saveOfflineCredentials(
+  userId: string,
+  encryptionSalt: string,
+  masterPasswordVerifier: string | null,
+): Promise<void> {
+  const snapshot = await ensureSnapshot(userId);
+  snapshot.encryptionSalt = encryptionSalt;
+  snapshot.masterPasswordVerifier = masterPasswordVerifier;
+  snapshot.updatedAt = nowIso();
+  await saveOfflineSnapshot(snapshot);
+}
+
+/**
+ * Retrieves cached credentials for offline unlock.
+ */
+export async function getOfflineCredentials(
+  userId: string,
+): Promise<{ salt: string; verifier: string | null } | null> {
+  const snapshot = await getOfflineSnapshot(userId);
+  if (!snapshot?.encryptionSalt) {
+    return null;
+  }
+  return {
+    salt: snapshot.encryptionSalt,
+    verifier: snapshot.masterPasswordVerifier ?? null,
+  };
 }
 
 async function ensureSnapshot(userId: string): Promise<OfflineVaultSnapshot> {
@@ -262,15 +297,15 @@ export async function getOfflineMutations(userId: string): Promise<OfflineMutati
   return new Promise((resolve, reject) => {
     openDb()
       .then((db) => {
-      const tx = db.transaction(MUTATIONS_STORE, 'readonly');
-      const store = tx.objectStore(MUTATIONS_STORE);
-      const index = store.index(MUTATIONS_USER_INDEX);
-      const req = index.getAll(userId);
-      req.onsuccess = () => {
-        const entries = (req.result as OfflineMutation[]).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
-        resolve(entries);
-      };
-      req.onerror = () => reject(req.error);
+        const tx = db.transaction(MUTATIONS_STORE, 'readonly');
+        const store = tx.objectStore(MUTATIONS_STORE);
+        const index = store.index(MUTATIONS_USER_INDEX);
+        const req = index.getAll(userId);
+        req.onsuccess = () => {
+          const entries = (req.result as OfflineMutation[]).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+          resolve(entries);
+        };
+        req.onerror = () => reject(req.error);
       })
       .catch(reject);
   });

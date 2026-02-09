@@ -8,6 +8,7 @@ import { Header } from '@/components/landing/Header';
 import { Hero } from '@/components/landing/Hero';
 import { SecurityFeatures } from '@/components/landing/SecurityFeatures';
 import { Features } from '@/components/landing/Features';
+import { PWASection } from '@/components/landing/PWASection';
 import { OpenSource } from '@/components/landing/OpenSource';
 import { Comparison } from '@/components/landing/Comparison';
 import { Footer } from '@/components/landing/Footer';
@@ -20,6 +21,7 @@ export default function Landing() {
         <Hero />
         <SecurityFeatures />
         <Features />
+        <PWASection />
         <OpenSource />
         <Comparison />
       </main>

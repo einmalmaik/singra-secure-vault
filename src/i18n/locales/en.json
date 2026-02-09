@@ -108,6 +108,59 @@
         "totp": "TOTP/2FA Support"
       }
     },
+    "pwa": {
+      "badge": "Progressive Web App",
+      "title": "How Does the PWA Work?",
+      "subtitle": "Singra PW is a Progressive Web App – a modern web application that works like a native app and is also available offline.",
+      "features": {
+        "whatIsPwa": {
+          "title": "What is a PWA?",
+          "description": "A Progressive Web App combines the best of web and native apps. You can install it directly from your browser – no app store needed – and it behaves like a real app on your device."
+        },
+        "offlineAccess": {
+          "title": "Offline Access",
+          "description": "Once you've logged in online, you can access your stored passwords even without an internet connection. Your data is cached locally in an encrypted format."
+        },
+        "installable": {
+          "title": "Installable",
+          "description": "Install Singra PW on your home screen for quick access. In Chrome/Edge: Menu → 'Install app'. On iOS: Share → 'Add to Home Screen'."
+        },
+        "autoSync": {
+          "title": "Automatic Sync",
+          "description": "Changes you make offline are automatically synchronized when you're back online. No data is lost."
+        }
+      },
+      "security": {
+        "title": "Security in Offline Mode",
+        "localEncryption": {
+          "title": "Local Encryption Stays Active",
+          "description": "Even offline, all your data is stored encrypted with AES-256-GCM. Your master password is still required to unlock the vault."
+        },
+        "offlineCache": {
+          "title": "Encrypted Offline Cache",
+          "description": "The local cache in IndexedDB contains only encrypted data. Without your master password, the data is unreadable – even if someone gains access to your device."
+        }
+      },
+      "notes": {
+        "title": "Important Notes",
+        "firstLogin": {
+          "title": "First Login Requires Internet",
+          "content": "An internet connection is required for the first login and setting up your master password. After that, you can access your vault offline."
+        },
+        "masterPassword": {
+          "title": "Master Password Always Required",
+          "content": "Even in offline mode, you must enter your master password. This is an important security feature – without the password, your data remains encrypted."
+        },
+        "offlineChanges": {
+          "title": "Offline Changes Are Saved",
+          "content": "When you create new entries or edit existing ones offline, they are saved locally and automatically synchronized when you're back online."
+        },
+        "browserSupport": {
+          "title": "Browser Compatibility",
+          "content": "PWA features are supported by all modern browsers (Chrome, Edge, Firefox, Safari). For the best experience, we recommend Chrome or Edge on desktop and Safari on iOS."
+        }
+      }
+    },
     "footer": {
       "tagline": "Your Passwords. Your Control.",
       "security": "Security",

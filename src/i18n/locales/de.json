@@ -557,6 +557,27 @@
       "title": "Gefahrenzone",
       "deleteAccount": "Konto lÃ¶schen",
       "deleteWarning": "Diese Aktion kann nicht rÃ¼ckgÃ¤ngig gemacht werden. Alle deine Daten werden unwiderruflich gelÃ¶scht."
+    },
+    "family": {
+      "title": "Familien-Organisation",
+      "description": "Lade bis zu 6 Premium-Familienmitglieder ein und verwalte sie.",
+      "emailPlaceholder": "familie@beispiel.de",
+      "empty": "Noch keine Familienmitglieder vorhanden.",
+      "inviteSent": "Einladung gesendet.",
+      "inviteError": "Familienmitglied konnte nicht eingeladen werden.",
+      "removed": "Familienmitglied entfernt.",
+      "removeError": "Familienmitglied konnte nicht entfernt werden."
+    },
+    "sharedCollections": {
+      "title": "Geteilte Sammlungen",
+      "description": "Erstelle Sammlungen, um Tresor-Einträge mit Familienmitgliedern zu teilen.",
+      "namePlaceholder": "Name der Sammlung",
+      "empty": "Noch keine geteilten Sammlungen vorhanden.",
+      "noDescription": "Keine Beschreibung",
+      "created": "Sammlung erstellt.",
+      "createError": "Sammlung konnte nicht erstellt werden.",
+      "deleted": "Sammlung gelöscht.",
+      "deleteError": "Sammlung konnte nicht gelöscht werden."
     }
   },
   "categories": {

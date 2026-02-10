@@ -22,6 +22,8 @@ import { AppearanceSettings } from '@/components/settings/AppearanceSettings';
 import { DataSettings } from '@/components/settings/DataSettings';
 import { SubscriptionSettings } from '@/components/Subscription/SubscriptionSettings';
 import EmergencyAccessSettings from '@/components/settings/EmergencyAccessSettings';
+import { FamilyOrganizationSettings } from '@/components/settings/FamilyOrganizationSettings';
+import { SharedCollectionsSettings } from '@/components/settings/SharedCollectionsSettings';
 
 import { useAuth } from '@/contexts/AuthContext';
 import { useVault } from '@/contexts/VaultContext';
@@ -33,7 +35,9 @@ export default function SettingsPage() {
     const navigate = useNavigate();
     const { user, loading } = useAuth();
     const { isLocked } = useVault();
-    const featureGate = useFeatureGate('emergency_access');
+    const emergencyGate = useFeatureGate('emergency_access');
+    const familyGate = useFeatureGate('family_members');
+    const sharedCollectionsGate = useFeatureGate('shared_collections');
 
     // ...
 
@@ -116,13 +120,28 @@ export default function SettingsPage() {
 
                     <Separator />
 
-                    {/* Emergency Access Settings (Premium) */}
-                    {featureGate && featureGate.allowed && (
+                    {/* Emergency Access Settings (Premium+) */}
+                    {emergencyGate.allowed && (
                         <>
-                            {/* Note: We render it here as a separate section */}
                             <div className="mt-8">
                                 <EmergencyAccessSettings />
                             </div>
+                            <Separator />
+                        </>
+                    )}
+
+                    {/* Family Organization (Families tier) */}
+                    {familyGate.allowed && (
+                        <>
+                            <FamilyOrganizationSettings />
+                            <Separator />
+                        </>
+                    )}
+
+                    {/* Shared Collections (Families tier) */}
+                    {sharedCollectionsGate.allowed && (
+                        <>
+                            <SharedCollectionsSettings />
                             <Separator />
                         </>
                     )}

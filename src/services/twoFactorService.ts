@@ -147,7 +147,7 @@ export async function get2FAStatus(userId: string): Promise<TwoFactorStatus | nu
         .from('user_2fa')
         .select('is_enabled, vault_2fa_enabled, last_verified_at')
         .eq('user_id', userId)
-        .single();
+        .maybeSingle();
 
     if (error || !data) {
         return null;

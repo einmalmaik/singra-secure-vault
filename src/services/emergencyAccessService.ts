@@ -30,18 +30,32 @@ export const emergencyAccessService = {
 
         const { data, error } = await supabase
             .from('emergency_access')
-            .select(`
-                *,
-                trustee:profiles!emergency_access_trusted_user_id_fkey(
-                    display_name,
-                    avatar_url
-                )
-            `)
+            .select('*')
             .eq('grantor_id', userData.user.id)
             .order('created_at', { ascending: false });
 
         if (error) throw error;
-        return data as unknown as EmergencyAccess[];
+
+        const rows = (data || []) as EmergencyAccess[];
+        const trustedIds = Array.from(new Set(rows.map(r => r.trusted_user_id).filter(Boolean))) as string[];
+
+        let profileMap = new Map<string, { display_name: string | null; avatar_url: string | null }>();
+        if (trustedIds.length > 0) {
+            const { data: profiles } = await supabase
+                .from('profiles')
+                .select('user_id, display_name, avatar_url')
+                .in('user_id', trustedIds);
+
+            profileMap = new Map((profiles || []).map((p: any) => [p.user_id, {
+                display_name: p.display_name,
+                avatar_url: p.avatar_url,
+            }]));
+        }
+
+        return rows.map(row => ({
+            ...row,
+            trustee: row.trusted_user_id ? profileMap.get(row.trusted_user_id) : undefined,
+        }));
     },
 
     // Get people who trust me (I am the trustee)
@@ -51,18 +65,32 @@ export const emergencyAccessService = {
 
         const { data, error } = await supabase
             .from('emergency_access')
-            .select(`
-                *,
-                grantor:profiles!emergency_access_grantor_id_fkey(
-                    display_name,
-                    avatar_url
-                )
-            `)
+            .select('*')
             .or(`trusted_user_id.eq.${userData.user.id},trusted_email.eq.${userData.user.email}`)
             .order('created_at', { ascending: false });
 
         if (error) throw error;
-        return data as unknown as EmergencyAccess[];
+
+        const rows = (data || []) as EmergencyAccess[];
+        const grantorIds = Array.from(new Set(rows.map(r => r.grantor_id).filter(Boolean))) as string[];
+
+        let profileMap = new Map<string, { display_name: string | null; avatar_url: string | null }>();
+        if (grantorIds.length > 0) {
+            const { data: profiles } = await supabase
+                .from('profiles')
+                .select('user_id, display_name, avatar_url')
+                .in('user_id', grantorIds);
+
+            profileMap = new Map((profiles || []).map((p: any) => [p.user_id, {
+                display_name: p.display_name,
+                avatar_url: p.avatar_url,
+            }]));
+        }
+
+        return rows.map(row => ({
+            ...row,
+            grantor: profileMap.get(row.grantor_id),
+        }));
     },
 
     // Invite someone to be my trustee

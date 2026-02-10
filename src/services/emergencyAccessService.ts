@@ -95,22 +95,12 @@ export const emergencyAccessService = {
 
     // Invite someone to be my trustee
     async inviteTrustee(email: string, waitDays: number) {
-        const { data: userData } = await supabase.auth.getUser();
-        if (!userData.user) throw new Error("Not authenticated");
-
-        const { data, error } = await supabase
-            .from('emergency_access')
-            .insert({
-                grantor_id: userData.user.id,
-                trusted_email: email,
-                wait_days: waitDays,
-                status: 'invited'
-            })
-            .select()
-            .single();
+        const { error } = await supabase.functions.invoke('invite-emergency-access', {
+            body: { email, wait_days: waitDays },
+        });
 
         if (error) throw error;
-        return data as unknown as EmergencyAccess;
+        return { id: '', grantor_id: '', trusted_email: email, trusted_user_id: null, status: 'invited', wait_days: waitDays, requested_at: null, granted_at: null, created_at: new Date().toISOString(), trustee_public_key: null, encrypted_master_key: null } as EmergencyAccess;
     },
 
     // Revoke access (delete invite or remove trustee)

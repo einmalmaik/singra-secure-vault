@@ -31,16 +31,10 @@ export async function getFamilyMembers(ownerId: string): Promise<FamilyMember[]>
   return (data || []) as FamilyMember[];
 }
 
-export async function inviteFamilyMember(ownerId: string, email: string): Promise<void> {
-  const { error } = await supabase
-    .from('family_members')
-    .insert({
-      family_owner_id: ownerId,
-      member_email: email,
-      status: 'invited',
-      role: 'member',
-    });
-
+export async function inviteFamilyMember(_ownerId: string, email: string): Promise<void> {
+  const { error } = await supabase.functions.invoke('invite-family-member', {
+    body: { email },
+  });
   if (error) throw error;
 }
 

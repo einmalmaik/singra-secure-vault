@@ -99,7 +99,7 @@ export function FamilyOrganizationSettings() {
                     <p className="text-xs text-muted-foreground">{m.role}</p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Badge variant={m.status === 'joined' ? 'default' : 'outline'}>{m.status}</Badge>
+                    <Badge variant={m.status === 'active' ? 'default' : 'outline'}>{m.status}</Badge>
                     <Button variant="ghost" size="icon" onClick={() => onRemove(m.id)}>
                       <Trash2 className="w-4 h-4 text-destructive" />
                     </Button>

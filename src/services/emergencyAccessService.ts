@@ -4,7 +4,7 @@ export interface EmergencyAccess {
     id: string;
     grantor_id: string;
     trusted_email: string;
-    trustee_user_id: string | null;
+    trusted_user_id: string | null;
     status: 'invited' | 'accepted' | 'pending' | 'granted' | 'rejected' | 'expired' | 'revoked';
     wait_days: number;
     requested_at: string | null;
@@ -58,7 +58,7 @@ export const emergencyAccessService = {
                     avatar_url
                 )
             `)
-            .or(`trustee_user_id.eq.${userData.user.id},trusted_email.eq.${userData.user.email}`)
+            .or(`trusted_user_id.eq.${userData.user.id},trusted_email.eq.${userData.user.email}`)
             .order('created_at', { ascending: false });
 
         if (error) throw error;
@@ -104,7 +104,7 @@ export const emergencyAccessService = {
             .from('emergency_access')
             .update({
                 status: 'accepted',
-                trustee_user_id: userData.user.id,
+                trusted_user_id: userData.user.id,
                 trustee_public_key: publicKeyJwk
             })
             .eq('id', accessId)

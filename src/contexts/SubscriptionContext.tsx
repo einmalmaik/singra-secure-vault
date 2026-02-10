@@ -1,0 +1,127 @@
+/**
+ * @fileoverview Subscription Context for Singra PW
+ *
+ * Provides subscription state throughout the application.
+ * Loads user's subscription tier and status from Supabase.
+ * Respects VITE_DISABLE_BILLING for self-hosted instances.
+ */
+
+import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
+import { useAuth } from './AuthContext';
+import { getSubscription, type SubscriptionData } from '@/services/subscriptionService';
+import { FEATURE_MATRIX, type FeatureName, type SubscriptionTier } from '@/config/planConfig';
+
+const BILLING_DISABLED = import.meta.env.VITE_DISABLE_BILLING === 'true';
+
+interface SubscriptionContextType {
+    /** Current subscription tier */
+    tier: SubscriptionTier;
+    /** Stripe subscription status */
+    status: string | null;
+    /** Whether the subscription is active (active or trialing) */
+    isActive: boolean;
+    /** Whether cancellation is pending at period end */
+    cancelAtPeriodEnd: boolean;
+    /** When the current billing period ends */
+    currentPeriodEnd: string | null;
+    /** Whether intro discount was already used */
+    hasUsedIntroDiscount: boolean;
+    /** Whether billing is disabled (self-host mode) */
+    billingDisabled: boolean;
+    /** Full subscription data */
+    subscription: SubscriptionData | null;
+    /** Loading state */
+    loading: boolean;
+    /** Check if a specific feature is available */
+    hasFeature: (feature: FeatureName) => boolean;
+    /** Refresh subscription data */
+    refresh: () => Promise<void>;
+}
+
+const SubscriptionContext = createContext<SubscriptionContextType | undefined>(undefined);
+
+interface SubscriptionProviderProps {
+    children: ReactNode;
+}
+
+export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
+    const { user } = useAuth();
+    const [subscription, setSubscription] = useState<SubscriptionData | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    const loadSubscription = useCallback(async () => {
+        if (!user || BILLING_DISABLED) {
+            setLoading(false);
+            return;
+        }
+
+        try {
+            const data = await getSubscription();
+            setSubscription(data);
+        } catch (err) {
+            console.error('Error loading subscription:', err);
+        } finally {
+            setLoading(false);
+        }
+    }, [user]);
+
+    useEffect(() => {
+        loadSubscription();
+    }, [loadSubscription]);
+
+    const tier: SubscriptionTier = BILLING_DISABLED
+        ? 'premium' // Self-host mode: all features unlocked
+        : (subscription?.tier as SubscriptionTier) || 'free';
+
+    const status = subscription?.status || null;
+
+    const isActive = BILLING_DISABLED
+        ? true
+        : status === 'active' || status === 'trialing' || tier === 'free';
+
+    const cancelAtPeriodEnd = subscription?.cancel_at_period_end ?? false;
+    const currentPeriodEnd = subscription?.current_period_end ?? null;
+    const hasUsedIntroDiscount = subscription?.has_used_intro_discount ?? false;
+
+    const hasFeature = useCallback((feature: FeatureName): boolean => {
+        if (BILLING_DISABLED) return true; // Self-host: all features
+        if (!isActive && tier !== 'free') return false; // Expired paid plan
+        return FEATURE_MATRIX[feature]?.[tier] ?? false;
+    }, [tier, isActive]);
+
+    const refresh = useCallback(async () => {
+        setLoading(true);
+        await loadSubscription();
+    }, [loadSubscription]);
+
+    return (
+        <SubscriptionContext.Provider
+            value={{
+                tier,
+                status,
+                isActive,
+                cancelAtPeriodEnd,
+                currentPeriodEnd,
+                hasUsedIntroDiscount,
+                billingDisabled: BILLING_DISABLED,
+                subscription,
+                loading,
+                hasFeature,
+                refresh,
+            }}
+        >
+            {children}
+        </SubscriptionContext.Provider>
+    );
+}
+
+/**
+ * Hook to access subscription context
+ */
+export function useSubscription() {
+    const context = useContext(SubscriptionContext);
+    if (context === undefined) {
+        throw new Error('useSubscription must be used within a SubscriptionProvider');
+    }
+    return context;
+}

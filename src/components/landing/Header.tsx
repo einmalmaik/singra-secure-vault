@@ -7,7 +7,7 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
-import { Shield, Menu, X, Moon, Sun, Download } from 'lucide-react';
+import { Shield, Menu, X, Moon, Sun, Download, CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTheme } from '@/contexts/ThemeProvider';
 import { useAuth } from '@/contexts/AuthContext';
@@ -91,6 +91,10 @@ export function Header() {
             <a href="/#comparison" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
               Vergleich
             </a>
+            <Link to="/pricing" className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
+              <CreditCard className="w-3.5 h-3.5" />
+              {t('subscription.pricing_title', 'Preise')}
+            </Link>
           </nav>
 
           {/* Actions */}
@@ -174,6 +178,14 @@ export function Header() {
               >
                 Vergleich
               </a>
+              <Link
+                to="/pricing"
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                <CreditCard className="w-3.5 h-3.5" />
+                {t('subscription.pricing_title', 'Preise')}
+              </Link>
               <div className="flex flex-col gap-2 pt-4 border-t">
                 {/* PWA Install Button for Mobile */}
                 {isInstallable && (

@@ -37,10 +37,10 @@ export function generateSalt(): string {
  * @param saltBase64 - Base64-encoded salt from profiles table
  * @returns CryptoKey suitable for AES-GCM operations
  */
-export async function deriveKey(
+export async function deriveRawKey(
     masterPassword: string,
     saltBase64: string
-): Promise<CryptoKey> {
+): Promise<Uint8Array> {
     const salt = base64ToUint8Array(saltBase64);
 
     // Derive raw key bytes using Argon2id via hash-wasm
@@ -59,11 +59,36 @@ export async function deriveKey(
     for (let i = 0; i < keyBytes.length; i++) {
         keyBytes[i] = parseInt(hashHex.substr(i * 2, 2), 16);
     }
+    return keyBytes;
+}
 
-    // Import as CryptoKey for Web Crypto API
+/**
+ * Derives an AES-256 encryption key from master password using Argon2id
+ * 
+ * @param masterPassword - The user's master password
+ * @param saltBase64 - Base64-encoded salt from profiles table
+ * @returns CryptoKey suitable for AES-GCM operations
+ */
+export async function deriveKey(
+    masterPassword: string,
+    saltBase64: string
+): Promise<CryptoKey> {
+    const keyBytes = await deriveRawKey(masterPassword, saltBase64);
+    return importMasterKey(keyBytes);
+}
+
+/**
+ * Imports a raw AES-256 key bytes into a CryptoKey
+ * 
+ * @param keyBytes - Raw key bytes
+ * @returns CryptoKey suitable for AES-GCM operations
+ */
+export async function importMasterKey(
+    keyBytes: Uint8Array | BufferSource
+): Promise<CryptoKey> {
     return crypto.subtle.importKey(
         'raw',
-        keyBytes,
+        keyBytes as any, // Cast to any to avoid TS BufferSource mismatch
         { name: 'AES-GCM', length: 256 },
         false, // not extractable
         ['encrypt', 'decrypt']
@@ -258,4 +283,85 @@ export function secureClear(data: VaultItemData): void {
             data.customFields![key] = '';
         });
     }
+}
+
+// ==========================================
+// Asymmetric Encryption for Emergency Access
+// ==========================================
+
+export async function generateRSAKeyPair(): Promise<CryptoKeyPair> {
+    return window.crypto.subtle.generateKey(
+        {
+            name: "RSA-OAEP",
+            modulusLength: 4096,
+            publicExponent: new Uint8Array([1, 0, 1]),
+            hash: "SHA-256",
+        },
+        true,
+        ["encrypt", "decrypt"]
+    );
+}
+
+export async function exportPublicKey(key: CryptoKey): Promise<JsonWebKey> {
+    return window.crypto.subtle.exportKey("jwk", key);
+}
+
+export async function importPublicKey(jwk: JsonWebKey): Promise<CryptoKey> {
+    return window.crypto.subtle.importKey(
+        "jwk",
+        jwk,
+        {
+            name: "RSA-OAEP",
+            hash: "SHA-256",
+        },
+        true,
+        ["encrypt"]
+    );
+}
+
+export async function importPrivateKey(jwk: JsonWebKey): Promise<CryptoKey> {
+    return window.crypto.subtle.importKey(
+        "jwk",
+        jwk,
+        {
+            name: "RSA-OAEP",
+            hash: "SHA-256",
+        },
+        false,
+        ["decrypt"]
+    );
+}
+
+export async function exportPrivateKey(key: CryptoKey): Promise<JsonWebKey> {
+    return window.crypto.subtle.exportKey("jwk", key);
+}
+
+export async function encryptRSA(
+    plaintext: string,
+    publicKey: CryptoKey
+): Promise<string> {
+    const encoded = new TextEncoder().encode(plaintext);
+    const encrypted = await window.crypto.subtle.encrypt(
+        {
+            name: "RSA-OAEP",
+        },
+        publicKey,
+        encoded
+    );
+    return uint8ArrayToBase64(new Uint8Array(encrypted));
+}
+
+export async function decryptRSA(
+    ciphertextBase64: string,
+    privateKey: CryptoKey
+): Promise<string> {
+    const encrypted = base64ToUint8Array(ciphertextBase64);
+    const decrypted = await window.crypto.subtle.decrypt(
+        {
+            name: "RSA-OAEP",
+        },
+        privateKey,
+        encrypted as BufferSource
+    );
+    return new TextDecoder().decode(decrypted);
 }

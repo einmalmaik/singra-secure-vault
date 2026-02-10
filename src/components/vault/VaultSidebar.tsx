@@ -16,7 +16,9 @@ import {
     Lock,
     Home,
     MoreHorizontal,
-    Pencil
+    Pencil,
+    Activity,
+    QrCode
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -169,90 +171,90 @@ export function VaultSidebar({
 
             const resolvedCategories = await Promise.all(
                 snapshot.categories.map(async (cat) => {
-                        let resolvedName = cat.name;
-                        let resolvedIcon = cat.icon;
-                        let resolvedColor = cat.color;
-                        let migratedName = cat.name;
-                        let migratedIcon = cat.icon;
-                        let migratedColor = cat.color;
+                    let resolvedName = cat.name;
+                    let resolvedIcon = cat.icon;
+                    let resolvedColor = cat.color;
+                    let migratedName = cat.name;
+                    let migratedIcon = cat.icon;
+                    let migratedColor = cat.color;
 
-                        if (cat.name.startsWith(ENCRYPTED_CATEGORY_PREFIX)) {
-                            try {
-                                resolvedName = await decryptData(cat.name.slice(ENCRYPTED_CATEGORY_PREFIX.length));
-                            } catch (err) {
-                                console.error('Failed to decrypt category name:', cat.id, err);
-                                resolvedName = 'Encrypted Category';
-                            }
-                        } else if (canPersistMigrations) {
-                            try {
-                                const encryptedName = await encryptData(cat.name);
-                                migratedName = `${ENCRYPTED_CATEGORY_PREFIX}${encryptedName}`;
-                                await supabase
-                                    .from('categories')
-                                    .update({ name: migratedName })
-                                    .eq('id', cat.id);
-                            } catch (err) {
-                                console.error('Failed to migrate category name:', cat.id, err);
-                            }
+                    if (cat.name.startsWith(ENCRYPTED_CATEGORY_PREFIX)) {
+                        try {
+                            resolvedName = await decryptData(cat.name.slice(ENCRYPTED_CATEGORY_PREFIX.length));
+                        } catch (err) {
+                            console.error('Failed to decrypt category name:', cat.id, err);
+                            resolvedName = 'Encrypted Category';
                         }
-
-                        if (cat.icon && cat.icon.startsWith(ENCRYPTED_CATEGORY_PREFIX)) {
-                            try {
-                                resolvedIcon = await decryptData(cat.icon.slice(ENCRYPTED_CATEGORY_PREFIX.length));
-                            } catch (err) {
-                                console.error('Failed to decrypt category icon:', cat.id, err);
-                                resolvedIcon = null;
-                            }
-                        } else if (cat.icon && canPersistMigrations) {
-                            try {
-                                const encryptedIcon = await encryptData(cat.icon);
-                                migratedIcon = `${ENCRYPTED_CATEGORY_PREFIX}${encryptedIcon}`;
-                                await supabase
-                                    .from('categories')
-                                    .update({ icon: migratedIcon })
-                                    .eq('id', cat.id);
-                            } catch (err) {
-                                console.error('Failed to migrate category icon:', cat.id, err);
-                            }
+                    } else if (canPersistMigrations) {
+                        try {
+                            const encryptedName = await encryptData(cat.name);
+                            migratedName = `${ENCRYPTED_CATEGORY_PREFIX}${encryptedName}`;
+                            await supabase
+                                .from('categories')
+                                .update({ name: migratedName })
+                                .eq('id', cat.id);
+                        } catch (err) {
+                            console.error('Failed to migrate category name:', cat.id, err);
                         }
+                    }
 
-                        if (cat.color && cat.color.startsWith(ENCRYPTED_CATEGORY_PREFIX)) {
-                            try {
-                                resolvedColor = await decryptData(cat.color.slice(ENCRYPTED_CATEGORY_PREFIX.length));
-                            } catch (err) {
-                                console.error('Failed to decrypt category color:', cat.id, err);
-                                resolvedColor = '#3b82f6';
-                            }
-                        } else if (cat.color && canPersistMigrations) {
-                            try {
-                                const encryptedColor = await encryptData(cat.color);
-                                migratedColor = `${ENCRYPTED_CATEGORY_PREFIX}${encryptedColor}`;
-                                await supabase
-                                    .from('categories')
-                                    .update({ color: migratedColor })
-                                    .eq('id', cat.id);
-                            } catch (err) {
-                                console.error('Failed to migrate category color:', cat.id, err);
-                            }
+                    if (cat.icon && cat.icon.startsWith(ENCRYPTED_CATEGORY_PREFIX)) {
+                        try {
+                            resolvedIcon = await decryptData(cat.icon.slice(ENCRYPTED_CATEGORY_PREFIX.length));
+                        } catch (err) {
+                            console.error('Failed to decrypt category icon:', cat.id, err);
+                            resolvedIcon = null;
                         }
-
-                        if (canPersistMigrations && (migratedName !== cat.name || migratedIcon !== cat.icon || migratedColor !== cat.color)) {
-                            await upsertOfflineCategoryRow(user.id, {
-                                ...cat,
-                                name: migratedName,
-                                icon: migratedIcon,
-                                color: migratedColor,
-                                updated_at: new Date().toISOString(),
-                            });
+                    } else if (cat.icon && canPersistMigrations) {
+                        try {
+                            const encryptedIcon = await encryptData(cat.icon);
+                            migratedIcon = `${ENCRYPTED_CATEGORY_PREFIX}${encryptedIcon}`;
+                            await supabase
+                                .from('categories')
+                                .update({ icon: migratedIcon })
+                                .eq('id', cat.id);
+                        } catch (err) {
+                            console.error('Failed to migrate category icon:', cat.id, err);
                         }
+                    }
 
-                        return {
+                    if (cat.color && cat.color.startsWith(ENCRYPTED_CATEGORY_PREFIX)) {
+                        try {
+                            resolvedColor = await decryptData(cat.color.slice(ENCRYPTED_CATEGORY_PREFIX.length));
+                        } catch (err) {
+                            console.error('Failed to decrypt category color:', cat.id, err);
+                            resolvedColor = '#3b82f6';
+                        }
+                    } else if (cat.color && canPersistMigrations) {
+                        try {
+                            const encryptedColor = await encryptData(cat.color);
+                            migratedColor = `${ENCRYPTED_CATEGORY_PREFIX}${encryptedColor}`;
+                            await supabase
+                                .from('categories')
+                                .update({ color: migratedColor })
+                                .eq('id', cat.id);
+                        } catch (err) {
+                            console.error('Failed to migrate category color:', cat.id, err);
+                        }
+                    }
+
+                    if (canPersistMigrations && (migratedName !== cat.name || migratedIcon !== cat.icon || migratedColor !== cat.color)) {
+                        await upsertOfflineCategoryRow(user.id, {
                             ...cat,
-                            name: resolvedName,
-                            icon: resolvedIcon,
-                            color: resolvedColor,
-                            count: counts[cat.id] || 0,
-                        };
+                            name: migratedName,
+                            icon: migratedIcon,
+                            color: migratedColor,
+                            updated_at: new Date().toISOString(),
+                        });
+                    }
+
+                    return {
+                        ...cat,
+                        name: resolvedName,
+                        icon: resolvedIcon,
+                        color: resolvedColor,
+                        count: counts[cat.id] || 0,
+                    };
                 }),
             );
 
@@ -323,9 +325,30 @@ export function VaultSidebar({
                         icon={<Home className="w-4 h-4" />}
                         label={t('vault.sidebar.allItems')}
                         collapsed={collapsed}
-                        active={!selectedCategory}
+                        active={!selectedCategory && location.pathname === '/vault'}
                         onClick={() => {
                             onSelectCategory(null);
+                            onActionComplete?.();
+                            navigate('/vault');
+                        }}
+                    />
+                    <SidebarItem
+                        icon={<Activity className="w-4 h-4" />}
+                        label={t('vaultHealth.title')}
+                        collapsed={collapsed}
+                        active={location.pathname === '/vault-health'}
+                        onClick={() => {
+                            navigate('/vault-health');
+                            onActionComplete?.();
+                        }}
+                    />
+                    <SidebarItem
+                        icon={<QrCode className="w-4 h-4" />}
+                        label={t('authenticator.title')}
+                        collapsed={collapsed}
+                        active={location.pathname === '/authenticator'}
+                        onClick={() => {
+                            navigate('/authenticator');
                             onActionComplete?.();
                         }}
                     />

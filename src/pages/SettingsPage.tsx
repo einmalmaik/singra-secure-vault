@@ -20,15 +20,22 @@ import { AccountSettings } from '@/components/settings/AccountSettings';
 import { SecuritySettings } from '@/components/settings/SecuritySettings';
 import { AppearanceSettings } from '@/components/settings/AppearanceSettings';
 import { DataSettings } from '@/components/settings/DataSettings';
+import { SubscriptionSettings } from '@/components/Subscription/SubscriptionSettings';
+import EmergencyAccessSettings from '@/components/settings/EmergencyAccessSettings';
 
 import { useAuth } from '@/contexts/AuthContext';
 import { useVault } from '@/contexts/VaultContext';
+import { useFeatureGate } from '@/hooks/useFeatureGate';
 
+// ... imports
 export default function SettingsPage() {
     const { t } = useTranslation();
     const navigate = useNavigate();
     const { user, loading } = useAuth();
     const { isLocked } = useVault();
+    const featureGate = useFeatureGate('emergency_access');
+
+    // ...
 
     // Redirect to auth if not logged in
     useEffect(() => {
@@ -99,8 +106,26 @@ export default function SettingsPage() {
 
                     <Separator />
 
+                    {/* Subscription Settings */}
+                    <SubscriptionSettings />
+
+                    <Separator />
+
                     {/* Account Settings */}
                     <AccountSettings />
+
+                    <Separator />
+
+                    {/* Emergency Access Settings (Premium) */}
+                    {featureGate && featureGate.allowed && (
+                        <>
+                            {/* Note: We render it here as a separate section */}
+                            <div className="mt-8">
+                                <EmergencyAccessSettings />
+                            </div>
+                            <Separator />
+                        </>
+                    )}
                 </div>
 
                 {/* Footer */}

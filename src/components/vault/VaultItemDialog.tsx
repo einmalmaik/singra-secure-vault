@@ -22,8 +22,10 @@ import {
     Trash2,
     Link,
     Folder,
-    Plus
+    Plus,
+    QrCode
 } from 'lucide-react';
+import { isValidTOTPSecret, parseTOTPUri } from '@/services/totpService';
 
 import {
     Dialog,
@@ -63,6 +65,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { PasswordGenerator } from './PasswordGenerator';
 import { CategoryIcon } from './CategoryIcon';
 import { CategoryDialog } from './CategoryDialog';
+import { QRScanner } from './QRScanner';
+import { FileAttachments } from './FileAttachments';
 import { cn } from '@/lib/utils';
 import {
     buildVaultItemRowFromInsert,
@@ -110,20 +114,22 @@ interface VaultItemDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     itemId: string | null;
-    onSave?: () => void; // Callback when item is saved
+    onSave?: () => void;
+    initialType?: 'password' | 'note' | 'totp';
 }
 
 const ENCRYPTED_CATEGORY_PREFIX = 'enc:cat:v1:';
 
-export function VaultItemDialog({ open, onOpenChange, itemId, onSave }: VaultItemDialogProps) {
+export function VaultItemDialog({ open, onOpenChange, itemId, onSave, initialType = 'password' }: VaultItemDialogProps) {
     const { t } = useTranslation();
     const { toast } = useToast();
     const { user } = useAuth();
     const { encryptItem, decryptItem, encryptData, decryptData } = useVault();
 
-    const [itemType, setItemType] = useState<'password' | 'note' | 'totp'>('password');
+    const [itemType, setItemType] = useState<'password' | 'note' | 'totp'>(initialType);
     const [showPassword, setShowPassword] = useState(false);
     const [showGenerator, setShowGenerator] = useState(false);
+    const [showScanner, setShowScanner] = useState(false);
     const [loading, setLoading] = useState(false);
     const [deleting, setDeleting] = useState(false);
     const [categories, setCategories] = useState<Category[]>([]);
@@ -479,162 +485,199 @@ export function VaultItemDialog({ open, onOpenChange, itemId, onSave }: VaultIte
     };
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                    <DialogTitle>
-                        {isEditing ? t('vault.editItem') : t('vault.newItem')}
-                    </DialogTitle>
-                </DialogHeader>
+        <>
+            <Dialog open={open} onOpenChange={onOpenChange}>
+                <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle>
+                            {isEditing ? t('vault.editItem') : t('vault.newItem')}
+                        </DialogTitle>
+                    </DialogHeader>
 
-                {/* Item Type Tabs */}
-                {!isEditing && (
-                    <Tabs value={itemType} onValueChange={(v) => setItemType(v as typeof itemType)}>
-                        <TabsList className="w-full">
-                            <TabsTrigger value="password" className="flex-1">
-                                <Key className="w-4 h-4 mr-2" />
-                                {t('vault.itemTypes.password')}
-                            </TabsTrigger>
-                            <TabsTrigger value="note" className="flex-1">
-                                <FileText className="w-4 h-4 mr-2" />
-                                {t('vault.itemTypes.note')}
-                            </TabsTrigger>
-                            <TabsTrigger value="totp" className="flex-1">
-                                <Shield className="w-4 h-4 mr-2" />
-                                {t('vault.itemTypes.totp')}
-                            </TabsTrigger>
-                        </TabsList>
-                    </Tabs>
-                )}
+                    {/* Item Type Tabs */}
+                    {!isEditing && (
+                        <Tabs value={itemType} onValueChange={(v) => setItemType(v as typeof itemType)}>
+                            <TabsList className="w-full">
+                                <TabsTrigger value="password" className="flex-1">
+                                    <Key className="w-4 h-4 mr-2" />
+                                    {t('vault.itemTypes.password')}
+                                </TabsTrigger>
+                                <TabsTrigger value="note" className="flex-1">
+                                    <FileText className="w-4 h-4 mr-2" />
+                                    {t('vault.itemTypes.note')}
+                                </TabsTrigger>
+                                <TabsTrigger value="totp" className="flex-1">
+                                    <Shield className="w-4 h-4 mr-2" />
+                                    {t('vault.itemTypes.totp')}
+                                </TabsTrigger>
+                            </TabsList>
+                        </Tabs>
+                    )}
 
-                <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                        {/* Title */}
-                        <FormField
-                            control={form.control}
-                            name="title"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>{t('vault.fields.title')}</FormLabel>
-                                    <FormControl>
-                                        <Input placeholder={t('vault.fields.titlePlaceholder')} {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-
-                        {/* URL (for password type) */}
-                        {(itemType === 'password' || itemType === 'totp') && (
+                    <Form {...form}>
+                        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                            {/* Title */}
                             <FormField
                                 control={form.control}
-                                name="url"
+                                name="title"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>{t('vault.fields.url')}</FormLabel>
+                                        <FormLabel>{t('vault.fields.title')}</FormLabel>
                                         <FormControl>
-                                            <div className="relative">
-                                                <Link className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                                                <Input
-                                                    className="pl-10"
-                                                    placeholder="example.com"
-                                                    {...field}
-                                                    onBlur={(e) => {
-                                                        const val = e.target.value.trim();
-                                                        if (val && !val.startsWith('http://') && !val.startsWith('https://')) {
-                                                            field.onChange(`https://${val}`);
-                                                        }
-                                                        field.onBlur();
-                                                    }}
-                                                />
-                                            </div>
+                                            <Input placeholder={t('vault.fields.titlePlaceholder')} {...field} />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
                                 )}
                             />
-                        )}
 
-                        {/* Username */}
-                        {itemType === 'password' && (
-                            <FormField
-                                control={form.control}
-                                name="username"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>{t('vault.fields.username')}</FormLabel>
-                                        <FormControl>
-                                            <Input placeholder={t('vault.fields.usernamePlaceholder')} {...field} />
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                        )}
-
-                        {/* Password */}
-                        {itemType === 'password' && (
-                            <FormField
-                                control={form.control}
-                                name="password"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>{t('vault.fields.password')}</FormLabel>
-                                        <FormControl>
-                                            <div className="flex gap-2">
-                                                <div className="relative flex-1">
+                            {/* URL (for password type) */}
+                            {(itemType === 'password' || itemType === 'totp') && (
+                                <FormField
+                                    control={form.control}
+                                    name="url"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>{t('vault.fields.url')}</FormLabel>
+                                            <FormControl>
+                                                <div className="relative">
+                                                    <Link className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                                                     <Input
-                                                        type={showPassword ? 'text' : 'password'}
-                                                        className="pr-10 font-mono"
+                                                        className="pl-10"
+                                                        placeholder="example.com"
                                                         {...field}
+                                                        onBlur={(e) => {
+                                                            const val = e.target.value.trim();
+                                                            if (val && !val.startsWith('http://') && !val.startsWith('https://')) {
+                                                                field.onChange(`https://${val}`);
+                                                            }
+                                                            field.onBlur();
+                                                        }}
                                                     />
+                                                </div>
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                            )}
+
+                            {/* Username */}
+                            {itemType === 'password' && (
+                                <FormField
+                                    control={form.control}
+                                    name="username"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>{t('vault.fields.username')}</FormLabel>
+                                            <FormControl>
+                                                <Input placeholder={t('vault.fields.usernamePlaceholder')} {...field} />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                            )}
+
+                            {/* Password */}
+                            {itemType === 'password' && (
+                                <FormField
+                                    control={form.control}
+                                    name="password"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>{t('vault.fields.password')}</FormLabel>
+                                            <FormControl>
+                                                <div className="flex gap-2">
+                                                    <div className="relative flex-1">
+                                                        <Input
+                                                            type={showPassword ? 'text' : 'password'}
+                                                            className="pr-10 font-mono"
+                                                            {...field}
+                                                        />
+                                                        <Button
+                                                            type="button"
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                                                            onClick={() => setShowPassword(!showPassword)}
+                                                        >
+                                                            {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                                        </Button>
+                                                    </div>
                                                     <Button
                                                         type="button"
-                                                        variant="ghost"
+                                                        variant="outline"
                                                         size="icon"
-                                                        className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
-                                                        onClick={() => setShowPassword(!showPassword)}
+                                                        onClick={() => setShowGenerator(!showGenerator)}
                                                     >
-                                                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                                        <Wand2 className="w-4 h-4" />
                                                     </Button>
                                                 </div>
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                            )}
+
+                            {/* Password Generator */}
+                            <Collapsible open={showGenerator} onOpenChange={setShowGenerator}>
+                                <CollapsibleContent className="mt-2">
+                                    <div className="p-4 border rounded-lg bg-muted/50">
+                                        <PasswordGenerator onSelect={handleGeneratedPassword} />
+                                    </div>
+                                </CollapsibleContent>
+                            </Collapsible>
+
+                            {/* TOTP Secret */}
+                            {itemType === 'totp' && (
+                                <FormField
+                                    control={form.control}
+                                    name="totpSecret"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>{t('vault.fields.totpSecret')}</FormLabel>
+                                            <div className="flex gap-2">
+                                                <FormControl>
+                                                    <Input
+                                                        placeholder="JBSWY3DPEHPK3PXP"
+                                                        className="font-mono"
+                                                        {...field}
+                                                    />
+                                                </FormControl>
                                                 <Button
                                                     type="button"
                                                     variant="outline"
                                                     size="icon"
-                                                    onClick={() => setShowGenerator(!showGenerator)}
+                                                    onClick={() => setShowScanner(true)}
+                                                    title={t('authenticator.scanQr')}
                                                 >
-                                                    <Wand2 className="w-4 h-4" />
+                                                    <QrCode className="w-4 h-4" />
                                                 </Button>
                                             </div>
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                        )}
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                            )}
 
-                        {/* Password Generator */}
-                        <Collapsible open={showGenerator} onOpenChange={setShowGenerator}>
-                            <CollapsibleContent className="mt-2">
-                                <div className="p-4 border rounded-lg bg-muted/50">
-                                    <PasswordGenerator onSelect={handleGeneratedPassword} />
-                                </div>
-                            </CollapsibleContent>
-                        </Collapsible>
+                            {/* File Attachments (Premium) */}
+                            <div className="pt-4">
+                                <FileAttachments vaultItemId={itemId} />
+                            </div>
 
-                        {/* TOTP Secret */}
-                        {itemType === 'totp' && (
+                            {/* Notes */}
                             <FormField
                                 control={form.control}
-                                name="totpSecret"
+                                name="notes"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>{t('vault.fields.totpSecret')}</FormLabel>
+                                        <FormLabel>{t('vault.fields.notes')}</FormLabel>
                                         <FormControl>
-                                            <Input
-                                                placeholder="JBSWY3DPEHPK3PXP"
-                                                className="font-mono"
+                                            <Textarea
+                                                placeholder={t('vault.fields.notesPlaceholder')}
+                                                rows={3}
                                                 {...field}
                                             />
                                         </FormControl>
@@ -642,124 +685,131 @@ export function VaultItemDialog({ open, onOpenChange, itemId, onSave }: VaultIte
                                     </FormItem>
                                 )}
                             />
-                        )}
 
-                        {/* Notes */}
-                        <FormField
-                            control={form.control}
-                            name="notes"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>{t('vault.fields.notes')}</FormLabel>
-                                    <FormControl>
-                                        <Textarea
-                                            placeholder={t('vault.fields.notesPlaceholder')}
-                                            rows={3}
-                                            {...field}
-                                        />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-
-                        {/* Category */}
-                        <FormItem>
-                            <FormLabel>{t('vault.form.category')}</FormLabel>
-                            <div className="flex gap-2">
-                                <Select
-                                    value={selectedCategoryId ?? '__none__'}
-                                    onValueChange={(value) => {
-                                        setSelectedCategoryId(value === '__none__' ? null : value);
-                                    }}
-                                >
-                                    <SelectTrigger className="flex-1">
-                                        <SelectValue placeholder={t('vault.form.selectCategory')} />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="__none__">
-                                            <span className="inline-flex items-center gap-2">
-                                                <Folder className="w-4 h-4 text-muted-foreground" />
-                                                {t('vault.categories.uncategorized')}
-                                            </span>
-                                        </SelectItem>
-                                        {categories.map((category) => (
-                                            <SelectItem key={category.id} value={category.id}>
+                            {/* Category */}
+                            <FormItem>
+                                <FormLabel>{t('vault.form.category')}</FormLabel>
+                                <div className="flex gap-2">
+                                    <Select
+                                        value={selectedCategoryId ?? '__none__'}
+                                        onValueChange={(value) => {
+                                            setSelectedCategoryId(value === '__none__' ? null : value);
+                                        }}
+                                    >
+                                        <SelectTrigger className="flex-1">
+                                            <SelectValue placeholder={t('vault.form.selectCategory')} />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="__none__">
                                                 <span className="inline-flex items-center gap-2">
-                                                    <span style={category.color ? { color: category.color } : undefined}>
-                                                        <CategoryIcon icon={category.icon} className="w-4 h-4" />
-                                                    </span>
-                                                    {category.name}
+                                                    <Folder className="w-4 h-4 text-muted-foreground" />
+                                                    {t('vault.categories.uncategorized')}
                                                 </span>
                                             </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                            {categories.map((category) => (
+                                                <SelectItem key={category.id} value={category.id}>
+                                                    <span className="inline-flex items-center gap-2">
+                                                        <span style={category.color ? { color: category.color } : undefined}>
+                                                            <CategoryIcon icon={category.icon} className="w-4 h-4" />
+                                                        </span>
+                                                        {category.name}
+                                                    </span>
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="icon"
+                                        onClick={() => setCategoryDialogOpen(true)}
+                                        title={t('vault.categories.addCategory')}
+                                    >
+                                        <Plus className="w-4 h-4" />
+                                    </Button>
+                                </div>
+                            </FormItem>
+
+                            {/* Favorite Toggle */}
+                            <FormField
+                                control={form.control}
+                                name="isFavorite"
+                                render={({ field }) => (
+                                    <FormItem className="flex items-center justify-between">
+                                        <FormLabel className="flex items-center gap-2">
+                                            <Star className={cn('w-4 h-4', field.value && 'text-amber-500 fill-amber-500')} />
+                                            {t('vault.fields.favorite')}
+                                        </FormLabel>
+                                        <FormControl>
+                                            <Switch
+                                                checked={field.value}
+                                                onCheckedChange={field.onChange}
+                                            />
+                                        </FormControl>
+                                    </FormItem>
+                                )}
+                            />
+
+                            {/* Actions */}
+                            <div className="flex gap-2 pt-4 border-t">
+                                {isEditing && (
+                                    <Button
+                                        type="button"
+                                        variant="destructive"
+                                        onClick={handleDelete}
+                                        disabled={loading || deleting}
+                                    >
+                                        {deleting ? (
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                        ) : (
+                                            <Trash2 className="w-4 h-4" />
+                                        )}
+                                    </Button>
+                                )}
+                                <div className="flex-1" />
                                 <Button
                                     type="button"
                                     variant="outline"
-                                    size="icon"
-                                    onClick={() => setCategoryDialogOpen(true)}
-                                    title={t('vault.categories.addCategory')}
+                                    onClick={() => onOpenChange(false)}
+                                    disabled={loading}
                                 >
-                                    <Plus className="w-4 h-4" />
+                                    {t('common.cancel')}
+                                </Button>
+                                <Button type="submit" disabled={loading}>
+                                    {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                                    {isEditing ? t('common.save') : t('common.create')}
                                 </Button>
                             </div>
-                        </FormItem>
+                        </form>
+                    </Form>
+                </DialogContent>
+            </Dialog>
 
-                        {/* Favorite Toggle */}
-                        <FormField
-                            control={form.control}
-                            name="isFavorite"
-                            render={({ field }) => (
-                                <FormItem className="flex items-center justify-between">
-                                    <FormLabel className="flex items-center gap-2">
-                                        <Star className={cn('w-4 h-4', field.value && 'text-amber-500 fill-amber-500')} />
-                                        {t('vault.fields.favorite')}
-                                    </FormLabel>
-                                    <FormControl>
-                                        <Switch
-                                            checked={field.value}
-                                            onCheckedChange={field.onChange}
-                                        />
-                                    </FormControl>
-                                </FormItem>
-                            )}
+            {/* QR Scanner Dialog */}
+            <Dialog open={showScanner} onOpenChange={setShowScanner}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>{t('authenticator.scanQr')}</DialogTitle>
+                    </DialogHeader>
+                    <div className="aspect-square">
+                        <QRScanner
+                            onScan={(code) => {
+                                const uri = parseTOTPUri(code);
+                                if (uri) {
+                                    form.setValue('totpSecret', uri.secret);
+                                    if (uri.issuer && !form.getValues('title')) {
+                                        form.setValue('title', `${uri.issuer} (${uri.label})`);
+                                    }
+                                } else if (isValidTOTPSecret(code)) {
+                                    form.setValue('totpSecret', code);
+                                }
+                                setShowScanner(false);
+                            }}
+                            onClose={() => setShowScanner(false)}
                         />
-
-                        {/* Actions */}
-                        <div className="flex gap-2 pt-4 border-t">
-                            {isEditing && (
-                                <Button
-                                    type="button"
-                                    variant="destructive"
-                                    onClick={handleDelete}
-                                    disabled={loading || deleting}
-                                >
-                                    {deleting ? (
-                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                    ) : (
-                                        <Trash2 className="w-4 h-4" />
-                                    )}
-                                </Button>
-                            )}
-                            <div className="flex-1" />
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => onOpenChange(false)}
-                                disabled={loading}
-                            >
-                                {t('common.cancel')}
-                            </Button>
-                            <Button type="submit" disabled={loading}>
-                                {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                                {isEditing ? t('common.save') : t('common.create')}
-                            </Button>
-                        </div>
-                    </form>
-                </Form>
-            </DialogContent>
+                    </div>
+                </DialogContent>
+            </Dialog>
 
             <CategoryDialog
                 open={categoryDialogOpen}
@@ -767,6 +817,6 @@ export function VaultItemDialog({ open, onOpenChange, itemId, onSave }: VaultIte
                 category={null}
                 onSave={fetchCategories}
             />
-        </Dialog>
+        </>
     );
 }

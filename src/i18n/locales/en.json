@@ -20,7 +20,16 @@
     "error": "Error",
     "success": "Success",
     "warning": "Warning",
-    "info": "Info"
+    "info": "Info",
+    "add": "Add",
+    "accept": "Accept",
+    "confirm": "Confirm",
+    "email": "Email",
+    "day": "day",
+    "days": "days",
+    "noResults": "No results",
+    "confirmAction": "Are you sure?",
+    "errorOccurred": "An unexpected error occurred."
   },
   "nav": {
     "home": "Home",
@@ -309,6 +318,7 @@
   },
   "vault": {
     "title": "My Vault",
+    "loadError": "Failed to load vault items.",
     "empty": {
       "title": "Your vault is empty",
       "subtitle": "Add your first entry to get started.",
@@ -556,6 +566,35 @@
   "vaultHealth": {
     "title": "Vault Health",
     "subtitle": "Security scanning and reports",
+    "analyzing": "Analyzing your vault...",
+    "reanalyze": "Reanalyze",
+    "analyzed": "{{count}} password entries analyzed out of {{total}} total entries.",
+    "scoreExcellent": "Excellent security level",
+    "scoreGood": "Good security level",
+    "scoreFair": "Fair security level",
+    "scorePoor": "Poor security level",
+    "weak": "Weak",
+    "duplicate": "Duplicate",
+    "old": "Old",
+    "strong": "Strong",
+    "issues": "Security issues",
+    "allGood": "Great! Your vault looks healthy",
+    "allGoodDesc": "No critical password issues were found.",
+    "weakPassword": "Weak password",
+    "duplicateWith": "Duplicate of {{items}}",
+    "oldPassword": "Last changed {{days}} days ago",
+    "reasons": {
+      "too_short": "Password is too short",
+      "no_uppercase": "Missing uppercase letters",
+      "no_lowercase": "Missing lowercase letters",
+      "no_number": "Missing numbers",
+      "no_symbol": "Missing symbols"
+    },
+    "severity": {
+      "critical": "Critical",
+      "warning": "Warning",
+      "info": "Info"
+    },
     "score": "Security Score",
     "itemsScanned": "Items Scanned",
     "riskScore": "Risk Score",
@@ -571,6 +610,38 @@
     "secure": "Secure",
     "improvements": "Improvements needed",
     "critical": "Critical issues found"
+  },
+  "emergency": {
+    "title": "Emergency Access",
+    "description": "Manage who can access your vault in emergencies.",
+    "tabs": {
+      "trustees": "My trusted contacts",
+      "grantors": "Who trusts me"
+    },
+    "invite": "Invite trustee",
+    "inviteTitle": "Invite trusted contact",
+    "inviteDesc": "Enter the email of the person you want to trust with emergency access.",
+    "inviteSent": "Invitation sent successfully.",
+    "inviteError": "Failed to send invitation.",
+    "inviteAccepted": "Invitation accepted. Key pair generated and stored.",
+    "acceptError": "Failed to accept invitation.",
+    "fetchError": "Failed to load emergency access data.",
+    "noTrustees": "No trusted contacts yet.",
+    "noGrantors": "You are not a trusted contact for anyone.",
+    "waitTime": "Wait time (days)",
+    "waitTimeDetail": "How long after a request before access is granted.",
+    "sendInvite": "Send invitation",
+    "requestAccess": "Request access",
+    "pending": "Pending",
+    "accessVault": "Access vault",
+    "setup": "Setup access",
+    "setupSuccess": "Emergency access configured.",
+    "setupError": "Failed to configure access. Check your password.",
+    "confirmSetup": "Confirm emergency access setup",
+    "confirmSetupDesc": "Enter your master password to encrypt your vault key for this contact.",
+    "accessRevoked": "Access revoked.",
+    "noKey": "No master key found. Setup not complete.",
+    "accessError": "Failed to decrypt vault access."
   },
   "subscription": {
     "pricing_title": "Pricing & Plans",

@@ -20,7 +20,16 @@
     "error": "Fehler",
     "success": "Erfolgreich",
     "warning": "Warnung",
-    "info": "Info"
+    "info": "Info",
+    "add": "Hinzufügen",
+    "accept": "Annehmen",
+    "confirm": "Bestätigen",
+    "email": "E-Mail",
+    "day": "Tag",
+    "days": "Tage",
+    "noResults": "Keine Ergebnisse",
+    "confirmAction": "Bist du sicher?",
+    "errorOccurred": "Ein unerwarteter Fehler ist aufgetreten."
   },
   "nav": {
     "home": "Startseite",
@@ -309,6 +318,7 @@
   },
   "vault": {
     "title": "Mein Tresor",
+    "loadError": "Tresor-Einträge konnten nicht geladen werden.",
     "empty": {
       "title": "Dein Tresor ist leer",
       "description": "FÃ¼ge deinen ersten Eintrag hinzu, um loszulegen.",
@@ -582,6 +592,35 @@
   "vaultHealth": {
     "title": "Tresor-Gesundheit",
     "subtitle": "Sicherheits-Scan und Berichte",
+    "analyzing": "Tresor wird analysiert...",
+    "reanalyze": "Neu analysieren",
+    "analyzed": "{{count}} Passwort-Einträge von insgesamt {{total}} Einträgen analysiert.",
+    "scoreExcellent": "Ausgezeichnetes Sicherheitsniveau",
+    "scoreGood": "Gutes Sicherheitsniveau",
+    "scoreFair": "Mittleres Sicherheitsniveau",
+    "scorePoor": "Schwaches Sicherheitsniveau",
+    "weak": "Schwach",
+    "duplicate": "Doppelt",
+    "old": "Alt",
+    "strong": "Stark",
+    "issues": "Sicherheitsprobleme",
+    "allGood": "Sehr gut! Dein Tresor ist gesund",
+    "allGoodDesc": "Es wurden keine kritischen Passwortprobleme gefunden.",
+    "weakPassword": "Schwaches Passwort",
+    "duplicateWith": "Duplikat von {{items}}",
+    "oldPassword": "Zuletzt vor {{days}} Tagen geändert",
+    "reasons": {
+      "too_short": "Passwort ist zu kurz",
+      "no_uppercase": "Keine Großbuchstaben vorhanden",
+      "no_lowercase": "Keine Kleinbuchstaben vorhanden",
+      "no_number": "Keine Zahlen vorhanden",
+      "no_symbol": "Keine Sonderzeichen vorhanden"
+    },
+    "severity": {
+      "critical": "Kritisch",
+      "warning": "Warnung",
+      "info": "Info"
+    },
     "score": "Sicherheits-Score",
     "itemsScanned": "Untersuchte Einträge",
     "riskScore": "Risiko-Indikator",
@@ -597,6 +636,38 @@
     "secure": "Sicher",
     "improvements": "Verbesserungen nötig",
     "critical": "Kritische Probleme gefunden"
+  },
+  "emergency": {
+    "title": "Notfallzugang",
+    "description": "Verwalte, wer im Notfall auf deinen Tresor zugreifen darf.",
+    "tabs": {
+      "trustees": "Meine Vertrauenspersonen",
+      "grantors": "Wer mir vertraut"
+    },
+    "invite": "Vertrauensperson einladen",
+    "inviteTitle": "Vertrauensperson einladen",
+    "inviteDesc": "Gib die E-Mail-Adresse der Person ein, die im Notfall Zugriff erhalten soll.",
+    "inviteSent": "Einladung erfolgreich versendet.",
+    "inviteError": "Einladung konnte nicht versendet werden.",
+    "inviteAccepted": "Einladung angenommen. Schlüsselpaar wurde erstellt und gespeichert.",
+    "acceptError": "Einladung konnte nicht angenommen werden.",
+    "fetchError": "Notfallzugang-Daten konnten nicht geladen werden.",
+    "noTrustees": "Noch keine Vertrauenspersonen vorhanden.",
+    "noGrantors": "Du bist aktuell für niemanden als Vertrauensperson eingetragen.",
+    "waitTime": "Wartezeit (Tage)",
+    "waitTimeDetail": "Zeitspanne zwischen Zugriffsanfrage und Freigabe.",
+    "sendInvite": "Einladung senden",
+    "requestAccess": "Zugriff anfragen",
+    "pending": "Ausstehend",
+    "accessVault": "Tresor öffnen",
+    "setup": "Zugriff einrichten",
+    "setupSuccess": "Notfallzugang wurde eingerichtet.",
+    "setupError": "Einrichtung fehlgeschlagen. Bitte Passwort prüfen.",
+    "confirmSetup": "Notfallzugang bestätigen",
+    "confirmSetupDesc": "Gib dein Master-Passwort ein, um den Tresor-Schlüssel für diesen Kontakt zu verschlüsseln.",
+    "accessRevoked": "Zugriff wurde widerrufen.",
+    "noKey": "Kein Master-Schlüssel gefunden. Einrichtung nicht abgeschlossen.",
+    "accessError": "Notfallzugang konnte nicht entschlüsselt werden."
   },
   "subscription": {
     "pricing_title": "Preise & Pläne",

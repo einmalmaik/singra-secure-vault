@@ -238,7 +238,7 @@ export default function VaultHealthPage() {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-primary/10">
+        <div className="min-h-screen flex flex-col bg-gradient-to-br from-primary/5 via-background to-primary/10">
             {/* Header */}
             <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-lg border-b">
                 <div className="container max-w-4xl mx-auto px-4 py-4">
@@ -254,7 +254,7 @@ export default function VaultHealthPage() {
                 </div>
             </header>
 
-            <main className="container max-w-4xl mx-auto px-4 py-8">
+            <main className="container flex-1 max-w-4xl mx-auto px-4 py-8">
                 <FeatureGate feature="vault_health_reports">
                     {loading ? (
                         <div className="flex flex-col items-center justify-center py-20 gap-4">

@@ -197,7 +197,7 @@
     },
     "collection": {
       "title": "Datenerfassung",
-      "content": "Wir erfassen nur das Nötigste, um den Dienst bereitzustellen:\n\n- E-Mail-Adresse (für Authentifizierung und Kontowiederherstellung)\n- Verschlüsselte Tresor-Daten (wir können den Inhalt nicht lesen)\n- Verschlüsselte Tresor-Metadaten (z.B. Titel, URL, Typ, Favorit-Flag, Kategorie-Referenz)\n- Master-Passwort-Hash (zur Verifizierung, nicht das Passwort selbst)\n- Verschlüsseltes 2FA/TOTP-Secret (für Zwei-Faktor-Authentifizierung)\n- Authentifizierungs-Metadaten (Anmeldezeitpunkt)"
+      "content": "Wir erfassen nur das Nötigste, um den Dienst bereitzustellen:\n\n- E-Mail-Adresse (für Authentifizierung und Kontowiederherstellung)\n- Verschlüsselte Tresor-Daten (wir können den Inhalt nicht lesen)\n- Verschlüsselte Tresor-Metadaten (z.B. Titel, URL, Typ, Favorit-Flag, Kategorie-Referenz)\n- Master-Passwort-Hash (zur Verifizierung, nicht das Passwort selbst)\n- Verschlüsseltes 2FA/TOTP-Secret (für Zwei-Faktor-Authentifizierung)\n- Authentifizierungs-Metadaten (Anmeldezeitpunkt)\n\nHinweis zur Funktion \"Tresor-Gesundheit\": Für die Analyse werden Passwörter nur lokal nach der Entschlüsselung in deiner aktiven Sitzung ausgewertet (z.B. auf Schwäche, Alter und Wiederverwendung). Es erfolgt dabei keine zusätzliche dauerhafte Speicherung von Klartext-Passwörtern auf dem Server."
     },
     "security": {
       "title": "Sicherheitsmaßnahmen",

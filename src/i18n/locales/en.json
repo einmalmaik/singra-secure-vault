@@ -197,7 +197,7 @@
     },
     "collection": {
       "title": "Data Collection",
-      "content": "We collect only what is necessary to provide the service:\n\n- Email address (for authentication and account recovery)\n- Encrypted vault data (we cannot read the content)\n- Encrypted vault metadata (e.g. item title, URL, type, favorite flag, category reference)\n- Master Password Hash (for verification, not the password itself)\n- Encrypted 2FA/TOTP secret (for two-factor authentication)\n- Authentication metadata (login time)"
+      "content": "We collect only what is necessary to provide the service:\n\n- Email address (for authentication and account recovery)\n- Encrypted vault data (we cannot read the content)\n- Encrypted vault metadata (e.g. item title, URL, type, favorite flag, category reference)\n- Master Password Hash (for verification, not the password itself)\n- Encrypted 2FA/TOTP secret (for two-factor authentication)\n- Authentication metadata (login time)\n\nVault Health note: For the analysis feature, passwords are evaluated locally after decryption in your active session (e.g. strength, age, and reuse checks). No additional persistent server-side storage of plaintext passwords is performed."
     },
     "security": {
       "title": "Security Measures",

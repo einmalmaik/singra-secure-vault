@@ -12,6 +12,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import { Plus, Search, Shield, Loader2, Edit, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -36,6 +37,7 @@ interface AuthenticatorItem extends VaultItemData {
 
 export default function AuthenticatorPage() {
     const { t } = useTranslation();
+    const navigate = useNavigate();
     const { user } = useAuth();
     const { decryptItem } = useVault();
     const { toast } = useToast();
@@ -163,7 +165,7 @@ export default function AuthenticatorPage() {
                             {searchQuery ? t('common.noResults') : t('authenticator.emptyDesc')}
                         </p>
                         {!searchQuery && (
-                            <Button variant="outline" onClick={() => setDialogOpen(true)}>
+                            <Button variant="outline" onClick={() => navigate('/settings')}>
                                 {t('authenticator.setupFirst')}
                             </Button>
                         )}

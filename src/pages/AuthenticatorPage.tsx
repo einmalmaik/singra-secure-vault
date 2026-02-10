@@ -125,7 +125,7 @@ export default function AuthenticatorPage() {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-primary/10">
+        <div className="min-h-screen flex flex-col bg-gradient-to-br from-primary/5 via-background to-primary/10">
             <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-lg border-b">
                 <div className="container max-w-6xl mx-auto px-4 py-4">
                     <div className="flex items-center gap-4">
@@ -140,7 +140,7 @@ export default function AuthenticatorPage() {
                 </div>
             </header>
 
-            <main className="container py-6 px-4 md:px-6 max-w-6xl mx-auto space-y-6">
+            <main className="container flex-1 py-6 px-4 md:px-6 max-w-6xl mx-auto space-y-6">
                 <FeatureGate feature="builtin_authenticator" featureLabel={t('authenticator.title')}>
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div>

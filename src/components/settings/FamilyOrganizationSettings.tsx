@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { FeatureGate } from '@/components/Subscription/FeatureGate';
+import { PendingInvitationsAlert } from '@/components/settings/PendingInvitationsAlert';
 import { getFamilyMembers, inviteFamilyMember, removeFamilyMember, type FamilyMember } from '@/services/familyService';
 
 export function FamilyOrganizationSettings() {
@@ -64,6 +65,7 @@ export function FamilyOrganizationSettings() {
 
   return (
     <FeatureGate feature="family_members" featureLabel={t('subscription.features.family_organization')}>
+      <PendingInvitationsAlert />
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">

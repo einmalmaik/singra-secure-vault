@@ -175,8 +175,9 @@ export default function AuthenticatorPage() {
                                 {searchQuery ? t('common.noResults') : t('authenticator.emptyDesc')}
                             </p>
                             {!searchQuery && (
-                                <Button variant="outline" onClick={() => navigate('/settings')}>
-                                    {t('authenticator.setupFirst')}
+                                <Button variant="outline" onClick={() => setDialogOpen(true)}>
+                                    <Plus className="w-4 h-4 mr-2" />
+                                    {t('authenticator.addFirst')}
                                 </Button>
                             )}
                         </div>

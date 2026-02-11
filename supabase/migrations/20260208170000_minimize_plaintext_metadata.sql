@@ -47,7 +47,7 @@ WHERE color IS NOT NULL
 -- Encrypt tag metadata at rest (feature currently not used by UI, but keep values recoverable).
 UPDATE public.tags
 SET name = 'enc:tag:v1:' || encode(
-        pgp_sym_encrypt(name, public.get_totp_encryption_key(), 'cipher-algo=aes256, compress-algo=1'),
+        pgp_sym_encrypt(name, public.get_totp_encryption_key(), 'cipher-algo=aes256, compress-algo=1'::text),
         'base64'
     )
 WHERE name IS NOT NULL
@@ -55,7 +55,7 @@ WHERE name IS NOT NULL
 
 UPDATE public.tags
 SET color = 'enc:tag:v1:' || encode(
-        pgp_sym_encrypt(color, public.get_totp_encryption_key(), 'cipher-algo=aes256, compress-algo=1'),
+        pgp_sym_encrypt(color, public.get_totp_encryption_key(), 'cipher-algo=aes256, compress-algo=1'::text),
         'base64'
     )
 WHERE color IS NOT NULL

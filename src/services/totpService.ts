@@ -62,6 +62,59 @@ export function isValidTOTPSecret(secret: string): boolean {
 }
 
 /**
+ * Validates a TOTP secret with detailed error messages
+ * 
+ * @param secret - Secret to validate
+ * @returns Validation result with error message if invalid
+ */
+export function validateTOTPSecret(secret: string): { valid: boolean; error?: string } {
+    // Remove spaces and convert to uppercase
+    const cleaned = secret.replace(/\s/g, '').toUpperCase();
+
+    // Check length
+    if (cleaned.length < 16) {
+        return { valid: false, error: 'Secret zu kurz (mindestens 16 Zeichen)' };
+    }
+
+    // Check Base32 format (A-Z, 2-7, optional padding =)
+    if (!/^[A-Z2-7]+=*$/.test(cleaned)) {
+        return { valid: false, error: 'Ungültiges Format (nur A-Z und 2-7 erlaubt)' };
+    }
+
+    return { valid: true };
+}
+
+/**
+ * Parses an otpauth:// URI and extracts TOTP information
+ * 
+ * @param uri - otpauth:// URI from QR code
+ * @returns Parsed data with secret, issuer, and label, or null if invalid
+ */
+export function parseOTPAuthUri(uri: string): {
+    secret: string;
+    issuer?: string;
+    label?: string;
+} | null {
+    try {
+        const url = new URL(uri);
+
+        if (url.protocol !== 'otpauth:' || url.host !== 'totp') {
+            return null;
+        }
+
+        const secret = url.searchParams.get('secret');
+        if (!secret) return null;
+
+        const issuer = url.searchParams.get('issuer') || undefined;
+        const label = decodeURIComponent(url.pathname.slice(1)) || undefined;
+
+        return { secret: secret.toUpperCase(), issuer, label };
+    } catch {
+        return null;
+    }
+}
+
+/**
  * Formats a TOTP code for display (adds space in middle)
  * 
  * @param code - 6-digit code

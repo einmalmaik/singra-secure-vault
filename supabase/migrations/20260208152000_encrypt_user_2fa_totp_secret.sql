@@ -57,7 +57,7 @@ DECLARE
     _key TEXT := public.get_totp_encryption_key();
 BEGIN
     RETURN encode(
-        pgp_sym_encrypt(_secret, _key, 'cipher-algo=aes256, compress-algo=1'),
+        pgp_sym_encrypt(_secret, _key, 'cipher-algo=aes256, compress-algo=1'::text),
         'base64'
     );
 END;

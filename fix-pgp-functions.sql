@@ -1,6 +1,27 @@
--- Add secure key rotation for encrypted 2FA/TOTP secrets.
--- Rotates private.app_secrets('totp_encryption_key') and re-encrypts existing payloads.
+-- Fix pgp_sym_encrypt function calls by adding ::text casts
+-- This script updates the existing functions in the remote database
 
+-- Ensure pgcrypto extension is installed
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+-- Fix user_2fa_encrypt_secret function
+CREATE OR REPLACE FUNCTION public.user_2fa_encrypt_secret(_secret TEXT)
+RETURNS TEXT
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    _key TEXT := public.get_totp_encryption_key();
+BEGIN
+    RETURN encode(
+        pgp_sym_encrypt(_secret, _key, 'cipher-algo=aes256, compress-algo=1'::text),
+        'base64'
+    );
+END;
+$$;
+
+-- Fix rotate_totp_encryption_key function
 CREATE OR REPLACE FUNCTION public.rotate_totp_encryption_key(
     p_new_key TEXT
 )
@@ -67,7 +88,3 @@ BEGIN
     RETURN _rotated_count;
 END;
 $$;
-
-REVOKE ALL ON FUNCTION public.rotate_totp_encryption_key(TEXT) FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.rotate_totp_encryption_key(TEXT) FROM anon;
-REVOKE ALL ON FUNCTION public.rotate_totp_encryption_key(TEXT) FROM authenticated;

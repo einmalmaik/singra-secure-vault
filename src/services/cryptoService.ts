@@ -365,3 +365,223 @@ export async function decryptRSA(
     );
     return new TextDecoder().decode(decrypted);
 }
+
+// ==========================================
+// Shared Collections Encryption
+// ==========================================
+
+/**
+ * Generates a user's RSA-4096 key pair for shared collections
+ * Private key is encrypted with the master password
+ * 
+ * @param masterPassword - User's master password
+ * @returns Object with public key (JWK) and encrypted private key
+ */
+export async function generateUserKeyPair(masterPassword: string): Promise<{
+    publicKey: string;
+    encryptedPrivateKey: string;
+}> {
+    // 1. Generate RSA-4096 Key Pair
+    const keyPair = await crypto.subtle.generateKey(
+        {
+            name: 'RSA-OAEP',
+            modulusLength: 4096,
+            publicExponent: new Uint8Array([1, 0, 1]),
+            hash: 'SHA-256',
+        },
+        true,
+        ['encrypt', 'decrypt']
+    );
+    
+    // 2. Export Public Key as JWK
+    const publicKeyJwk = await crypto.subtle.exportKey('jwk', keyPair.publicKey);
+    const publicKey = JSON.stringify(publicKeyJwk);
+    
+    // 3. Export Private Key as JWK
+    const privateKeyJwk = await crypto.subtle.exportKey('jwk', keyPair.privateKey);
+    const privateKey = JSON.stringify(privateKeyJwk);
+    
+    // 4. Encrypt Private Key with Master Password
+    // Generate a temporary salt for this encryption
+    const salt = generateSalt();
+    const key = await deriveKey(masterPassword, salt);
+    const encryptedPrivateKey = await encrypt(privateKey, key);
+    
+    // Store salt with encrypted key (format: salt:encryptedData)
+    const encryptedPrivateKeyWithSalt = `${salt}:${encryptedPrivateKey}`;
+    
+    return { publicKey, encryptedPrivateKey: encryptedPrivateKeyWithSalt };
+}
+
+/**
+ * Generates a random shared encryption key for a collection
+ * 
+ * @returns JWK string of AES-256 key
+ */
+export async function generateSharedKey(): Promise<string> {
+    const key = await crypto.subtle.generateKey(
+        { name: 'AES-GCM', length: 256 },
+        true,
+        ['encrypt', 'decrypt']
+    );
+    
+    const keyJwk = await crypto.subtle.exportKey('jwk', key);
+    return JSON.stringify(keyJwk);
+}
+
+/**
+ * Wraps (encrypts) a shared key with a user's public key
+ * 
+ * @param sharedKey - JWK string of the shared AES key
+ * @param publicKey - JWK string of the user's RSA public key
+ * @returns Base64-encoded wrapped key
+ */
+export async function wrapKey(sharedKey: string, publicKey: string): Promise<string> {
+    // 1. Import Public Key
+    const publicKeyJwk = JSON.parse(publicKey);
+    const publicKeyCrypto = await crypto.subtle.importKey(
+        'jwk',
+        publicKeyJwk,
+        { name: 'RSA-OAEP', hash: 'SHA-256' },
+        false,
+        ['encrypt']
+    );
+    
+    // 2. Encrypt Shared Key
+    const sharedKeyBytes = new TextEncoder().encode(sharedKey);
+    const wrappedKeyBytes = await crypto.subtle.encrypt(
+        { name: 'RSA-OAEP' },
+        publicKeyCrypto,
+        sharedKeyBytes
+    );
+    
+    // 3. Base64-encode
+    return uint8ArrayToBase64(new Uint8Array(wrappedKeyBytes));
+}
+
+/**
+ * Unwraps (decrypts) a shared key with a user's private key
+ * 
+ * @param wrappedKey - Base64-encoded wrapped key
+ * @param encryptedPrivateKey - Encrypted private key (format: salt:encryptedData)
+ * @param masterPassword - User's master password
+ * @returns JWK string of the shared AES key
+ * @throws Error if decryption fails (wrong password or corrupted key)
+ */
+export async function unwrapKey(
+    wrappedKey: string,
+    encryptedPrivateKey: string,
+    masterPassword: string
+): Promise<string> {
+    // 1. Decrypt Private Key
+    const [salt, encryptedData] = encryptedPrivateKey.split(':');
+    if (!salt || !encryptedData) {
+        throw new Error('Invalid encrypted private key format');
+    }
+    
+    const key = await deriveKey(masterPassword, salt);
+    const privateKey = await decrypt(encryptedData, key);
+    
+    // 2. Import Private Key
+    const privateKeyJwk = JSON.parse(privateKey);
+    const privateKeyCrypto = await crypto.subtle.importKey(
+        'jwk',
+        privateKeyJwk,
+        { name: 'RSA-OAEP', hash: 'SHA-256' },
+        false,
+        ['decrypt']
+    );
+    
+    // 3. Decrypt Shared Key
+    const wrappedKeyBytes = base64ToUint8Array(wrappedKey);
+    const sharedKeyBytes = await crypto.subtle.decrypt(
+        { name: 'RSA-OAEP' },
+        privateKeyCrypto,
+        wrappedKeyBytes
+    );
+    
+    return new TextDecoder().decode(sharedKeyBytes);
+}
+
+/**
+ * Encrypts vault item data with a shared key
+ * 
+ * @param data - Vault item data to encrypt
+ * @param sharedKey - JWK string of the shared AES key
+ * @returns Base64-encoded encrypted data
+ */
+export async function encryptWithSharedKey(
+    data: VaultItemData,
+    sharedKey: string
+): Promise<string> {
+    // Import Shared Key
+    const keyJwk = JSON.parse(sharedKey);
+    const key = await crypto.subtle.importKey(
+        'jwk',
+        keyJwk,
+        { name: 'AES-GCM', length: 256 },
+        false,
+        ['encrypt']
+    );
+    
+    // Encrypt data
+    const json = JSON.stringify(data);
+    return encrypt(json, key);
+}
+
+/**
+ * Decrypts vault item data with a shared key
+ * 
+ * @param encryptedData - Base64-encoded encrypted data
+ * @param sharedKey - JWK string of the shared AES key
+ * @returns Decrypted vault item data
+ */
+export async function decryptWithSharedKey(
+    encryptedData: string,
+    sharedKey: string
+): Promise<VaultItemData> {
+    // Import Shared Key
+    const keyJwk = JSON.parse(sharedKey);
+    const key = await crypto.subtle.importKey(
+        'jwk',
+        keyJwk,
+        { name: 'AES-GCM', length: 256 },
+        false,
+        ['decrypt']
+    );
+    
+    // Decrypt data
+    const json = await decrypt(encryptedData, key);
+    return JSON.parse(json) as VaultItemData;
+}
+
+/**
+ * Encrypts data with a password (used for private key encryption)
+ * 
+ * @param plaintext - Data to encrypt
+ * @param password - Password to derive key from
+ * @returns Base64-encoded encrypted data
+ */
+async function encryptWithPassword(plaintext: string, password: string): Promise<string> {
+    const salt = generateSalt();
+    const key = await deriveKey(password, salt);
+    const encrypted = await encrypt(plaintext, key);
+    return `${salt}:${encrypted}`;
+}
+
+/**
+ * Decrypts data with a password
+ * 
+ * @param encryptedData - Encrypted data (format: salt:encryptedData)
+ * @param password - Password to derive key from
+ * @returns Decrypted plaintext
+ */
+async function decryptWithPassword(encryptedData: string, password: string): Promise<string> {
+    const [salt, encrypted] = encryptedData.split(':');
+    if (!salt || !encrypted) {
+        throw new Error('Invalid encrypted data format');
+    }
+    
+    const key = await deriveKey(password, salt);
+    return decrypt(encrypted, key);
+}

@@ -566,7 +566,15 @@
       "inviteSent": "Einladung gesendet.",
       "inviteError": "Familienmitglied konnte nicht eingeladen werden.",
       "removed": "Familienmitglied entfernt.",
-      "removeError": "Familienmitglied konnte nicht entfernt werden."
+      "removeError": "Familienmitglied konnte nicht entfernt werden.",
+      "pendingInvitation": "Ausstehende Familien-Einladung",
+      "invitationMessage": "Du hast {{count}} ausstehende Einladung(en) zur Familien-Organisation.",
+      "accept": "Annehmen",
+      "decline": "Ablehnen",
+      "invitationAccepted": "Einladung angenommen.",
+      "invitationAcceptError": "Einladung konnte nicht angenommen werden.",
+      "invitationDeclined": "Einladung abgelehnt.",
+      "invitationDeclineError": "Einladung konnte nicht abgelehnt werden."
     },
     "sharedCollections": {
       "title": "Geteilte Sammlungen",
@@ -577,7 +585,30 @@
       "created": "Sammlung erstellt.",
       "createError": "Sammlung konnte nicht erstellt werden.",
       "deleted": "Sammlung gelöscht.",
-      "deleteError": "Sammlung konnte nicht gelöscht werden."
+      "deleteError": "Sammlung konnte nicht gelöscht werden.",
+      "myCollections": "Meine Sammlungen",
+      "sharedWithMe": "Mit mir geteilt",
+      "owner": "Besitzer",
+      "member": "Mitglied",
+      "viewPermission": "Nur ansehen",
+      "editPermission": "Bearbeiten",
+      "addMember": "Mitglied hinzufügen",
+      "addItem": "Eintrag hinzufügen",
+      "removeMember": "Mitglied entfernen",
+      "removeItem": "Eintrag entfernen",
+      "memberAdded": "Mitglied hinzugefügt.",
+      "memberAddError": "Mitglied konnte nicht hinzugefügt werden.",
+      "memberRemoved": "Mitglied entfernt.",
+      "memberRemoveError": "Mitglied konnte nicht entfernt werden.",
+      "itemAdded": "Eintrag hinzugefügt.",
+      "itemAddError": "Eintrag konnte nicht hinzugefügt werden.",
+      "itemRemoved": "Eintrag entfernt.",
+      "itemRemoveError": "Eintrag konnte nicht entfernt werden.",
+      "sharedBadge": "Geteilt",
+      "rotateKey": "Schlüssel rotieren",
+      "rotateKeyWarning": "Alle Einträge werden neu verschlüsselt. Dies kann einige Zeit dauern.",
+      "rotateKeySuccess": "Schlüssel erfolgreich rotiert.",
+      "rotateKeyError": "Schlüssel konnte nicht rotiert werden."
     }
   },
   "categories": {
@@ -606,9 +637,15 @@
     "subtitle": "Verwalte deine 2FA-Codes",
     "scanQr": "QR-Code scannen",
     "setupFirst": "Erstes 2FA-Konto einrichten",
+    "addFirst": "Erstes TOTP-Konto hinzufügen",
     "emptyTitle": "Keine 2FA-Konten gefunden",
     "emptyDesc": "Füge ein neues Konto hinzu, um mit 2FA zu starten.",
-    "cameraError": "Kamera nicht verfügbar"
+    "cameraError": "Kamera nicht verfügbar",
+    "manualEntry": "Manuell eingeben",
+    "secretLabel": "TOTP-Secret",
+    "secretPlaceholder": "JBSW Y3DP EHPK 3PXP",
+    "invalidSecret": "Ungültiges TOTP-Secret",
+    "secretTooShort": "Secret zu kurz (mindestens 16 Zeichen)"
   },
   "vaultHealth": {
     "title": "Tresor-Gesundheit",

@@ -67,9 +67,9 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    const { email } = await req.json();
-    if (!email || typeof email !== "string") {
-      return new Response(JSON.stringify({ error: "Invalid email" }), {
+    const { invitationId } = await req.json();
+    if (!invitationId || typeof invitationId !== "string") {
+      return new Response(JSON.stringify({ error: "Invalid invitation ID" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -77,77 +77,59 @@ Deno.serve(async (req: Request) => {
 
     const admin = createClient(supabaseUrl, supabaseService);
 
-    // =====================================================
-    // VALIDATION 1: Check subscription tier
-    // =====================================================
-    const { data: subscription } = await admin
-      .from("subscriptions")
-      .select("tier")
-      .eq("user_id", user.id)
-      .eq("status", "active")
-      .order("created_at", { ascending: false })
-      .limit(1)
+    // Get invitation details before updating
+    const { data: invitation, error: fetchError } = await admin
+      .from("family_members")
+      .select("*, profiles!family_members_family_owner_id_fkey(email)")
+      .eq("id", invitationId)
+      .eq("member_email", user.email)
+      .eq("status", "invited")
       .single();
 
-    if (!subscription || subscription.tier !== "families") {
-      return new Response(
-        JSON.stringify({ error: "Families subscription required" }),
-        {
-          status: 403,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
-    }
-
-    // =====================================================
-    // VALIDATION 2: Check family size (max 6 members)
-    // =====================================================
-    const { count: memberCount } = await admin
-      .from("family_members")
-      .select("*", { count: "exact", head: true })
-      .eq("family_owner_id", user.id)
-      .eq("status", "active");
-
-    if (memberCount !== null && memberCount >= 6) {
-      return new Response(
-        JSON.stringify({ error: "Maximum family size reached (6 members)" }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
-    }
-
-    const { error: insertError } = await admin
-      .from("family_members")
-      .insert({
-        family_owner_id: user.id,
-        member_email: email.trim().toLowerCase(),
-        status: "invited",
-        role: "member",
+    if (fetchError || !invitation) {
+      return new Response(JSON.stringify({ error: "Invitation not found" }), {
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
 
-    if (insertError) {
-      return new Response(JSON.stringify({ error: insertError.message }), {
+    // Update invitation status
+    const { error: updateError } = await admin
+      .from("family_members")
+      .update({
+        member_user_id: user.id,
+        status: "active",
+        joined_at: new Date().toISOString(),
+      })
+      .eq("id", invitationId);
+
+    if (updateError) {
+      return new Response(JSON.stringify({ error: updateError.message }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const siteUrl = Deno.env.get("SITE_URL") || "https://singrapw.mauntingstudios.de";
-    const subject = "Einladung zur Familien-Organisation bei Singra PW";
-    const html = `
-      <div style="font-family:Arial,sans-serif;line-height:1.6;color:#111">
-        <h2>Du wurdest zur Familien-Organisation eingeladen</h2>
-        <p>Hallo,</p>
-        <p><strong>${user.email}</strong> hat dich zur Familien-Organisation in Singra PW eingeladen.</p>
-        <p>Öffne Singra PW und melde dich an, um die Einladung anzunehmen:</p>
-        <p><a href="${siteUrl}/settings" style="display:inline-block;padding:10px 16px;background:#111;color:#fff;text-decoration:none;border-radius:8px">Zu den Einstellungen</a></p>
-        <p>Falls du kein Konto hast, registriere dich zuerst mit dieser E-Mail-Adresse.</p>
-      </div>
-    `;
-
-    await sendResendMail(email.trim().toLowerCase(), subject, html);
+    // Send notification email to the inviter
+    const ownerEmail = invitation.profiles?.email;
+    if (ownerEmail) {
+      const subject = "Familien-Einladung angenommen";
+      const html = `
+        <div style="font-family:Arial,sans-serif;line-height:1.6;color:#111">
+          <h2>Einladung angenommen</h2>
+          <p>Hallo,</p>
+          <p><strong>${user.email}</strong> hat deine Einladung zur Familien-Organisation angenommen.</p>
+          <p>Du kannst jetzt Sammlungen mit diesem Mitglied teilen.</p>
+        </div>
+      `;
+      
+      try {
+        await sendResendMail(ownerEmail, subject, html);
+      } catch (emailError) {
+        console.error("Failed to send notification email:", emailError);
+        // Don't fail the request if email fails
+      }
+    }
 
     return new Response(JSON.stringify({ success: true }), {
       status: 200,

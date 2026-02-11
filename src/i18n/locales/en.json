@@ -538,7 +538,15 @@
       "inviteSent": "Invitation sent.",
       "inviteError": "Failed to invite family member.",
       "removed": "Family member removed.",
-      "removeError": "Failed to remove family member."
+      "removeError": "Failed to remove family member.",
+      "pendingInvitation": "Pending Family Invitation",
+      "invitationMessage": "You have {{count}} pending family invitation(s).",
+      "accept": "Accept",
+      "decline": "Decline",
+      "invitationAccepted": "Invitation accepted.",
+      "invitationAcceptError": "Failed to accept invitation.",
+      "invitationDeclined": "Invitation declined.",
+      "invitationDeclineError": "Failed to decline invitation."
     },
     "sharedCollections": {
       "title": "Shared Collections",
@@ -549,7 +557,30 @@
       "created": "Collection created.",
       "createError": "Failed to create collection.",
       "deleted": "Collection deleted.",
-      "deleteError": "Failed to delete collection."
+      "deleteError": "Failed to delete collection.",
+      "myCollections": "My Collections",
+      "sharedWithMe": "Shared with Me",
+      "owner": "Owner",
+      "member": "Member",
+      "viewPermission": "View only",
+      "editPermission": "Edit",
+      "addMember": "Add Member",
+      "addItem": "Add Item",
+      "removeMember": "Remove Member",
+      "removeItem": "Remove Item",
+      "memberAdded": "Member added.",
+      "memberAddError": "Failed to add member.",
+      "memberRemoved": "Member removed.",
+      "memberRemoveError": "Failed to remove member.",
+      "itemAdded": "Item added.",
+      "itemAddError": "Failed to add item.",
+      "itemRemoved": "Item removed.",
+      "itemRemoveError": "Failed to remove item.",
+      "sharedBadge": "Shared",
+      "rotateKey": "Rotate Key",
+      "rotateKeyWarning": "All items will be re-encrypted. This may take some time.",
+      "rotateKeySuccess": "Key rotated successfully.",
+      "rotateKeyError": "Failed to rotate key."
     }
   },
   "categories": {
@@ -580,9 +611,15 @@
     "subtitle": "Manage your 2FA codes",
     "scanQr": "Scan QR Code",
     "setupFirst": "Set up your first 2FA account",
+    "addFirst": "Add first TOTP account",
     "emptyTitle": "No 2FA accounts found",
     "emptyDesc": "Add a new account to get started with 2FA.",
-    "cameraError": "Could not access camera"
+    "cameraError": "Could not access camera",
+    "manualEntry": "Manual entry",
+    "secretLabel": "TOTP Secret",
+    "secretPlaceholder": "JBSW Y3DP EHPK 3PXP",
+    "invalidSecret": "Invalid TOTP secret",
+    "secretTooShort": "Secret too short (minimum 16 characters)"
   },
   "vaultHealth": {
     "title": "Vault Health",

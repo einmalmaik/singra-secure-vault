@@ -5,6 +5,12 @@
  * for vault items. Files are encrypted client-side before upload
  * and stored in Supabase Storage.
  *
+ * File metadata (file_name, mime_type) is encrypted in the
+ * `encrypted_metadata` column so that a database-level attacker
+ * cannot see which filenames or types a user stores. The plaintext
+ * `file_name` and `mime_type` columns are kept as opaque placeholders
+ * for backward-compat (set to "encrypted" / "application/octet-stream").
+ *
  * Limits: 100MB per file, 1GB total per user.
  */
 
@@ -20,6 +26,7 @@ export interface FileAttachment {
     mime_type: string | null;
     storage_path: string;
     encrypted: boolean;
+    encrypted_metadata?: string | null;
     created_at: string;
 }
 
@@ -28,6 +35,14 @@ export interface UploadProgress {
     progress: number; // 0–100
     status: 'encrypting' | 'uploading' | 'complete' | 'error';
     error?: string;
+}
+
+/**
+ * Internal shape of the cleartext metadata object that gets encrypted.
+ */
+interface FileMetadata {
+    file_name: string;
+    mime_type: string | null;
 }
 
 // ============ Constants ============
@@ -64,12 +79,72 @@ export function getFileIcon(mimeType: string | null): string {
     return '📎';
 }
 
+// ============ Metadata Encryption Helpers ============
+
+/**
+ * Encrypts file metadata (name + MIME type) into a single ciphertext string.
+ *
+ * @param fileName - Original file name
+ * @param mimeType - MIME type (or null)
+ * @param encryptFn - Vault encryption callback (from VaultContext.encryptData)
+ * @returns Encrypted JSON string
+ */
+async function encryptFileMetadata(
+    fileName: string,
+    mimeType: string | null,
+    encryptFn: (plaintext: string) => Promise<string>,
+): Promise<string> {
+    const meta: FileMetadata = { file_name: fileName, mime_type: mimeType };
+    return encryptFn(JSON.stringify(meta));
+}
+
+/**
+ * Decrypts encrypted_metadata back into file_name and mime_type.
+ * Falls back to the plaintext columns when encrypted_metadata is absent
+ * (backward-compat with rows created before this feature).
+ *
+ * @param row - Raw row from the database
+ * @param decryptFn - Vault decryption callback
+ * @returns FileAttachment with plaintext file_name and mime_type restored
+ */
+async function decryptFileMetadataRow(
+    row: FileAttachment,
+    decryptFn?: (encrypted: string) => Promise<string>,
+): Promise<FileAttachment> {
+    if (!row.encrypted_metadata || !decryptFn) {
+        // Legacy row or no decrypt function — use plaintext columns as-is
+        return row;
+    }
+
+    try {
+        const json = await decryptFn(row.encrypted_metadata);
+        const meta: FileMetadata = JSON.parse(json);
+        return {
+            ...row,
+            file_name: meta.file_name,
+            mime_type: meta.mime_type,
+        };
+    } catch {
+        // If decryption fails (wrong key, corrupted), fall back to raw columns
+        console.error('Failed to decrypt file metadata, using raw columns');
+        return row;
+    }
+}
+
 // ============ Service Functions ============
 
 /**
- * Get all attachments for a vault item
+ * Get all attachments for a vault item.
+ * When a decryptFn is provided, encrypted metadata is transparently decrypted
+ * so callers see the real file_name and mime_type.
+ *
+ * @param vaultItemId - The vault item to list attachments for
+ * @param decryptFn - Optional vault decryption callback
  */
-export async function getAttachments(vaultItemId: string): Promise<FileAttachment[]> {
+export async function getAttachments(
+    vaultItemId: string,
+    decryptFn?: (encrypted: string) => Promise<string>,
+): Promise<FileAttachment[]> {
     const { data, error } = await supabase
         .from('file_attachments')
         .select('*')
@@ -77,7 +152,13 @@ export async function getAttachments(vaultItemId: string): Promise<FileAttachmen
         .order('created_at', { ascending: false });
 
     if (error) throw error;
-    return (data || []) as FileAttachment[];
+    const rows = (data || []) as FileAttachment[];
+
+    // Decrypt metadata in parallel when a decrypt function is available
+    if (decryptFn) {
+        return Promise.all(rows.map(row => decryptFileMetadataRow(row, decryptFn)));
+    }
+    return rows;
 }
 
 /**
@@ -96,7 +177,14 @@ export async function getStorageUsage(userId: string): Promise<{ used: number; l
 }
 
 /**
- * Upload an encrypted file attachment
+ * Upload an encrypted file attachment.
+ * Both the file content and the file metadata (name, MIME type) are encrypted
+ * client-side before being stored.
+ *
+ * @param userId - Owner user ID
+ * @param vaultItemId - Vault item to attach to
+ * @param file - Browser File object
+ * @param encryptFn - Vault encryption callback (encrypts plaintext string -> ciphertext string)
  */
 export async function uploadAttachment(
     userId: string,
@@ -139,17 +227,24 @@ export async function uploadAttachment(
 
     if (uploadError) throw uploadError;
 
-    // Save metadata in database
+    // Encrypt file metadata (name + MIME type)
+    const encryptedMeta = await encryptFileMetadata(file.name, file.type || null, encryptFn);
+
+    // Save metadata in database.
+    // file_name and mime_type are set to opaque placeholders so that a
+    // database-level attacker learns nothing. The real values are in
+    // encrypted_metadata and can only be read with the vault key.
     const { data: attachment, error: dbError } = await supabase
         .from('file_attachments')
         .insert({
             user_id: userId,
             vault_item_id: vaultItemId,
-            file_name: file.name,
+            file_name: 'encrypted',
             file_size: file.size,
-            mime_type: file.type || null,
+            mime_type: 'application/octet-stream',
             storage_path: storagePath,
             encrypted: true,
+            encrypted_metadata: encryptedMeta,
         })
         .select('*')
         .single();
@@ -160,11 +255,21 @@ export async function uploadAttachment(
         throw dbError;
     }
 
-    return attachment as FileAttachment;
+    // Return the attachment with plaintext metadata restored for immediate use
+    return {
+        ...(attachment as FileAttachment),
+        file_name: file.name,
+        mime_type: file.type || null,
+    };
 }
 
 /**
- * Download and decrypt a file attachment
+ * Download and decrypt a file attachment.
+ * If the attachment has encrypted_metadata, it is decrypted to obtain
+ * the real file_name and mime_type for the browser download.
+ *
+ * @param attachment - The FileAttachment record (may already have decrypted metadata)
+ * @param decryptFn - Vault decryption callback
  */
 export async function downloadAttachment(
     attachment: FileAttachment,
@@ -191,12 +296,15 @@ export async function downloadAttachment(
         bytes[i] = binaryString.charCodeAt(i);
     }
 
+    // Decrypt metadata if not already done (safety net)
+    const resolved = await decryptFileMetadataRow(attachment, decryptFn);
+
     // Trigger browser download
-    const blob = new Blob([bytes], { type: attachment.mime_type || 'application/octet-stream' });
+    const blob = new Blob([bytes], { type: resolved.mime_type || 'application/octet-stream' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = attachment.file_name;
+    a.download = resolved.file_name;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

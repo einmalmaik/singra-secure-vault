@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import Stripe from "https://esm.sh/stripe@17.7.0?target=deno";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { corsHeaders } from "../_shared/cors.ts";
 
 // Server-side plan mapping — client CANNOT override prices
 const PLAN_CONFIG: Record<string, { priceId: string; tier: string }> = {
@@ -11,12 +12,6 @@ const PLAN_CONFIG: Record<string, { priceId: string; tier: string }> = {
 };
 
 const INTRO_COUPON_ID = "K3tViKjk";
-
-const corsHeaders = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
 
 Deno.serve(async (req: Request) => {
     // Handle CORS preflight

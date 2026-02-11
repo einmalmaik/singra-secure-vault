@@ -50,7 +50,7 @@
 
 ---
 
-## Phase 1: Quick Wins (1-2 Tage)
+## ABGESCHLOSSEN: Phase 1: Quick Wins (1-2 Tage)
 
 ### 1.1 KRITISCH: Backup-Codes von Math.random() auf CSPRNG umstellen
 
@@ -129,9 +129,9 @@ return importMasterKey(keyBytes);
 
 ---
 
-## Phase 2: Wichtige Härtung (1 Woche)
+## Phase 2: Wichtige Härtung (1 Woche) — ✅ KOMPLETT (11.02.2026)
 
-### 2.1 HOCH: Rate-Limiting beim Vault-Unlock
+### 2.1 HOCH: Rate-Limiting beim Vault-Unlock — ✅ ERLEDIGT
 
 **Datei:** `src/contexts/VaultContext.tsx:295-346` (unlock-Funktion)
 
@@ -150,7 +150,7 @@ return importMasterKey(keyBytes);
 
 ---
 
-### 2.2 HOCH: Atomare Collection Key-Rotation
+### 2.2 HOCH: Atomare Collection Key-Rotation — ✅ ERLEDIGT
 
 **Datei:** `src/services/collectionService.ts:555-585`
 
@@ -184,77 +184,84 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 ---
 
-### 2.3 HOCH: Backup-Code-Hashing mit Salt
+### 2.3 HOCH: Backup-Code-Hashing mit Salt — ✅ ERLEDIGT
 
-**Datei:** `src/services/twoFactorService.ts:129-136`
+**Datei:** `src/services/twoFactorService.ts`
 
-**Aktueller Code:**
-```typescript
-export async function hashBackupCode(code: string): Promise<string> {
-    const normalizedCode = code.replace(/-/g, '').toUpperCase();
-    const encoder = new TextEncoder();
-    const data = encoder.encode(normalizedCode);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-    // ... hex encode
-}
-```
+**Implementierung (11.02.2026):**
 
-**Problem:** Unsalted SHA-256. Der Keyspace ist 32^8 = ~1.1 Billionen Kombinationen. Mit moderner GPU (SHA-256: ~10 Milliarden Hashes/Sekunde) in ~110 Sekunden vollständig durchsuchbar.
+1. **`hashBackupCode(code, salt?)`** — Bereits in Phase 2 Vorarbeit umgestellt auf HMAC-SHA-256 wenn ein Salt übergeben wird, mit Fallback auf unsalted SHA-256 für Legacy-Hashes.
 
-**Fix:** HMAC-SHA-256 mit per-User-Salt verwenden:
-```typescript
-const key = await crypto.subtle.importKey('raw', saltBytes, {name: 'HMAC', hash: 'SHA-256'}, false, ['sign']);
-const signature = await crypto.subtle.sign('HMAC', key, data);
-```
-Das Salt kann das bestehende `encryption_salt` des Users sein (bereits vorhanden in profiles).
+2. **`getUserEncryptionSalt(userId)`** — Neue interne Hilfsfunktion (Zeile ~197), die `encryption_salt` aus der `profiles`-Tabelle lädt. Wird von allen 3 Callern verwendet.
 
-**Migration:** Bestehende Hashes müssen beim nächsten erfolgreichen 2FA-Setup neu gehasht werden. Oder: Dual-Verify (altes Format + neues) bis Migration abgeschlossen.
+3. **`enableTwoFactor`** — Ruft jetzt `getUserEncryptionSalt()` auf und übergibt das Salt an `hashBackupCode()`. Neue Backup-Codes werden immer mit HMAC-SHA-256 gespeichert.
+
+4. **`regenerateBackupCodes`** — Analog: Holt Salt, hasht mit HMAC-SHA-256.
+
+5. **`verifyAndConsumeBackupCode`** — Dual-Verify-Strategie implementiert:
+   - Berechnet HMAC-SHA-256-Hash (neuer sicherer Pfad)
+   - Berechnet zusätzlich Legacy-SHA-256-Hash
+   - Sucht in `backup_codes` nach beiden Kandidaten-Hashes (`IN`-Query)
+   - Wenn Legacy-Hash matcht, wird der Code trotzdem konsumiert (transparente Migration)
+   - Neue Codes (nach Regenerierung/Aktivierung) sind automatisch HMAC-gesichert
+
+6. **Keine DB-Migration nötig**: Die `backup_codes`-Tabelle bleibt unverändert. Legacy-Hashes werden beim nächsten Regenerieren oder bei der nächsten 2FA-Aktivierung automatisch durch HMAC-Hashes ersetzt.
+
+7. **Keine Komponenten-Änderungen nötig**: Die Salt-Beschaffung passiert intern im Service. `TwoFactorSettings`, `VaultUnlock`, `Auth` sind unverändert.
 
 ---
 
-### 2.4 MITTEL: File-Attachment-Metadaten verschlüsseln
+### 2.4 MITTEL: File-Attachment-Metadaten verschlüsseln — ✅ ERLEDIGT
 
 **Datei:** `src/services/fileAttachmentService.ts`
 
-**Aktueller Stand:** `file_attachments` Tabelle speichert:
-- `file_name` — Klartext (z.B. "Steuererklärung_2025.pdf")
-- `mime_type` — Klartext (z.B. "application/pdf")
-- `file_size` — Klartext (Dateigröße)
+**Implementierung (11.02.2026):**
 
-**Problem:** Metadaten-Leakage. Ein Angreifer mit DB-Zugang sieht welche Dateitypen und -namen ein User speichert. LastPass-Breach zeigte: Metadaten sind für Social Engineering und gezielte Angriffe sehr wertvoll.
+1. **`encrypted_metadata`-Spalte** hinzugefügt via Migration `20260211220000_add_encrypted_metadata_column.sql`. Speichert AES-256-GCM verschlüsseltes JSON `{"file_name":"...","mime_type":"..."}`.
 
-**Fix:** `file_name` und `mime_type` in ein JSON-Objekt packen und mit dem Vault-Key verschlüsseln. In der DB nur noch eine `encrypted_metadata`-Spalte speichern. `file_size` kann bleiben (für Quota-Berechnung nötig, verrät wenig).
+2. **`uploadAttachment`** — Verschlüsselt jetzt `file_name` und `mime_type` in `encrypted_metadata`. Die Klartext-Spalten werden mit Platzhaltern befüllt (`"encrypted"` / `"application/octet-stream"`).
 
----
+3. **`getAttachments`** — Akzeptiert nun optionale `decryptFn` und entschlüsselt `encrypted_metadata` transparent. Legacy-Zeilen (ohne `encrypted_metadata`) funktionieren weiterhin.
 
-### 2.5 MITTEL: Passphrase-Wortliste erweitern
+4. **`downloadAttachment`** — Entschlüsselt Metadaten für korrekten Dateinamen und MIME-Typ beim Browser-Download.
 
-**Datei:** `src/services/passwordGenerator.ts:17-30`
+5. **FileAttachments-Komponente** — Übergibt jetzt `decryptData` aus VaultContext an `getAttachments`.
 
-**Aktueller Stand:** 88 englische Wörter. 4 Wörter = log2(88^4) = ~25.8 Bit Entropie nur aus der Wort-Selektion.
-
-**Vergleich:** EFF Diceware hat 7.776 Wörter = ~51.7 Bit bei 4 Wörtern. Bitwarden nutzt ebenfalls die EFF-Liste.
-
-**Fix:** EFF Short Wordlist (1.296 Wörter) oder Full Wordlist (7.776) integrieren. Bei Doppelsprache (DE/EN) je eine Liste. Alternativ: Deutsche BIP39-Wortliste (2.048 Wörter) = ~44 Bit bei 4 Wörtern.
+6. **Keine Komponenten-Änderungen am Interface** — Die `FileAttachment`-Schnittstelle bleibt gleich, Entschlüsselung passiert transparent im Service.
 
 ---
 
-### 2.6 MITTEL: CORS auf eigene Domain einschränken
+### 2.5 MITTEL: Passphrase-Wortliste erweitern — ✅ ERLEDIGT
 
-**Dateien (alle 7 Edge Functions):**
-- `supabase/functions/create-checkout-session/index.ts:16`
-- `supabase/functions/accept-family-invitation/index.ts:5`
-- `supabase/functions/invite-family-member/index.ts:5`
-- `supabase/functions/send-test-mail/index.ts:4`
-- `supabase/functions/invite-emergency-access/index.ts:5`
-- `supabase/functions/cancel-subscription/index.ts:6`
-- `supabase/functions/create-portal-session/index.ts:6`
+**Datei:** `src/services/passwordGenerator.ts`, `src/services/wordlists.ts` (NEU)
 
-**Aktueller Code:** Alle nutzen `"Access-Control-Allow-Origin": "*"`
+**Implementierung (11.02.2026):**
 
-**Problem:** Wildcard-CORS erlaubt Requests von jeder beliebigen Website. Zwar schützt der JWT-Token vor unautorisiertem Zugriff, aber Defense-in-Depth fehlt. Ein XSS auf einer Drittseite könnte bei einem eingeloggten User Requests an unsere Edge Functions triggern.
+1. **EFF Short Wordlist 2.0** (1.296 Wörter) als dediziertes Modul `src/services/wordlists.ts` angelegt. Quelle: https://www.eff.org/dice, CC BY 3.0.
 
-**Fix:** `"Access-Control-Allow-Origin"` auf die eigene Domain setzen (z.B. `https://singra.pw`). Für Dev-Umgebung dynamisch via Environment-Variable.
+2. **`passwordGenerator.ts`** — Importiert jetzt `EFF_SHORT_WORDLIST` statt der alten 88-Wörter-Liste. Entropie-Gewinn: 4 Wörter steigen von ~25.8 Bit auf ~41.4 Bit (60% mehr Entropie).
+
+3. **Rückwärtskompatibilität** — Keine UI-Änderungen nötig. Die `generatePassphrase()`-Funktion funktioniert identisch, nur mit besserem Wortpool.
+
+4. **Bundle-Impact** — ~15 KB zusätzlich (gzip: ~5 KB). Akzeptabler Trade-off für signifikant stärkere Passphrases.
+
+---
+
+### 2.6 MITTEL: CORS auf eigene Domain einschränken — ✅ ERLEDIGT
+
+**Dateien:**
+- `supabase/functions/_shared/cors.ts` (NEU — geteiltes CORS-Modul)
+- Alle 7 Edge Functions: `create-checkout-session`, `cancel-subscription`, `create-portal-session`, `accept-family-invitation`, `invite-family-member`, `invite-emergency-access`, `send-test-mail`
+
+**Implementierung (11.02.2026):**
+
+1. **Shared CORS module** — `supabase/functions/_shared/cors.ts` erstellt. Liest `ALLOWED_ORIGIN` aus Deno-Umgebungsvariable. Fallback auf `"*"` wenn nicht gesetzt (lokale Entwicklung).
+
+2. **Alle 7 Edge Functions** — Lokale `corsHeaders`-Deklaration entfernt, importieren jetzt `{ corsHeaders } from "../_shared/cors.ts"`.
+
+3. **`stripe-webhook`** — Nicht betroffen (hat kein CORS, korrekt für Server-zu-Server Stripe-Webhooks).
+
+4. **Deployment-Hinweis:** In der Supabase-Projektumgebung muss `ALLOWED_ORIGIN` auf die Produktions-Domain gesetzt werden (z.B. `https://singra.pw`). Über Supabase Dashboard: Settings → Edge Functions → Secrets.
 
 ---
 

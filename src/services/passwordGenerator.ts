@@ -3,7 +3,12 @@
  * 
  * Uses Web Crypto API's getRandomValues() for secure random generation.
  * Supports both random character passwords and passphrases.
+ *
+ * Passphrase generation uses the EFF Short Wordlist 2.0 (1,296 words).
+ * 4 words = ~41.4 bits entropy, 5 words = ~51.7 bits, 6 words = ~62.0 bits.
  */
+
+import { EFF_SHORT_WORDLIST } from '@/services/wordlists';
 
 // Character sets for password generation
 const CHARSETS = {
@@ -13,21 +18,9 @@ const CHARSETS = {
     symbols: '!@#$%^&*()_+-=[]{}|;:,.<>?',
 };
 
-// Common English words for passphrase generation (curated for memorability)
-const WORD_LIST = [
-    'apple', 'banana', 'cherry', 'dragon', 'eagle', 'forest', 'garden', 'harbor',
-    'island', 'jungle', 'kingdom', 'lighthouse', 'mountain', 'nebula', 'ocean',
-    'phoenix', 'quantum', 'rainbow', 'sunset', 'thunder', 'universe', 'volcano',
-    'waterfall', 'xylophone', 'yellow', 'zenith', 'anchor', 'bridge', 'castle',
-    'diamond', 'emerald', 'falcon', 'glacier', 'horizon', 'ivory', 'jasmine',
-    'knight', 'lantern', 'meadow', 'north', 'orchid', 'palace', 'quartz',
-    'river', 'silver', 'tiger', 'umbrella', 'velvet', 'willow', 'crystal',
-    'breeze', 'coral', 'dusk', 'eclipse', 'flame', 'granite', 'haze', 'iris',
-    'jade', 'kelp', 'lunar', 'mist', 'nova', 'opal', 'pine', 'quest', 'reef',
-    'spark', 'tide', 'unity', 'vine', 'wave', 'alpine', 'bronze', 'cipher',
-    'delta', 'ember', 'frost', 'glow', 'helm', 'ink', 'jewel', 'karma', 'lotus',
-    'maple', 'neon', 'onyx', 'prism', 'quill', 'ruby', 'stone', 'torch',
-];
+// Passphrase wordlist: EFF Short Wordlist 2.0 (1,296 words)
+// Imported from dedicated wordlists module for maintainability.
+const WORD_LIST = EFF_SHORT_WORDLIST;
 
 export interface PasswordOptions {
     length: number;

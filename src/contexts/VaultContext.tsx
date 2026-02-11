@@ -28,6 +28,11 @@ import {
 } from '@/services/offlineVaultService';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
+import {
+    getUnlockCooldown,
+    recordFailedAttempt,
+    resetUnlockAttempts,
+} from '@/services/rateLimiterService';
 
 // Auto-lock timeout in milliseconds (default 15 minutes)
 const DEFAULT_AUTO_LOCK_TIMEOUT = 15 * 60 * 1000;
@@ -290,13 +295,21 @@ export function VaultProvider({ children }: VaultProviderProps) {
     }, [user]);
 
     /**
-     * Unlocks the vault with the master password
+     * Unlocks the vault with the master password.
+     * Enforces client-side rate limiting with exponential backoff.
      */
     const unlock = useCallback(async (
         masterPassword: string
     ): Promise<{ error: Error | null }> => {
         if (!user || !salt) {
             return { error: new Error('Vault not set up') };
+        }
+
+        // Check rate-limit cooldown
+        const cooldown = getUnlockCooldown();
+        if (cooldown !== null) {
+            const seconds = Math.ceil(cooldown / 1000);
+            return { error: new Error(`Too many attempts. Try again in ${seconds}s.`) };
         }
 
         try {
@@ -313,8 +326,12 @@ export function VaultProvider({ children }: VaultProviderProps) {
 
             const isValid = await verifyKey(verifier, key);
             if (!isValid) {
+                recordFailedAttempt();
                 return { error: new Error('Invalid master password') };
             }
+
+            // Success — reset rate-limiter
+            resetUnlockAttempts();
 
             // One-time migration: persist legacy verifier to profile.
             if (!verificationHash && legacyHash) {
@@ -341,6 +358,7 @@ export function VaultProvider({ children }: VaultProviderProps) {
             return { error: null };
         } catch (err) {
             console.error('Error unlocking vault:', err);
+            recordFailedAttempt();
             return { error: new Error('Invalid master password') };
         }
     }, [user, salt, verificationHash]);

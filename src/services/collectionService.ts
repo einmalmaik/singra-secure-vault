@@ -552,35 +552,18 @@ export async function rotateCollectionKey(
         })
     );
     
-    // 9. Update database (transaction-like)
-    try {
-        // Update items
-        for (const item of reencryptedItems) {
-            const { error } = await supabase
-                .from('shared_collection_items')
-                .update({ encrypted_data: item.encrypted_data })
-                .eq('id', item.id);
-            
-            if (error) throw error;
-        }
-        
-        // Delete old keys
-        const { error: deleteError } = await supabase
-            .from('collection_keys')
-            .delete()
-            .eq('collection_id', collectionId);
-        
-        if (deleteError) throw deleteError;
-        
-        // Insert new keys
-        const { error: insertError } = await supabase
-            .from('collection_keys')
-            .insert(newWrappedKeys);
-        
-        if (insertError) throw insertError;
-        
-    } catch (error) {
-        console.error('Key rotation failed:', error);
-        throw new Error('Key rotation failed. Collection may be in inconsistent state.');
+    // 9. Update database atomically via server-side transaction
+    const { error: rpcError } = await supabase.rpc('rotate_collection_key_atomic', {
+        p_collection_id: collectionId,
+        p_items: reencryptedItems.map(item => ({
+            id: item.id,
+            encrypted_data: item.encrypted_data,
+        })),
+        p_new_keys: newWrappedKeys,
+    });
+
+    if (rpcError) {
+        console.error('Key rotation failed:', rpcError);
+        throw new Error('Key rotation failed. Please try again.');
     }
 }

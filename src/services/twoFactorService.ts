@@ -149,17 +149,63 @@ function getSecureRandomInt(min: number, max: number): number {
 }
 
 /**
- * Hashes a backup code for secure storage
+ * Hashes a backup code for secure storage using HMAC-SHA-256.
+ * The user's encryption salt is used as the HMAC key so that
+ * identical codes for different users produce different hashes.
+ *
  * @param code - Plain backup code
- * @returns SHA-256 hash of the code
+ * @param salt - User's encryption_salt (base64) from profile
+ * @returns Hex-encoded HMAC-SHA-256 of the code
  */
-export async function hashBackupCode(code: string): Promise<string> {
+export async function hashBackupCode(code: string, salt?: string): Promise<string> {
     const normalizedCode = code.replace(/-/g, '').toUpperCase();
     const encoder = new TextEncoder();
     const data = encoder.encode(normalizedCode);
+
+    // If a salt is provided, use HMAC-SHA-256 (new secure path).
+    // Otherwise fall back to plain SHA-256 for legacy verification.
+    if (salt) {
+        const keyData = encoder.encode(salt);
+        const hmacKey = await crypto.subtle.importKey(
+            'raw',
+            keyData,
+            { name: 'HMAC', hash: 'SHA-256' },
+            false,
+            ['sign']
+        );
+        const signature = await crypto.subtle.sign('HMAC', hmacKey, data);
+        const hashArray = Array.from(new Uint8Array(signature));
+        return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    // Legacy fallback: unsalted SHA-256
     const hashBuffer = await crypto.subtle.digest('SHA-256', data);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// ============ Internal Helpers ============
+
+/**
+ * Fetches the encryption salt for a user from the profiles table.
+ * This salt is used as the HMAC key for backup-code hashing so that
+ * identical plaintext codes produce different hashes per user.
+ *
+ * @param userId - The user's auth UID
+ * @returns The base64-encoded encryption salt, or null if not found
+ */
+async function getUserEncryptionSalt(userId: string): Promise<string | null> {
+    const { data, error } = await supabase
+        .from('profiles')
+        .select('encryption_salt')
+        .eq('user_id', userId)
+        .single();
+
+    if (error || !data?.encryption_salt) {
+        return null;
+    }
+
+    return data.encryption_salt;
 }
 
 // ============ Database Operations ============
@@ -277,11 +323,14 @@ export async function enableTwoFactor(
         return { success: false, error: updateError.message };
     }
 
-    // Store hashed backup codes
+    // Fetch the user's encryption salt for HMAC-based hashing
+    const salt = await getUserEncryptionSalt(userId);
+
+    // Store hashed backup codes (HMAC-SHA-256 when salt available, SHA-256 fallback)
     const hashedCodes = await Promise.all(
         backupCodes.map(async (code) => ({
             user_id: userId,
-            code_hash: await hashBackupCode(code),
+            code_hash: await hashBackupCode(code, salt ?? undefined),
         }))
     );
 
@@ -298,7 +347,14 @@ export async function enableTwoFactor(
 }
 
 /**
- * Verifies a backup code and marks it as used
+ * Verifies a backup code and marks it as used.
+ *
+ * Uses a dual-verify strategy to support transparent migration from
+ * legacy unsalted SHA-256 hashes to HMAC-SHA-256:
+ *   1. Try HMAC-SHA-256 hash (current secure method)
+ *   2. If no match, try legacy unsalted SHA-256
+ *   3. If legacy matches, mark as used (the code is consumed anyway)
+ *
  * @param userId - User ID
  * @param code - Backup code to verify
  * @returns Whether the code was valid
@@ -307,16 +363,27 @@ export async function verifyAndConsumeBackupCode(
     userId: string,
     code: string
 ): Promise<boolean> {
-    const codeHash = await hashBackupCode(code);
+    const salt = await getUserEncryptionSalt(userId);
 
-    // Find unused backup code
+    // Try HMAC-SHA-256 first (new secure path)
+    const hmacHash = salt ? await hashBackupCode(code, salt) : null;
+    // Also compute legacy unsalted SHA-256 for fallback
+    const legacyHash = await hashBackupCode(code);
+
+    // Build list of candidate hashes to check (HMAC first, then legacy)
+    const candidateHashes: string[] = [];
+    if (hmacHash) candidateHashes.push(hmacHash);
+    if (!hmacHash || hmacHash !== legacyHash) candidateHashes.push(legacyHash);
+
+    // Find unused backup code matching any candidate hash
     const { data, error } = await supabase
         .from('backup_codes')
-        .select('id')
+        .select('id, code_hash')
         .eq('user_id', userId)
-        .eq('code_hash', codeHash)
+        .in('code_hash', candidateHashes)
         .eq('is_used', false)
-        .single();
+        .limit(1)
+        .maybeSingle();
 
     if (error || !data) {
         return false;
@@ -428,11 +495,14 @@ export async function regenerateBackupCodes(
     // Generate new codes
     const newCodes = generateBackupCodes();
 
-    // Store hashed codes
+    // Fetch the user's encryption salt for HMAC-based hashing
+    const salt = await getUserEncryptionSalt(userId);
+
+    // Store hashed codes (HMAC-SHA-256 when salt available, SHA-256 fallback)
     const hashedCodes = await Promise.all(
         newCodes.map(async (code) => ({
             user_id: userId,
-            code_hash: await hashBackupCode(code),
+            code_hash: await hashBackupCode(code, salt ?? undefined),
         }))
     );
 

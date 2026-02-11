@@ -60,7 +60,7 @@ export function FileAttachments({ vaultItemId }: FileAttachmentsProps) {
         setLoading(true);
         try {
             const [attachments, storageUsage] = await Promise.all([
-                getAttachments(vaultItemId),
+                getAttachments(vaultItemId, decryptData),
                 getStorageUsage(user.id),
             ]);
             setFiles(attachments);
@@ -70,7 +70,7 @@ export function FileAttachments({ vaultItemId }: FileAttachmentsProps) {
         } finally {
             setLoading(false);
         }
-    }, [vaultItemId, user]);
+    }, [vaultItemId, user, decryptData]);
 
     useEffect(() => {
         loadFiles();

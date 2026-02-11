@@ -123,7 +123,7 @@ Deno.serve(async (req: Request) => {
             }
         }
 
-        // 5. Check intro discount eligibility (applies to ALL plans — monthly & yearly)
+        // 5. Check intro discount eligibility (monthly plans only, one-time)
         const hasUsedDiscount = subscription?.has_used_intro_discount ?? false;
 
         const sessionParams: Stripe.Checkout.SessionCreateParams = {
@@ -146,8 +146,8 @@ Deno.serve(async (req: Request) => {
             },
         };
 
-        // Apply 50% intro coupon if user hasn't used it yet (monthly + yearly)
-        if (!hasUsedDiscount) {
+        // Apply 50% intro coupon only for monthly plans if user hasn't used it yet
+        if (!hasUsedDiscount && plan_key.endsWith("_monthly")) {
             sessionParams.discounts = [{ coupon: INTRO_COUPON_ID }];
         }
 

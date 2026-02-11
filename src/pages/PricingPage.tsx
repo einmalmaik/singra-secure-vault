@@ -7,7 +7,7 @@
  */
 
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
     Shield,
@@ -58,8 +58,7 @@ export default function PricingPage() {
     const [checkoutPlan, setCheckoutPlan] = useState<PlanKey | null>(null);
 
     if (billingDisabled) {
-        navigate('/settings');
-        return null;
+        return <Navigate to="/settings" replace />;
     }
 
     const handleUpgrade = (plan: 'premium' | 'families') => {
@@ -154,9 +153,11 @@ export default function PricingPage() {
                             <p className="text-sm text-muted-foreground">
                                 {t('subscription.premium_description')}
                             </p>
-                            <p className="text-xs text-green-600 dark:text-green-400 mt-1 font-medium">
-                                {t('subscription.intro_discount')}
-                            </p>
+                            {!yearly && (
+                                <p className="text-xs text-green-600 dark:text-green-400 mt-1 font-medium">
+                                    {t('subscription.intro_discount')}
+                                </p>
+                            )}
                         </div>
                         <ul className="space-y-3 flex-1 mb-6">
                             <li className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-1">
@@ -196,9 +197,11 @@ export default function PricingPage() {
                             <p className="text-sm text-muted-foreground">
                                 {t('subscription.families_description')}
                             </p>
-                            <p className="text-xs text-green-600 dark:text-green-400 mt-1 font-medium">
-                                {t('subscription.intro_discount')}
-                            </p>
+                            {!yearly && (
+                                <p className="text-xs text-green-600 dark:text-green-400 mt-1 font-medium">
+                                    {t('subscription.intro_discount')}
+                                </p>
+                            )}
                         </div>
                         <ul className="space-y-3 flex-1 mb-6">
                             <li className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-1">

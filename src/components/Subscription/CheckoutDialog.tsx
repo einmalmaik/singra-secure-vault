@@ -42,7 +42,7 @@ export function CheckoutDialog({ planKey, open, onClose }: CheckoutDialogProps) 
     const [error, setError] = useState<string | null>(null);
 
     const planInfo = PLAN_CONFIG[planKey];
-    const showDiscount = !hasUsedIntroDiscount;
+    const showDiscount = !hasUsedIntroDiscount && planKey.endsWith('_monthly');
 
     const canProceed = consentExecution && consentLoss;
 

@@ -51,6 +51,7 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
 
     const loadSubscription = useCallback(async () => {
         if (!user || BILLING_DISABLED) {
+            setSubscription(null);
             setLoading(false);
             return;
         }

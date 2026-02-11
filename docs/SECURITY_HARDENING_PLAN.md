@@ -1,0 +1,455 @@
+# SingraPW Security Hardening Plan
+
+> Erstellt: 2026-02-11
+> Basierend auf: Vollständigem Code-Audit + Recherche zu Bitwarden, LastPass, KeePass, 1Password Schwachstellen
+> Ziel: SingraPW sicherer machen als die Konkurrenz, bekannte Angriffsvektoren eliminieren
+> 
+> **Phase 1: ABGESCHLOSSEN (2026-02-11)**
+> - 1.1 Backup-Codes CSPRNG: `src/services/twoFactorService.ts` - Math.random() durch crypto.getRandomValues() mit Rejection Sampling ersetzt
+> - 1.2 Clipboard Auto-Clear: Neuer `src/services/clipboardService.ts` - 30s Timer, nur löscht wenn noch eigener Inhalt. Integriert in VaultItemCard, TOTPDisplay, PasswordGenerator, TwoFactorSettings. Locale-Keys in DE+EN hinzugefügt.
+> - 1.3 Key-Bytes Zeroing: `src/services/cryptoService.ts` - deriveKey() nutzt try/finally mit keyBytes.fill(0). secureClear() Kommentar erweitert.
+> - 1.4 Security Headers: `vite.config.ts` - Permissions-Policy und X-Permitted-Cross-Domain-Policies hinzugefügt.
+
+---
+
+## Phase 0: Aktueller Sicherheitsstatus (IST-Zustand)
+
+### Was SingraPW bereits richtig macht
+
+| Eigenschaft | Implementierung | Dateien | Bewertung |
+|---|---|---|---|
+| Key Derivation | Argon2id (64 MiB, 3 iter, p=4) | `src/services/cryptoService.ts:14-18` | Gut (besser als Bitwarden-Standard PBKDF2) |
+| Symmetrische Verschl. | AES-256-GCM, 12-byte IV, 128-bit Tag | `src/services/cryptoService.ts:99-161` | Industriestandard |
+| CryptoKey-Schutz | non-extractable via Web Crypto API | `src/services/cryptoService.ts:93` | Stark |
+| Zero-Knowledge | Master-PW verlässt nie den Client | `src/services/cryptoService.ts:8` | Korrekt |
+| Salt | CSPRNG via crypto.getRandomValues(), 16 byte | `src/services/cryptoService.ts:28-30` | Korrekt |
+| IV-Generierung | Frisch pro Encryption, CSPRNG | `src/services/cryptoService.ts:113` | Korrekt |
+| Key-Speicherung | Nur React useState, nie persistiert | `src/contexts/VaultContext.tsx:99` | Stark |
+| Auto-Lock | 15 Min Standard, konfigurierbar | `src/contexts/VaultContext.tsx:33` | Gut |
+| RLS | Auf ALLEN Tabellen mit auth.uid() | Alle Migrations in `supabase/migrations/` | Solide |
+| TOTP at-rest | pgp_sym_encrypt(AES-256) in private Schema | `supabase/migrations/20260208152000_*` | Über Standard |
+| Metadaten-Minimierung | Titel, Avatar, Vault-Namen bereinigt | Migrations `20260208143000` bis `20260208184500` | Lehre aus LastPass |
+| PW-Hint entfernt | Spalte auf NULL gesetzt | `supabase/migrations/20260208132000_*` | Gut |
+| Asymmetrisch | RSA-4096 + RSA-OAEP + SHA-256 | `src/services/cryptoService.ts:288-504` | Stark |
+| PW-Generator | CSPRNG + Rejection Sampling | `src/services/passwordGenerator.ts:220-237` | Korrekt |
+| Service Worker | Cached nur App-Shell, keine sensiblen Daten | `public/sw.js` | Korrekt |
+| Stripe Webhook | Signaturprüfung aktiv | `supabase/functions/stripe-webhook/index.ts:40` | Korrekt |
+| Preisvalidierung | Server-seitig, Client kann nichts manipulieren | `supabase/functions/create-checkout-session/index.ts:5-6` | Korrekt |
+| CSP | script-src 'self' (prod), frame-ancestors 'none' | `vite.config.ts:18-29` | Gut |
+| Account-Löschung | Atomarer Cascade via SECURITY DEFINER | `supabase/migrations/20260207111500_*` | Korrekt |
+
+### Bekannte Konkurrenz-Schwachstellen die uns NICHT betreffen
+
+| Schwachstelle | Betroffen | Warum nicht bei uns |
+|---|---|---|
+| LastPass: Unverschlüsselte URLs im Vault | LastPass | Wir haben Metadaten in encrypted_data verlagert |
+| LastPass: Niedrige KDF-Iterationen (PBKDF2 100k) | LastPass | Wir nutzen Argon2id mit 64 MiB RAM |
+| Bitwarden: Autofill-Iframe-Attacke | Bitwarden | Wir haben keine Browser-Extension |
+| KeePass: Config-File Memory-Leak | KeePass | Wir sind web-basiert, keine lokale Config |
+| LastPass: Geteilte Vaults unter einem Master-PW | LastPass | Shared Collections haben eigene AES-Keys |
+
+---
+
+## Phase 1: Quick Wins (1-2 Tage)
+
+### 1.1 KRITISCH: Backup-Codes von Math.random() auf CSPRNG umstellen
+
+**Datei:** `src/services/twoFactorService.ts:107-122`
+
+**Aktueller Code (UNSICHER):**
+```typescript
+// Zeile 114
+const randomIndex = Math.floor(Math.random() * chars.length);
+```
+
+**Problem:** `Math.random()` ist kein kryptographisch sicherer Zufallsgenerator. Die Ausgabe ist vorhersagbar, wenn der interne State bekannt ist. Bei einem Passwort-Manager ist das inakzeptabel.
+
+**Vergleich:** Der eigene `passwordGenerator.ts` nutzt bereits `crypto.getRandomValues()` mit Rejection Sampling (Zeile 220-237). Die Backup-Code-Generierung wurde offenbar übersehen.
+
+**Fix:** Die Funktion `getSecureRandomInt()` aus `passwordGenerator.ts` wiederverwenden oder `crypto.getRandomValues()` direkt einsetzen.
+
+**Betroffene Funktion:** `generateBackupCodes()` (Zeile 107-122)
+
+---
+
+### 1.2 KRITISCH: Clipboard-Auto-Clear nach 30 Sekunden
+
+**Dateien:**
+- `src/components/vault/VaultItemCard.tsx:87` — Passwort-/Username-Copy
+- `src/components/vault/TOTPDisplay.tsx:57` — TOTP-Code-Copy
+- `src/components/vault/PasswordGenerator.tsx:69` — Generiertes Passwort-Copy
+- `src/components/settings/TwoFactorSettings.tsx:199` — 2FA-Secret-Copy
+
+**Aktueller Code:** Alle vier Stellen nutzen `navigator.clipboard.writeText(text)` ohne jegliche Bereinigung danach.
+
+**Problem:** Kopierte Passwörter bleiben unbegrenzt im System-Clipboard. Jede App oder Malware kann sie lesen. Clipboard-History-Manager (Windows 10/11 Win+V) speichern sie permanent.
+
+**Vergleich:** Bitwarden löscht nach 30s, 1Password nach 60s, KeePass nach 12s (konfigurierbar).
+
+**Fix:** Zentrale Utility-Funktion erstellen die nach `writeText()` einen `setTimeout` mit 30s setzt der das Clipboard leert. Nur leeren wenn der aktuelle Clipboard-Inhalt noch der kopierte Wert ist (um User-Clipboard nicht zu überschreiben).
+
+---
+
+### 1.3 HOCH: Intermediate Key-Bytes nach Import zeroen
+
+**Datei:** `src/services/cryptoService.ts:40-78`
+
+**Aktueller Code:**
+```typescript
+// deriveRawKey() gibt keyBytes zurück (Zeile 62)
+return keyBytes;
+
+// deriveKey() nutzt es (Zeile 76-77)
+const keyBytes = await deriveRawKey(masterPassword, saltBase64);
+return importMasterKey(keyBytes);
+// keyBytes wird NICHT gezeroed!
+```
+
+**Problem:** Die rohen Schlüsselbytes (`Uint8Array`) verbleiben im Speicher bis der Garbage Collector sie entfernt. Das kann Sekunden bis Minuten dauern. Memory-Dump-Attacken (wie KeePass CVE-2023-32784) können diese Bytes auslesen.
+
+**Fix:** In `deriveKey()` nach dem `importMasterKey()`-Aufruf: `keyBytes.fill(0)` aufrufen. Zusätzlich die lokale `hashHex`-Variable in `deriveRawKey()` auf `''` setzen (wobei Strings in JS immutable sind — Hinweis im Kommentar).
+
+**Limitierung:** JavaScript-GC macht echtes Memory-Wiping schwierig. `keyBytes.fill(0)` überschreibt aber den ArrayBuffer in-place, was effektiv ist.
+
+---
+
+### 1.4 MITTEL: Permissions-Policy Header hinzufügen
+
+**Datei:** `vite.config.ts:17-33`
+
+**Aktueller Stand:** Es fehlen die Header `Permissions-Policy` und `X-Permitted-Cross-Domain-Policies`.
+
+**Fix:** Zum Return-Objekt in `getSecurityHeaders()` hinzufügen:
+```
+"Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=()"
+"X-Permitted-Cross-Domain-Policies": "none"
+```
+
+**Warum:** Verhindert dass eingebettete Inhalte oder XSS-Payloads auf Hardware-APIs zugreifen.
+
+---
+
+## Phase 2: Wichtige Härtung (1 Woche)
+
+### 2.1 HOCH: Rate-Limiting beim Vault-Unlock
+
+**Datei:** `src/contexts/VaultContext.tsx:295-346` (unlock-Funktion)
+
+**Aktueller Stand:** Keine Begrenzung der Unlock-Versuche. Zwar ist Argon2id langsam (~300ms), aber ein automatisierter Angriff mit Headless-Browser oder direkt über die JS-Console kann unbegrenzt versuchen.
+
+**Plan:**
+- State-Variable `failedAttempts` und `lockoutUntil` hinzufügen
+- Nach 5 Fehlversuchen: 30 Sekunden Sperre
+- Nach 10 Fehlversuchen: 5 Minuten Sperre
+- Nach 20 Fehlversuchen: 30 Minuten Sperre
+- Exponentielles Backoff: `min(30 * 2^(floor(attempts/5)), 1800)` Sekunden
+- Counter im sessionStorage (überlebt keinen Tab-Wechsel)
+- Optional: Visuelles Countdown-UI für den User
+
+**Betroffene Funktion:** `unlock()` Callback (Zeile 295-346)
+
+---
+
+### 2.2 HOCH: Atomare Collection Key-Rotation
+
+**Datei:** `src/services/collectionService.ts:555-585`
+
+**Aktueller Code (Zeile 555):**
+```typescript
+// 9. Update database (transaction-like)
+```
+Der Kommentar sagt "transaction-like" aber es sind sequenzielle Einzel-Operations:
+1. Items update (Zeile 558-565)
+2. Keys delete (Zeile 568-573)
+3. Keys insert (Zeile 576-580)
+
+**Problem:** Wenn Schritt 2 (delete) erfolgreich ist aber Schritt 3 (insert) fehlschlägt, sind alle Collection-Keys gelöscht und die Collection ist unwiderruflich verloren. Zeile 584 acknowledged das sogar: `"Collection may be in inconsistent state."`
+
+**Fix:** Eine Supabase RPC-Funktion (SECURITY DEFINER) erstellen die alle drei Schritte in einer PostgreSQL-Transaction ausführt:
+```sql
+CREATE OR REPLACE FUNCTION rotate_collection_key(
+    p_collection_id UUID,
+    p_items JSONB,      -- [{id, encrypted_data}]
+    p_new_keys JSONB    -- [{collection_id, user_id, wrapped_key}]
+)
+RETURNS void AS $$
+BEGIN
+    -- Update items
+    -- Delete old keys
+    -- Insert new keys
+    -- Alles atomar
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+```
+
+---
+
+### 2.3 HOCH: Backup-Code-Hashing mit Salt
+
+**Datei:** `src/services/twoFactorService.ts:129-136`
+
+**Aktueller Code:**
+```typescript
+export async function hashBackupCode(code: string): Promise<string> {
+    const normalizedCode = code.replace(/-/g, '').toUpperCase();
+    const encoder = new TextEncoder();
+    const data = encoder.encode(normalizedCode);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    // ... hex encode
+}
+```
+
+**Problem:** Unsalted SHA-256. Der Keyspace ist 32^8 = ~1.1 Billionen Kombinationen. Mit moderner GPU (SHA-256: ~10 Milliarden Hashes/Sekunde) in ~110 Sekunden vollständig durchsuchbar.
+
+**Fix:** HMAC-SHA-256 mit per-User-Salt verwenden:
+```typescript
+const key = await crypto.subtle.importKey('raw', saltBytes, {name: 'HMAC', hash: 'SHA-256'}, false, ['sign']);
+const signature = await crypto.subtle.sign('HMAC', key, data);
+```
+Das Salt kann das bestehende `encryption_salt` des Users sein (bereits vorhanden in profiles).
+
+**Migration:** Bestehende Hashes müssen beim nächsten erfolgreichen 2FA-Setup neu gehasht werden. Oder: Dual-Verify (altes Format + neues) bis Migration abgeschlossen.
+
+---
+
+### 2.4 MITTEL: File-Attachment-Metadaten verschlüsseln
+
+**Datei:** `src/services/fileAttachmentService.ts`
+
+**Aktueller Stand:** `file_attachments` Tabelle speichert:
+- `file_name` — Klartext (z.B. "Steuererklärung_2025.pdf")
+- `mime_type` — Klartext (z.B. "application/pdf")
+- `file_size` — Klartext (Dateigröße)
+
+**Problem:** Metadaten-Leakage. Ein Angreifer mit DB-Zugang sieht welche Dateitypen und -namen ein User speichert. LastPass-Breach zeigte: Metadaten sind für Social Engineering und gezielte Angriffe sehr wertvoll.
+
+**Fix:** `file_name` und `mime_type` in ein JSON-Objekt packen und mit dem Vault-Key verschlüsseln. In der DB nur noch eine `encrypted_metadata`-Spalte speichern. `file_size` kann bleiben (für Quota-Berechnung nötig, verrät wenig).
+
+---
+
+### 2.5 MITTEL: Passphrase-Wortliste erweitern
+
+**Datei:** `src/services/passwordGenerator.ts:17-30`
+
+**Aktueller Stand:** 88 englische Wörter. 4 Wörter = log2(88^4) = ~25.8 Bit Entropie nur aus der Wort-Selektion.
+
+**Vergleich:** EFF Diceware hat 7.776 Wörter = ~51.7 Bit bei 4 Wörtern. Bitwarden nutzt ebenfalls die EFF-Liste.
+
+**Fix:** EFF Short Wordlist (1.296 Wörter) oder Full Wordlist (7.776) integrieren. Bei Doppelsprache (DE/EN) je eine Liste. Alternativ: Deutsche BIP39-Wortliste (2.048 Wörter) = ~44 Bit bei 4 Wörtern.
+
+---
+
+### 2.6 MITTEL: CORS auf eigene Domain einschränken
+
+**Dateien (alle 7 Edge Functions):**
+- `supabase/functions/create-checkout-session/index.ts:16`
+- `supabase/functions/accept-family-invitation/index.ts:5`
+- `supabase/functions/invite-family-member/index.ts:5`
+- `supabase/functions/send-test-mail/index.ts:4`
+- `supabase/functions/invite-emergency-access/index.ts:5`
+- `supabase/functions/cancel-subscription/index.ts:6`
+- `supabase/functions/create-portal-session/index.ts:6`
+
+**Aktueller Code:** Alle nutzen `"Access-Control-Allow-Origin": "*"`
+
+**Problem:** Wildcard-CORS erlaubt Requests von jeder beliebigen Website. Zwar schützt der JWT-Token vor unautorisiertem Zugriff, aber Defense-in-Depth fehlt. Ein XSS auf einer Drittseite könnte bei einem eingeloggten User Requests an unsere Edge Functions triggern.
+
+**Fix:** `"Access-Control-Allow-Origin"` auf die eigene Domain setzen (z.B. `https://singra.pw`). Für Dev-Umgebung dynamisch via Environment-Variable.
+
+---
+
+## Phase 3: KDF & Migration (1-2 Wochen)
+
+### 3.1 Argon2id-Parameter erhöhen: 64 MiB -> 128 MiB
+
+**Datei:** `src/services/cryptoService.ts:15`
+
+**Aktueller Wert:** `ARGON2_MEMORY = 65536` (64 MiB)
+
+**2025-Empfehlung (OWASP/Bellator Cyber):** Minimum 128 MiB für High-Security-Anwendungen.
+
+**Problem:** 64 MiB ist "akzeptabel" aber bietet weniger GPU-Resistenz als möglich. Modernere GPUs mit viel VRAM (24+ GB) können 64 MiB-Argon2id schneller cracken.
+
+**Plan:**
+1. `KDF_VERSION`-Spalte in `profiles`-Tabelle hinzufügen (Default: 1)
+2. Version 1: aktuell (64 MiB, 3 iter, p=4)
+3. Version 2: neu (128 MiB, 3 iter, p=4)
+4. Beim Unlock: wenn User auf Version 1 steht, nach erfolgreichem Unlock automatisch:
+   - Neuen Key mit Version 2 ableiten
+   - Neuen Verifier erstellen
+   - Salt beibehalten (oder neuen generieren)
+   - Version in DB auf 2 setzen
+5. Feature-Detection: Wenn der Client weniger als 256 MiB RAM frei hat (via `navigator.deviceMemory` oder Performance API), bei Version 1 bleiben
+
+**Warum nicht einfach überschreiben:** Bestehende User deren Verifier mit Version 1 erstellt wurde können sich sonst nicht mehr einloggen. Die Migration MUSS nach erfolgreichem Unlock passieren.
+
+---
+
+### 3.2 KDF-Version-Auto-Migration-System
+
+**Neue Dateien:**
+- Spalte `kdf_version` in `profiles` (Migration)
+- Funktion `migrateKdfIfNeeded()` in `cryptoService.ts`
+
+**Architektur:**
+```
+Unlock -> verifyKey(v1) -> Erfolg -> Check kdf_version
+  -> wenn < CURRENT_KDF_VERSION:
+     -> deriveKey(password, salt, NEW_PARAMS)
+     -> createVerificationHash(newKey)
+     -> UPDATE profiles SET master_password_verifier=..., kdf_version=...
+     -> setEncryptionKey(newKey) // sofort den neuen Key verwenden
+```
+
+**Warum das wichtig ist:** LastPass hatte genau dieses Problem — Millionen User blieben auf alten, schwachen KDF-Iterationen weil es keine Auto-Migration gab. Die gestohlenen Vaults konnten deshalb geknackt werden.
+
+---
+
+## Phase 4: Fortgeschrittene Features (2-4 Wochen)
+
+### 4.1 WebAuthn/FIDO2 als zusätzlicher Unlock-Faktor
+
+**Warum:** Hardware-Security-Keys (YubiKey, Titan, Passkeys) schützen gegen:
+- Keylogger (Passwort wird nicht getippt)
+- Phishing (WebAuthn bindet an Origin)
+- Shoulder-Surfing
+
+**Architektur:**
+- WebAuthn PRF-Extension: Leitet einen deterministischen Schlüssel aus dem Hardware-Key ab
+- Dieser Schlüssel wird XOR'd mit dem Argon2id-Key: `finalKey = argon2Key XOR prfKey`
+- Ohne Hardware-Key ist der finalKey nicht ableitbar
+- Fallback: Nur Master-Passwort (wie bisher)
+
+**API:** `navigator.credentials.create()` / `navigator.credentials.get()` mit `prf` Extension
+
+**Betroffene Dateien:**
+- Neue: `src/services/webauthnService.ts`
+- Änderung: `src/contexts/VaultContext.tsx` (unlock-Funktion)
+- Änderung: `src/components/settings/` (neues Settings-Panel)
+
+---
+
+### 4.2 Secure Memory Wrapper (SecureBuffer)
+
+**Warum:** KeePass CVE-2023-32784 zeigte dass Memory-Dumps reale Angriffsvektoren sind. JavaScript hat keine explizite Speicherverwaltung, aber wir können es bestmöglich mitigieren.
+
+**Architektur:**
+```typescript
+class SecureBuffer {
+    private buffer: Uint8Array;
+    private destroyed = false;
+
+    constructor(size: number) {
+        this.buffer = new Uint8Array(size);
+    }
+
+    // Zugriff nur über Callback (kein Leak durch Referenz)
+    use<T>(fn: (data: Uint8Array) => T): T {
+        if (this.destroyed) throw new Error('Buffer destroyed');
+        return fn(this.buffer);
+    }
+
+    destroy(): void {
+        this.buffer.fill(0);
+        this.destroyed = true;
+    }
+}
+```
+
+**Zusätzlich:** `FinalizationRegistry` für automatische Cleanup falls `.destroy()` vergessen wird:
+```typescript
+const registry = new FinalizationRegistry((buffer: Uint8Array) => {
+    buffer.fill(0);
+});
+```
+
+**Neue Datei:** `src/services/secureBuffer.ts`
+**Änderung:** `src/services/cryptoService.ts` — `deriveRawKey()` gibt `SecureBuffer` statt `Uint8Array` zurück
+
+---
+
+### 4.3 Vault-Integrity-Checks (Tamper Detection)
+
+**Warum:** Schützt gegen einen kompromittierten Server (oder Supabase-Admin) der verschlüsselte Daten manipuliert (z.B. Items löscht, Ciphertext austauscht).
+
+**Architektur:**
+1. Jedes Vault-Item bekommt einen HMAC: `hmac = HMAC-SHA-256(integrityKey, itemId || encrypted_data)`
+2. Alle HMACs werden in einem Merkle-Tree organisiert
+3. Der Root-Hash wird client-seitig gespeichert (und optional signiert)
+4. Bei jedem Vault-Load: Tree neu berechnen, mit gespeichertem Root vergleichen
+5. Bei Mismatch: Warnung "Vault wurde serverseitig verändert"
+
+**integrityKey:** Abgeleitet vom Master-Passwort (zweiter Argon2id-Aufruf mit anderem Salt oder HKDF-Expand)
+
+---
+
+## Phase 5: Zukunftssicherung (langfristig)
+
+### 5.1 Post-Quantum-Hybridverschlüsselung
+
+**Warum:** "Harvest now, decrypt later" — Geheimdienste und Angreifer können heute verschlüsselte Daten sammeln und warten bis Quantum-Computer RSA-4096 brechen können. NIST hat im August 2024 ML-KEM (Kyber) als FIPS 203 standardisiert.
+
+**Betrifft:**
+- Emergency Access: RSA-4096 Verschlüsselung des Master-Keys (`src/services/cryptoService.ts:292-367`)
+- Shared Collections: RSA-4096 Key-Wrapping (`src/services/cryptoService.ts:380-504`)
+
+**Plan:** Hybrides Schema einführen:
+```
+encryptedData = ML-KEM-768(plaintext) || RSA-OAEP-4096(plaintext)
+```
+Beide Verschlüsselungen unabhängig. Zur Entschlüsselung reicht eine (Fallback falls PQ-Library Probleme macht). Der Empfänger speichert beide Key-Paare.
+
+**Library-Optionen:** `@noble/post-quantum` (JavaScript-native ML-KEM), `liboqs` (WASM-Wrapper)
+
+**Signalwirkung:** "Erster Post-Quantum-ready Passwort-Manager aus Deutschland"
+
+---
+
+### 5.2 Panic/Duress-Passwort
+
+**Warum:** Schutz bei physischer Bedrohung oder Erpressung (Grenzkontrollen, Zwang). Plausible Deniability.
+
+**Architektur:**
+1. User setzt ein zweites "Duress-Passwort"
+2. Dieses leitet einen separaten Argon2id-Key ab (eigener Salt)
+3. Damit werden 0-5 Dummy-Items verschlüsselt (konfigurierbar)
+4. Bei Eingabe des Duress-PW: Vault öffnet sich normal, zeigt aber nur Dummy-Items
+5. Optional: Stille Benachrichtigung an Notfallkontakt
+
+**Anforderung:** Von außen DARF nicht erkennbar sein ob das echte oder das Duress-PW eingegeben wurde. Gleiche UI, gleiche Timing-Charakteristik, gleiche Anzahl DB-Queries.
+
+---
+
+### 5.3 OPAQUE-Protokoll für Server-Auth (Langfrist-Vision)
+
+**Warum:** Aktuell wird das Supabase-Auth-Passwort (für Login) getrennt vom Master-Passwort verwaltet. Mit OPAQUE könnte das Master-Passwort gleichzeitig zur Server-Authentifizierung UND zur Vault-Verschlüsselung genutzt werden — ohne dass der Server jemals das Passwort sieht (auch nicht als Hash).
+
+**Status:** OPAQUE ist noch kein IETF-Standard (Draft), aber bereits in der Praxis bei Signal und WhatsApp im Einsatz.
+
+**Komplexität:** Hoch. Erfordert Server-seitige Änderungen (nicht nur Edge Functions).
+
+---
+
+## Zusammenfassung: Priorisierung
+
+| Phase | Zeitrahmen | Hauptziel | Items |
+|---|---|---|---|
+| **Phase 1** | 1-2 Tage | Kritische Lücken schließen | 4 Fixes (Math.random, Clipboard, Key-Zeroing, Headers) |
+| **Phase 2** | 1 Woche | Härtung auf Branchenniveau | 6 Fixes (Rate-Limit, Atomare Rotation, Salt-Hashing, Metadaten, Wortliste, CORS) |
+| **Phase 3** | 1-2 Wochen | KDF-Stärkung + Auto-Migration | 2 Features (128 MiB Argon2id, Version-Migration) |
+| **Phase 4** | 2-4 Wochen | Über Branchenstandard | 3 Features (WebAuthn, SecureBuffer, Integrity) |
+| **Phase 5** | Langfristig | Zukunftssicherung | 3 Features (Post-Quantum, Duress-PW, OPAQUE) |
+
+### Vergleich nach Umsetzung
+
+| Feature | Bitwarden Free | 1Password | SingraPW (nach Plan) |
+|---|---|---|---|
+| KDF | PBKDF2 (default) | PBKDF2 650k | Argon2id 128 MiB |
+| Post-Quantum | Nein | Nein | Hybrid ML-KEM-768 + RSA-4096 |
+| Hardware-Key Unlock | Nur Premium | Ja | Ja (WebAuthn PRF) |
+| Duress-Passwort | Nein | Nein | Ja |
+| Vault-Integrity | Nein | Nein | Merkle-Tree |
+| Clipboard-Auto-Clear | 30s | 60s | 30s |
+| Memory-Schutz | Basic | Basic | SecureBuffer + auto-zero |
+| Metadaten-Verschl. | Teilweise | Ja | Ja |
+| Auto-KDF-Migration | Nein (war LastPass-Problem) | Unbekannt | Ja |

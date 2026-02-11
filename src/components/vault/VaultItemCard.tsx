@@ -34,6 +34,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { ViewMode } from '@/pages/VaultPage';
 import { VaultItemData } from '@/services/cryptoService';
+import { writeClipboard } from '@/services/clipboardService';
 import { TOTPDisplay } from './TOTPDisplay';
 
 interface VaultItemCardProps {
@@ -84,10 +85,10 @@ export function VaultItemCard({ item, viewMode, onEdit }: VaultItemCardProps) {
 
     const copyToClipboard = async (text: string, type: string) => {
         try {
-            await navigator.clipboard.writeText(text);
+            await writeClipboard(text);
             toast({
                 title: t('vault.copied'),
-                description: t(`vault.copied${type}`),
+                description: `${t(`vault.copied${type}`)} ${t('vault.clipboardAutoClear')}`,
             });
         } catch {
             toast({

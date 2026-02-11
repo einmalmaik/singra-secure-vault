@@ -111,7 +111,7 @@ export function generateBackupCodes(): string[] {
     for (let i = 0; i < BACKUP_CODE_COUNT; i++) {
         let code = '';
         for (let j = 0; j < BACKUP_CODE_LENGTH; j++) {
-            const randomIndex = Math.floor(Math.random() * chars.length);
+            const randomIndex = getSecureRandomInt(0, chars.length - 1);
             code += chars[randomIndex];
         }
         // Format as XXXX-XXXX
@@ -119,6 +119,33 @@ export function generateBackupCodes(): string[] {
     }
 
     return codes;
+}
+
+/**
+ * Generates a cryptographically secure random integer in range [min, max]
+ * Uses rejection sampling to avoid modulo bias.
+ *
+ * @param min - Minimum value (inclusive)
+ * @param max - Maximum value (inclusive)
+ * @returns Secure random integer
+ */
+function getSecureRandomInt(min: number, max: number): number {
+    const range = max - min + 1;
+    const bytesNeeded = Math.ceil(Math.log2(range) / 8) || 1;
+    const maxValid = Math.floor((256 ** bytesNeeded) / range) * range - 1;
+
+    let randomValue: number;
+    const randomBytes = new Uint8Array(bytesNeeded);
+
+    do {
+        crypto.getRandomValues(randomBytes);
+        randomValue = 0;
+        for (let i = 0; i < bytesNeeded; i++) {
+            randomValue = (randomValue << 8) | randomBytes[i];
+        }
+    } while (randomValue > maxValid);
+
+    return min + (randomValue % range);
 }
 
 /**

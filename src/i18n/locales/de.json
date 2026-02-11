@@ -361,6 +361,7 @@
     "copiedPassword": "Passwort wurde kopiert",
     "copiedUsername": "Benutzername wurde kopiert",
     "copiedCode": "Code wurde kopiert",
+    "clipboardAutoClear": "Zwischenablage wird in 30s automatisch geleert.",
     "copyFailed": "Kopieren fehlgeschlagen",
     "newItem": "Neuer Eintrag",
     "editItem": "Eintrag bearbeiten",

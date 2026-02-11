@@ -30,6 +30,8 @@ function getSecurityHeaders(mode: string) {
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",
     "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=()",
+    "X-Permitted-Cross-Domain-Policies": "none",
   };
 }
 

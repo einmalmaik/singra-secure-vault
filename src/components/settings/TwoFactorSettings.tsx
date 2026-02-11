@@ -63,6 +63,7 @@ import {
     regenerateBackupCodes,
     TwoFactorStatus,
 } from '@/services/twoFactorService';
+import { writeClipboard } from '@/services/clipboardService';
 
 type SetupStep = 'idle' | 'qrcode' | 'verify' | 'backup' | 'complete';
 
@@ -195,12 +196,20 @@ export function TwoFactorSettings() {
     };
 
     // Copy secret to clipboard
-    const copySecret = () => {
-        navigator.clipboard.writeText(secret);
-        toast({
-            title: t('common.copied'),
-            description: t('settings.security.twoFactor.setup.manualEntry'),
-        });
+    const copySecret = async () => {
+        try {
+            await writeClipboard(secret);
+            toast({
+                title: t('common.copied'),
+                description: `${t('settings.security.twoFactor.setup.manualEntry')} ${t('vault.clipboardAutoClear')}`,
+            });
+        } catch {
+            toast({
+                variant: 'destructive',
+                title: t('common.error'),
+                description: t('vault.copyFailed'),
+            });
+        }
     };
 
     // Handle disable 2FA

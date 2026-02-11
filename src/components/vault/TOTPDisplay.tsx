@@ -11,6 +11,7 @@ import { Copy, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { generateTOTP, getTimeRemaining, formatTOTPCode } from '@/services/totpService';
+import { writeClipboard } from '@/services/clipboardService';
 import { cn } from '@/lib/utils';
 
 interface TOTPDisplayProps {
@@ -54,10 +55,10 @@ export function TOTPDisplay({ secret, className }: TOTPDisplayProps) {
 
     const copyCode = async () => {
         try {
-            await navigator.clipboard.writeText(code);
+            await writeClipboard(code);
             toast({
                 title: t('vault.copied'),
-                description: t('vault.copiedCode'),
+                description: `${t('vault.copiedCode')} ${t('vault.clipboardAutoClear')}`,
             });
         } catch {
             toast({

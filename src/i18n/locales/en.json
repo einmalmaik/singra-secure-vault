@@ -319,6 +319,12 @@
   "vault": {
     "title": "My Vault",
     "loadError": "Failed to load vault items.",
+    "copied": "Copied",
+    "copiedPassword": "Password has been copied.",
+    "copiedUsername": "Username has been copied.",
+    "copiedCode": "Code has been copied.",
+    "clipboardAutoClear": "Clipboard will be cleared automatically in 30s.",
+    "copyFailed": "Failed to copy.",
     "empty": {
       "title": "Your vault is empty",
       "subtitle": "Add your first entry to get started.",

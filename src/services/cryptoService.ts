@@ -74,7 +74,13 @@ export async function deriveKey(
     saltBase64: string
 ): Promise<CryptoKey> {
     const keyBytes = await deriveRawKey(masterPassword, saltBase64);
-    return importMasterKey(keyBytes);
+    try {
+        return await importMasterKey(keyBytes);
+    } finally {
+        // SECURITY: Wipe raw key bytes from memory as soon as the
+        // non-extractable CryptoKey has been created.
+        keyBytes.fill(0);
+    }
 }
 
 /**
@@ -265,8 +271,14 @@ export interface VaultItemData {
 }
 
 /**
- * Clears sensitive data from memory
- * Note: JavaScript doesn't guarantee memory clearing, but this helps
+ * Clears sensitive data from memory.
+ *
+ * SECURITY NOTE: JavaScript strings are immutable and cannot be
+ * overwritten in-place.  Setting fields to empty strings removes
+ * the reference so the original can be garbage-collected sooner,
+ * but the old string content may linger in the heap until the GC
+ * reclaims it.  For binary key material, use Uint8Array.fill(0)
+ * instead (see deriveKey).
  */
 export function secureClear(data: VaultItemData): void {
     if (data.title) data.title = '';

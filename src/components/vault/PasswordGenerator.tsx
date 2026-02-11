@@ -25,6 +25,7 @@ import {
     PassphraseOptions,
     PasswordStrength
 } from '@/services/passwordGenerator';
+import { writeClipboard } from '@/services/clipboardService';
 import { cn } from '@/lib/utils';
 
 interface PasswordGeneratorProps {
@@ -66,12 +67,12 @@ export function PasswordGenerator({ onSelect, className }: PasswordGeneratorProp
         if (!generatedPassword) return;
 
         try {
-            await navigator.clipboard.writeText(generatedPassword);
+            await writeClipboard(generatedPassword);
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
             toast({
                 title: t('vault.copied'),
-                description: t('vault.copiedPassword'),
+                description: `${t('vault.copiedPassword')} ${t('vault.clipboardAutoClear')}`,
             });
         } catch {
             toast({

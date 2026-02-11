@@ -1,49 +1,198 @@
 # Repository Guidelines
 
-Es Muss alles immer in Mehere sprachen schnell erweiterbar sein unter /src/i18
+Singra PW — a zero-knowledge password manager built with React, TypeScript, Vite, and Supabase.
 
-Nutze immer MCP server wie Perplexty:ask um neuste Informationen aus dem Web zu holen
+## Key Principles
 
-Codiere immer Auf ein hohen sicherheitsmaß und hinterfrage auch deine änderungen
+- **i18n**: All user-facing strings must go through `useTranslation()` / `t('key')`. Translation files live in `src/i18n/locales/` (de.json, en.json). German is the default/fallback. New features must include translations for both languages.
+- **Security-first**: This is a password manager. Treat all crypto, auth, and key-handling changes as high risk. Question your own changes. Add tests for any security-sensitive code.
+- **Document changes**: Record significant changes in markdown files under `docs/`.
 
-Achte drauf jede änderungen zu Dokumentieren in einer .md datei 
+## Project Structure
 
-## Project Structure & Module Organization
-Application code lives in `src/` and follows a feature-oriented split:
-- `src/pages/` for route-level screens (`Landing.tsx`, `VaultPage.tsx`).
-- `src/components/` for reusable UI (`ui/` for shadcn primitives, `vault/`, `landing/`, `settings/` for domain components).
-- `src/contexts/`, `src/hooks/`, and `src/services/` for state, reusable logic, and crypto/business logic.
-- `src/integrations/supabase/` for Supabase client/types.
-- `src/test/` for test setup and test files.
-Static assets are in `public/`. Supabase SQL migrations are in `supabase/migrations/`.
+```
+src/
+  pages/           Route-level screens (Landing, VaultPage, Auth, Settings, etc.)
+  components/
+    ui/            shadcn/ui primitives (do not hand-edit these)
+    vault/         Vault domain components
+    landing/       Landing page sections
+    settings/      Settings domain components
+    auth/          Auth-related components
+    Subscription/  Subscription/payment components
+  contexts/        React context providers (Auth, Vault, Theme, Subscription)
+  hooks/           Custom React hooks
+  services/        Crypto, security, business logic (pure functions, no React)
+  i18n/            i18next setup + locale JSON files
+  integrations/    Supabase client and generated types
+  lib/             Small utilities (cn(), sanitizeSvg)
+  config/          App configuration (plan tiers, feature matrix)
+  test/            Vitest setup, test helpers, and test files
+  email-templates/ HTML email templates for Supabase auth
+public/            Static assets, PWA manifest, service worker
+supabase/          Config, SQL migrations, Edge Functions
+docs/              Project documentation (40+ files)
+```
 
-## Build, Test, and Development Commands
-- `npm i`: install dependencies.
-- `npm run dev`: start Vite dev server with hot reload.
-- `npm run build`: production bundle to `dist/`.
-- `npm run build:dev`: build with development mode flags.
-- `npm run preview`: serve the built app locally.
-- `npm run lint`: run ESLint for `ts/tsx`.
-- `npm run test`: run Vitest once in CI mode.
-- `npm run test:watch`: run Vitest in watch mode.
+## Build, Lint, and Test Commands
 
-## Coding Style & Naming Conventions
-Use TypeScript + React function components with 2-space indentation and semicolons (match existing files). Prefer:
-- `PascalCase` for components/pages (`VaultItemCard.tsx`).
-- `camelCase` for hooks/services/utilities (`use-toast.ts`, `cryptoService.ts`).
-- Path alias `@/*` for imports from `src`.
-Linting is configured in `eslint.config.js` (`react-hooks`, `react-refresh`, TypeScript ESLint). Run `npm run lint` before opening a PR.
+```bash
+npm i                  # Install dependencies
+npm run dev            # Vite dev server on port 8080
+npm run build          # Production build to dist/
+npm run build:dev      # Development-mode build
+npm run lint           # ESLint (ts/tsx files)
+npm run test           # Vitest — run all tests once (CI mode)
+npm run test:watch     # Vitest — watch mode
+```
+
+### Running a single test file
+
+```bash
+npx vitest run src/test/encryption-roundtrip.test.ts
+npx vitest run src/services/rateLimiterService.test.ts
+```
+
+### Running tests matching a pattern
+
+```bash
+npx vitest run -t "should preserve data"
+npx vitest run src/services/  # all tests under a directory
+```
+
+Test files must be named `*.test.ts` or `*.spec.ts` and placed under `src/` (typically co-located with the module or in `src/test/`). Setup file: `src/test/setup.ts`.
+
+## Coding Style
+
+### Formatting
+
+- **Indentation**: Match the file you are editing. Hand-written code (services, contexts, components, pages) uses 4 spaces. shadcn/ui boilerplate and test files use 2 spaces.
+- **Semicolons**: Always.
+- **Quotes**: Single quotes in hand-written application code. Double quotes in shadcn/ui files, test files, and `App.tsx`.
+- **Trailing commas**: Used in multi-line arrays/objects.
+
+### Imports — Ordering
+
+Group imports in this order, separated by blank lines:
+
+1. React (`import { useState, useEffect } from 'react'`)
+2. External libraries (`react-i18next`, `lucide-react`, `react-router-dom`, etc.)
+3. Internal UI components (`@/components/ui/*`)
+4. Internal contexts, hooks, services (`@/contexts/*`, `@/hooks/*`, `@/services/*`)
+5. Relative/sibling imports (`./TOTPDisplay`, `./AuthContext`)
+6. Side-effect imports (`import '@/i18n'`)
+
+Always use the `@/*` path alias for imports from `src/`. Use relative paths (`./`) only for sibling files in the same directory.
+
+### Naming Conventions
+
+| Item | Convention | Example |
+|------|-----------|---------|
+| Component/page files | `PascalCase.tsx` | `VaultItemCard.tsx` |
+| Hook files | `camelCase` or `kebab-case` | `useFeatureGate.ts`, `use-toast.ts` |
+| Service files | `camelCase.ts` | `cryptoService.ts` |
+| Module-level constants | `UPPER_SNAKE_CASE` | `ARGON2_MEMORY`, `SALT_LENGTH` |
+| Component props | `{ComponentName}Props` interface | `VaultItemCardProps` |
+| Context types | `{Name}ContextType` interface | `VaultContextType` |
+| Types/interfaces | `PascalCase` | `VaultItemData`, `LanguageCode` |
+
+### Functions and Exports
+
+- **Services**: Named `export function` declarations (never default, never arrow).
+- **Components**: Named `export function ComponentName(props)` — never default export.
+- **Pages**: `export default function PageName()` — pages are the only default exports.
+- **Hooks**: Named `export function useHookName()`.
+- **Private helpers in modules**: Plain `function` declarations (not arrow).
+- **Helpers inside components**: Arrow `const` (`const handleClick = () => { ... }`).
+
+### Types and Interfaces
+
+- Service-level types: Defined at the bottom of the file with a `// ============ Type Definitions ============` section banner.
+- Component prop types: Defined directly above the component.
+- Context types: Defined at the top of the file, after imports.
+- Prefer `export interface` for object shapes. Use `export type` for unions and aliases.
+- Inline return types are acceptable for small objects: `(): { valid: boolean; error?: string }`.
+
+### React Component Structure
+
+Follow this ordering inside components:
+
+1. Context hooks (`useAuth()`, `useVault()`)
+2. Library hooks (`useTranslation()`, `useNavigate()`)
+3. State hooks (`useState`)
+4. Derived values / computed state
+5. Side effects (`useEffect`)
+6. Handler functions (as `const` arrow functions)
+7. Early returns for guards/loading/locked states
+8. JSX return
+
+### Context Provider Pattern
+
+```ts
+const MyContext = createContext<MyContextType | undefined>(undefined);
+
+export function MyProvider({ children }: { children: ReactNode }) {
+    // ... state, effects, callbacks ...
+    return <MyContext.Provider value={...}>{children}</MyContext.Provider>;
+}
+
+export function useMy() {
+    const context = useContext(MyContext);
+    if (context === undefined) {
+        throw new Error('useMy must be used within a MyProvider');
+    }
+    return context;
+}
+```
+
+### Error Handling
+
+- **Services**: Let errors propagate naturally from Web Crypto APIs. Use guard-throws for invalid input (`throw new Error('...')`). For fallible operations, return `{ error: Error | null }`.
+- **Context actions**: Wrap in try/catch, `console.error` the error, and return `{ error: Error | null }`.
+- **Components**: try/catch with toast notifications for user-facing errors. Use bare `catch {` (no variable) when the error object is unused.
+- **Tests**: `expect(error).toBeNull()` for error checks; `throw new Error(...)` in `beforeAll` for fatal setup failures.
+
+### Comments and Documentation
+
+- Every file gets a `@fileoverview` JSDoc block describing its purpose.
+- Every exported function gets a JSDoc comment with `@param`, `@returns`, and optionally `@throws`.
+- Use section banners (`// ============ Section Name ============`) to separate logical groups.
+- Inline comments explain "why", not "what".
+
+### CSS and Styling
+
+- Tailwind CSS utility classes via `className`. Use `cn()` from `@/lib/utils` for conditional classes.
+- Design tokens via CSS custom properties (defined in `src/index.css`), referenced as `hsl(var(--primary))` in Tailwind config.
+- Dark mode via the `class` strategy (`darkMode: ["class"]`).
+- Do not hand-edit files in `src/components/ui/` — these are shadcn/ui generated.
 
 ## Testing Guidelines
-Testing uses Vitest + Testing Library in `jsdom` (`vitest.config.ts`, `src/test/setup.ts`). Name tests `*.test.ts` or `*.spec.ts` under `src/` (for example: `src/components/vault/VaultItemCard.test.tsx`). Cover new logic in services/hooks and critical UI flows. Run `npm run test` before pushing.
 
-## Commit & Pull Request Guidelines
-Recent history favors short, direct commit subjects (for example: `localhost redirect fix`, `Package log fix`). Use imperative, specific messages and avoid placeholders like `...`.
-For PRs, include:
-- Clear summary of behavioral changes.
-- Linked issue/task when available.
-- Screenshots or short video for UI changes.
-- Notes for env or migration changes (`env.example`, `supabase/migrations/`).
+- Framework: Vitest + Testing Library + jsdom.
+- Property-based testing: `fast-check` is available and used for crypto round-trip tests.
+- Global setup in `src/test/setup.ts` provides mocks for Web Crypto API, IndexedDB, Clipboard API, and console filtering.
+- Structure tests with `describe` / `it` / `expect`. Import from `vitest` explicitly in test files.
+- Use descriptive `it` strings: `"should preserve data through encrypt-decrypt round-trip"`.
+- Timeouts for slow async tests: pass as second arg to `it("...", async () => {}, 60000)`.
+- Cover new logic in services and hooks. Cover critical UI flows in components.
 
-## Security & Configuration Tips
-Never commit secrets. Copy `env.example` to a local `.env` and set `VITE_SUPABASE_*` values. Treat crypto/auth changes as high risk: add tests and document any migration or key-handling impact in the PR.
+## Security and Configuration
+
+- **Never commit secrets**. The `.env` file is gitignored. Copy `env.example` to `.env` and set `VITE_SUPABASE_PROJECT_ID`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `VITE_SUPABASE_URL`, `VITE_SITE_URL`.
+- The Vite config applies comprehensive security headers (CSP, HSTS, X-Frame-Options, Permissions-Policy) — review `vite.config.ts` before modifying.
+- TypeScript is intentionally configured with `strict: false` and `noImplicitAny: false` in `tsconfig.app.json`.
+- WASM support is enabled via `vite-plugin-wasm` and `vite-plugin-top-level-await` for the `argon2id` dependency.
+- Node.js version: `>=20.19.0` (pinned at `22.12.0` via `.node-version`).
+
+## Commit and PR Guidelines
+
+- Short, imperative commit messages (e.g., `fix vault unlock race condition`, `add TOTP export feature`).
+- PRs must include: summary of behavioral changes, linked issue if applicable, screenshots for UI changes, notes for env/migration changes.
+- Run `npm run lint` and `npm run test` before pushing.
+
+## Supabase
+
+- Project ID: `rjlzmcwdjwlgnhljbipg`.
+- SQL migrations in `supabase/migrations/`.
+- Edge Functions in `supabase/functions/` (checkout, subscriptions, Stripe webhook, email, family/emergency access invitations).
+- Database types are generated in `src/integrations/supabase/types.ts`.

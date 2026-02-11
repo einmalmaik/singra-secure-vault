@@ -5,8 +5,23 @@
 -- ============================================
 
 -- ============================================
--- 1. ALTER subscriptions table: add missing columns
+-- 1. SUBSCRIPTIONS TABLE (base + compatibility columns)
 -- ============================================
+CREATE TABLE IF NOT EXISTS public.subscriptions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL UNIQUE,
+    tier TEXT DEFAULT 'free',
+    status TEXT DEFAULT 'active',
+    stripe_customer_id TEXT,
+    stripe_subscription_id TEXT,
+    current_period_end TIMESTAMP WITH TIME ZONE,
+    has_used_intro_discount BOOLEAN DEFAULT FALSE,
+    cancel_at_period_end BOOLEAN DEFAULT FALSE,
+    stripe_price_id TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 ALTER TABLE public.subscriptions
   ADD COLUMN IF NOT EXISTS has_used_intro_discount BOOLEAN DEFAULT FALSE,
   ADD COLUMN IF NOT EXISTS cancel_at_period_end BOOLEAN DEFAULT FALSE,

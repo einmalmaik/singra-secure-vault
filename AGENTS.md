@@ -192,7 +192,7 @@ export function useMy() {
 
 ## Supabase
 
-- Project ID: `rjlzmcwdjwlgnhljbipg`.
+- Project ID: `lcrtadxlojaucwapgzmy`.
 - SQL migrations in `supabase/migrations/`.
 - Edge Functions in `supabase/functions/` (checkout, subscriptions, Stripe webhook, email, family/emergency access invitations).
 - Database types are generated in `src/integrations/supabase/types.ts`.

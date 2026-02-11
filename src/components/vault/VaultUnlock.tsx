@@ -4,16 +4,18 @@
  * Displayed when the vault is locked. Prompts user to enter
  * their master password to derive the encryption key.
  * Optionally requires 2FA if vault 2FA protection is enabled.
+ * Supports passkey-based unlock via WebAuthn PRF extension.
  */
 
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Shield, Lock, Eye, EyeOff, Loader2, LogOut } from 'lucide-react';
+import { Shield, Lock, Eye, EyeOff, Loader2, LogOut, Fingerprint } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { useVault } from '@/contexts/VaultContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -23,12 +25,13 @@ import { get2FAStatus, verifyTwoFactorForLogin } from '@/services/twoFactorServi
 export function VaultUnlock() {
     const { t } = useTranslation();
     const { toast } = useToast();
-    const { unlock, pendingSessionRestore } = useVault();
+    const { unlock, unlockWithPasskey, pendingSessionRestore, webAuthnAvailable, hasPasskeyUnlock } = useVault();
     const { signOut, user } = useAuth();
 
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [passkeyLoading, setPasskeyLoading] = useState(false);
 
     // Vault 2FA state
     const [show2FAModal, setShow2FAModal] = useState(false);
@@ -76,6 +79,23 @@ export function VaultUnlock() {
         }
     };
 
+    const handlePasskeyUnlock = async () => {
+        setPasskeyLoading(true);
+        const { error } = await unlockWithPasskey();
+        setPasskeyLoading(false);
+
+        if (error) {
+            // Don't show error for user cancellation
+            if (error.message.includes('cancelled')) return;
+
+            toast({
+                variant: 'destructive',
+                title: t('common.error'),
+                description: t('passkey.unlockFailed', 'Passkey unlock failed. Please try your master password.'),
+            });
+        }
+    };
+
     const handle2FAVerify = async (code: string, isBackupCode: boolean): Promise<boolean> => {
         if (!user || !pendingPassword) return false;
 
@@ -106,6 +126,8 @@ export function VaultUnlock() {
         await signOut();
     };
 
+    const showPasskeyOption = webAuthnAvailable && hasPasskeyUnlock;
+
     return (
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-primary/10 p-4">
             <Card className="w-full max-w-md shadow-xl">
@@ -128,7 +150,35 @@ export function VaultUnlock() {
                     )}
                 </CardHeader>
 
-                <CardContent>
+                <CardContent className="space-y-4">
+                    {/* Passkey unlock button (shown first if available) */}
+                    {showPasskeyOption && (
+                        <>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                className="w-full h-12 text-base gap-3 border-primary/30 hover:bg-primary/5"
+                                onClick={handlePasskeyUnlock}
+                                disabled={passkeyLoading || loading}
+                            >
+                                {passkeyLoading ? (
+                                    <Loader2 className="w-5 h-5 animate-spin" />
+                                ) : (
+                                    <Fingerprint className="w-5 h-5" />
+                                )}
+                                {t('passkey.unlockWithPasskey', 'Unlock with Passkey')}
+                            </Button>
+
+                            <div className="relative">
+                                <Separator />
+                                <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-3 text-xs text-muted-foreground">
+                                    {t('common.or', 'or')}
+                                </span>
+                            </div>
+                        </>
+                    )}
+
+                    {/* Master password form */}
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <div className="space-y-2">
                             <Label htmlFor="unlock-password">
@@ -143,7 +193,7 @@ export function VaultUnlock() {
                                     onChange={(e) => setPassword(e.target.value)}
                                     className="pl-10 pr-10"
                                     placeholder="••••••••••••"
-                                    autoFocus
+                                    autoFocus={!showPasskeyOption}
                                     required
                                 />
                                 <Button
@@ -161,7 +211,7 @@ export function VaultUnlock() {
                         <Button
                             type="submit"
                             className="w-full"
-                            disabled={loading || !password}
+                            disabled={loading || passkeyLoading || !password}
                         >
                             {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                             {t('auth.unlock.submit')}

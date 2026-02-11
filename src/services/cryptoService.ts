@@ -13,6 +13,7 @@
  */
 
 import { argon2id } from 'hash-wasm';
+import { SecureBuffer } from './secureBuffer';
 
 // ============ KDF Parameter Definitions ============
 
@@ -86,6 +87,27 @@ export async function deriveRawKey(
         keyBytes[i] = parseInt(hashHex.substr(i * 2, 2), 16);
     }
     return keyBytes;
+}
+
+/**
+ * Derives raw AES-256 key bytes wrapped in a SecureBuffer for safer handling.
+ * The SecureBuffer auto-zeros on destroy and prevents accidental leaks.
+ *
+ * @param masterPassword - The user's master password
+ * @param saltBase64 - Base64-encoded salt from profiles table
+ * @param kdfVersion - KDF parameter version (defaults to 1 for backward compat)
+ * @returns SecureBuffer containing raw key bytes (caller MUST call .destroy())
+ */
+export async function deriveRawKeySecure(
+    masterPassword: string,
+    saltBase64: string,
+    kdfVersion: number = 1
+): Promise<SecureBuffer> {
+    const rawBytes = await deriveRawKey(masterPassword, saltBase64, kdfVersion);
+    const secure = SecureBuffer.fromBytes(rawBytes);
+    // Zero the temporary copy immediately
+    rawBytes.fill(0);
+    return secure;
 }
 
 /**

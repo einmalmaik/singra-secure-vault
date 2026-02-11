@@ -11,9 +11,11 @@
 import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
 import {
     deriveKey,
+    deriveRawKey,
     generateSalt,
     encrypt,
     decrypt,
+    importMasterKey,
     createVerificationHash,
     verifyKey,
     encryptVaultItem,
@@ -28,6 +30,10 @@ import {
     getOfflineCredentials,
     saveOfflineCredentials,
 } from '@/services/offlineVaultService';
+import {
+    authenticatePasskey,
+    isWebAuthnAvailable,
+} from '@/services/passkeyService';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
 import {
@@ -54,7 +60,19 @@ interface VaultContextType {
     // Actions
     setupMasterPassword: (masterPassword: string) => Promise<{ error: Error | null }>;
     unlock: (masterPassword: string) => Promise<{ error: Error | null }>;
+    unlockWithPasskey: () => Promise<{ error: Error | null }>;
     lock: () => void;
+
+    // Passkey support
+    /** Whether the browser supports WebAuthn */
+    webAuthnAvailable: boolean;
+    /** Whether the user has registered passkeys with PRF */
+    hasPasskeyUnlock: boolean;
+    /**
+     * Derives raw AES-256 key bytes from the master password (for passkey registration).
+     * Must be called while vault is unlocked. Returns null if vault is locked.
+     */
+    getRawKeyForPasskey: (masterPassword: string) => Promise<Uint8Array | null>;
 
     // Encryption helpers
     encryptData: (plaintext: string) => Promise<string>;
@@ -110,6 +128,9 @@ export function VaultProvider({ children }: VaultProviderProps) {
     const [autoLockTimeout, setAutoLockTimeoutState] = useState(getInitialAutoLockTimeout);
     // Show session restore hint if session is still valid (user just needs to re-enter password)
     const [pendingSessionRestore, setPendingSessionRestore] = useState(() => isSessionValid());
+    // Passkey state
+    const [hasPasskeyUnlock, setHasPasskeyUnlock] = useState(false);
+    const webAuthnAvailable = isWebAuthnAvailable();
 
     const setAutoLockTimeout = (timeout: number) => {
         // Check for optional cookie consent
@@ -173,6 +194,21 @@ export function VaultProvider({ children }: VaultProviderProps) {
                         profile.encryption_salt as string,
                         (profile.master_password_verifier as string) || null
                     );
+
+                    // Check if user has passkeys with PRF for vault unlock
+                    if (webAuthnAvailable) {
+                        try {
+                            const { data: passkeys } = await supabase
+                                .from('passkey_credentials' as any)
+                                .select('id')
+                                .eq('user_id', user.id)
+                                .eq('prf_enabled', true)
+                                .limit(1) as any;
+                            setHasPasskeyUnlock(passkeys && passkeys.length > 0);
+                        } catch {
+                            // Non-fatal: passkey check can fail silently
+                        }
+                    }
                 }
             } catch (err) {
                 console.error('Error checking vault setup:', err);
@@ -194,7 +230,7 @@ export function VaultProvider({ children }: VaultProviderProps) {
         }
 
         checkSetup();
-    }, [user]);
+    }, [user, webAuthnAvailable]);
 
     // Auto-lock on inactivity
     useEffect(() => {
@@ -414,6 +450,82 @@ export function VaultProvider({ children }: VaultProviderProps) {
     }, [user, salt, verificationHash, kdfVersion]);
 
     /**
+     * Unlocks the vault using a registered passkey with PRF.
+     * The PRF output is used to unwrap the stored encryption key.
+     */
+    const unlockWithPasskey = useCallback(async (): Promise<{ error: Error | null }> => {
+        if (!user) {
+            return { error: new Error('No user logged in') };
+        }
+
+        try {
+            const result = await authenticatePasskey();
+
+            if (!result.success) {
+                if (result.error === 'CANCELLED') {
+                    return { error: new Error('Passkey authentication was cancelled') };
+                }
+                if (result.error === 'NO_PRF') {
+                    return { error: new Error('This passkey does not support vault unlock (no PRF)') };
+                }
+                return { error: new Error(result.error || 'Passkey authentication failed') };
+            }
+
+            if (!result.encryptionKey) {
+                return { error: new Error('Passkey authenticated but no encryption key derived') };
+            }
+
+            // Verify the key works by checking the verification hash
+            const legacyHash = localStorage.getItem(`singra_verify_${user.id}`);
+            const verifier = verificationHash || legacyHash;
+
+            if (verifier) {
+                const isValid = await verifyKey(verifier, result.encryptionKey);
+                if (!isValid) {
+                    return { error: new Error('Passkey-derived key does not match vault — key may be outdated') };
+                }
+            }
+
+            // Success — reset rate-limiter and unlock
+            resetUnlockAttempts();
+
+            setEncryptionKey(result.encryptionKey);
+            setIsLocked(false);
+            setLastActivity(Date.now());
+
+            // Store session indicator
+            sessionStorage.setItem(SESSION_KEY, 'active');
+            sessionStorage.setItem(SESSION_TIMESTAMP_KEY, Date.now().toString());
+            setPendingSessionRestore(false);
+
+            return { error: null };
+        } catch (err) {
+            console.error('Passkey unlock error:', err);
+            return { error: new Error('Passkey unlock failed') };
+        }
+    }, [user, verificationHash]);
+
+    /**
+     * Derives raw AES-256 key bytes for passkey registration.
+     * Requires the master password and must be called while vault is unlocked.
+     *
+     * @param masterPassword - The user's master password
+     * @returns Raw 32-byte key or null if derivation fails
+     */
+    const getRawKeyForPasskey = useCallback(async (
+        masterPassword: string,
+    ): Promise<Uint8Array | null> => {
+        if (!user || !salt || isLocked) return null;
+
+        try {
+            return await deriveRawKey(masterPassword, salt, kdfVersion);
+        } catch (err) {
+            console.error('Failed to derive raw key for passkey:', err);
+            return null;
+        }
+    }, [user, salt, kdfVersion, isLocked]);
+
+    /**
      * Locks the vault and clears encryption key from memory
      */
     const lock = useCallback(() => {
@@ -473,7 +585,11 @@ export function VaultProvider({ children }: VaultProviderProps) {
                 isLoading,
                 setupMasterPassword,
                 unlock,
+                unlockWithPasskey,
                 lock,
+                webAuthnAvailable,
+                hasPasskeyUnlock,
+                getRawKeyForPasskey,
                 encryptData,
                 decryptData,
                 encryptItem,

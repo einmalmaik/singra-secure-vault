@@ -1,0 +1,369 @@
+/**
+ * @fileoverview Passkey Settings Component
+ *
+ * Allows users to register, view, and delete passkeys for vault unlock.
+ * Shows PRF support status and provides warnings about passkey limitations.
+ */
+
+import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Fingerprint, Plus, Trash2, Loader2, ShieldCheck, ShieldAlert, Info } from 'lucide-react';
+
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { useToast } from '@/hooks/use-toast';
+import { useVault } from '@/contexts/VaultContext';
+import {
+    registerPasskey,
+    listPasskeys,
+    deletePasskey,
+    isWebAuthnAvailable,
+    isPlatformAuthenticatorAvailable,
+    PasskeyCredential,
+} from '@/services/passkeyService';
+
+export function PasskeySettings() {
+    const { t } = useTranslation();
+    const { toast } = useToast();
+    const { webAuthnAvailable, getRawKeyForPasskey } = useVault();
+
+    const [passkeys, setPasskeys] = useState<PasskeyCredential[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [registering, setRegistering] = useState(false);
+    const [hasPlatformAuth, setHasPlatformAuth] = useState(false);
+
+    // Registration form
+    const [showRegisterForm, setShowRegisterForm] = useState(false);
+    const [deviceName, setDeviceName] = useState('');
+    const [masterPassword, setMasterPassword] = useState('');
+
+    // Delete confirmation
+    const [deleteTarget, setDeleteTarget] = useState<PasskeyCredential | null>(null);
+    const [deleting, setDeleting] = useState(false);
+
+    const loadPasskeys = useCallback(async () => {
+        setLoading(true);
+        const creds = await listPasskeys();
+        setPasskeys(creds);
+        setLoading(false);
+    }, []);
+
+    useEffect(() => {
+        if (webAuthnAvailable) {
+            loadPasskeys();
+            isPlatformAuthenticatorAvailable().then(setHasPlatformAuth);
+        }
+    }, [webAuthnAvailable, loadPasskeys]);
+
+    const handleRegister = async (e: React.FormEvent) => {
+        e.preventDefault();
+
+        if (!masterPassword) {
+            toast({
+                variant: 'destructive',
+                title: t('common.error'),
+                description: t('passkey.passwordRequired', 'Master password is required to register a passkey.'),
+            });
+            return;
+        }
+
+        setRegistering(true);
+
+        // 1. Derive raw key bytes from master password
+        const rawKeyBytes = await getRawKeyForPasskey(masterPassword);
+        if (!rawKeyBytes) {
+            setRegistering(false);
+            toast({
+                variant: 'destructive',
+                title: t('common.error'),
+                description: t('auth.errors.invalidCredentials'),
+            });
+            setMasterPassword('');
+            return;
+        }
+
+        try {
+            // 2. Register the passkey
+            const result = await registerPasskey(
+                rawKeyBytes,
+                deviceName || t('passkey.defaultName', 'My Passkey'),
+            );
+
+            if (!result.success) {
+                if (result.error === 'CANCELLED') {
+                    // User cancelled — no error toast
+                    setRegistering(false);
+                    return;
+                }
+                toast({
+                    variant: 'destructive',
+                    title: t('common.error'),
+                    description: result.error || t('passkey.registerFailed', 'Passkey registration failed.'),
+                });
+                setRegistering(false);
+                return;
+            }
+
+            // 3. Show result
+            if (result.prfEnabled) {
+                toast({
+                    title: t('common.success'),
+                    description: t('passkey.registeredWithPrf', 'Passkey registered! You can now unlock your vault with this passkey.'),
+                });
+            } else {
+                toast({
+                    title: t('common.success'),
+                    description: t('passkey.registeredWithoutPrf', 'Passkey registered for authentication, but this device does not support vault unlock (no PRF). You will still need your master password.'),
+                });
+            }
+
+            // 4. Reset form and reload
+            setShowRegisterForm(false);
+            setDeviceName('');
+            setMasterPassword('');
+            await loadPasskeys();
+        } finally {
+            // SECURITY: Wipe raw key bytes
+            rawKeyBytes.fill(0);
+            setRegistering(false);
+        }
+    };
+
+    const handleDelete = async () => {
+        if (!deleteTarget) return;
+
+        setDeleting(true);
+        const result = await deletePasskey(deleteTarget.id);
+        setDeleting(false);
+
+        if (result.success) {
+            toast({
+                title: t('common.success'),
+                description: t('passkey.deleted', 'Passkey removed.'),
+            });
+            setDeleteTarget(null);
+            await loadPasskeys();
+        } else {
+            toast({
+                variant: 'destructive',
+                title: t('common.error'),
+                description: result.error || t('passkey.deleteFailed', 'Failed to remove passkey.'),
+            });
+        }
+    };
+
+    const formatDate = (dateStr: string | null) => {
+        if (!dateStr) return '—';
+        return new Date(dateStr).toLocaleDateString(undefined, {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+        });
+    };
+
+    if (!webAuthnAvailable) {
+        return null; // Don't render if WebAuthn not supported
+    }
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                    <Fingerprint className="w-5 h-5" />
+                    {t('passkey.title', 'Passkeys')}
+                </CardTitle>
+                <CardDescription>
+                    {t('passkey.description', 'Use biometrics or a security key to unlock your vault without typing your master password.')}
+                </CardDescription>
+            </CardHeader>
+
+            <CardContent className="space-y-4">
+                {/* Info banner */}
+                <div className="flex gap-3 p-3 rounded-lg bg-blue-500/10 border border-blue-500/20 text-sm">
+                    <Info className="w-4 h-4 mt-0.5 flex-shrink-0 text-blue-500" />
+                    <p className="text-muted-foreground">
+                        {t('passkey.infoText', 'Passkeys use the PRF extension to derive an encryption key from your authenticator. Your master password remains as a fallback and can always unlock the vault.')}
+                    </p>
+                </div>
+
+                {/* Platform authenticator status */}
+                {!hasPlatformAuth && (
+                    <div className="flex gap-3 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20 text-sm">
+                        <ShieldAlert className="w-4 h-4 mt-0.5 flex-shrink-0 text-yellow-500" />
+                        <p className="text-muted-foreground">
+                            {t('passkey.noPlatformAuth', 'No platform authenticator detected. You can still use a security key (e.g. YubiKey).')}
+                        </p>
+                    </div>
+                )}
+
+                {/* Registered passkeys list */}
+                {loading ? (
+                    <div className="flex justify-center py-6">
+                        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                    </div>
+                ) : passkeys.length > 0 ? (
+                    <div className="space-y-3">
+                        {passkeys.map((pk) => (
+                            <div
+                                key={pk.id}
+                                className="flex items-center justify-between p-3 rounded-lg border bg-card"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <div className={`p-2 rounded-full ${pk.prf_enabled ? 'bg-green-500/10' : 'bg-muted'}`}>
+                                        {pk.prf_enabled ? (
+                                            <ShieldCheck className="w-4 h-4 text-green-500" />
+                                        ) : (
+                                            <Fingerprint className="w-4 h-4 text-muted-foreground" />
+                                        )}
+                                    </div>
+                                    <div>
+                                        <p className="font-medium text-sm">{pk.device_name}</p>
+                                        <p className="text-xs text-muted-foreground">
+                                            {t('passkey.created', 'Created')}: {formatDate(pk.created_at)}
+                                            {pk.last_used_at && (
+                                                <> · {t('passkey.lastUsed', 'Last used')}: {formatDate(pk.last_used_at)}</>
+                                            )}
+                                        </p>
+                                        <p className="text-xs mt-0.5">
+                                            {pk.prf_enabled ? (
+                                                <span className="text-green-600 dark:text-green-400">
+                                                    {t('passkey.prfEnabled', 'Vault unlock enabled')}
+                                                </span>
+                                            ) : (
+                                                <span className="text-muted-foreground">
+                                                    {t('passkey.prfDisabled', 'Authentication only (no PRF)')}
+                                                </span>
+                                            )}
+                                        </p>
+                                    </div>
+                                </div>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="text-destructive hover:text-destructive"
+                                    onClick={() => setDeleteTarget(pk)}
+                                >
+                                    <Trash2 className="w-4 h-4" />
+                                </Button>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                        {t('passkey.noPasskeys', 'No passkeys registered yet.')}
+                    </p>
+                )}
+
+                {/* Register new passkey */}
+                {showRegisterForm ? (
+                    <form onSubmit={handleRegister} className="space-y-3 p-4 rounded-lg border bg-muted/30">
+                        <div className="space-y-2">
+                            <Label htmlFor="passkey-name">
+                                {t('passkey.deviceNameLabel', 'Passkey name')}
+                            </Label>
+                            <Input
+                                id="passkey-name"
+                                value={deviceName}
+                                onChange={(e) => setDeviceName(e.target.value)}
+                                placeholder={t('passkey.deviceNamePlaceholder', 'e.g. MacBook Touch ID, YubiKey 5')}
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label htmlFor="passkey-password">
+                                {t('passkey.confirmPassword', 'Confirm master password')}
+                            </Label>
+                            <Input
+                                id="passkey-password"
+                                type="password"
+                                value={masterPassword}
+                                onChange={(e) => setMasterPassword(e.target.value)}
+                                placeholder="••••••••••••"
+                                required
+                            />
+                            <p className="text-xs text-muted-foreground">
+                                {t('passkey.passwordHint', 'Required to securely link the passkey to your vault encryption key.')}
+                            </p>
+                        </div>
+
+                        <div className="flex gap-2">
+                            <Button
+                                type="submit"
+                                disabled={registering || !masterPassword}
+                                className="flex-1"
+                            >
+                                {registering && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                                {t('passkey.register', 'Register Passkey')}
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => {
+                                    setShowRegisterForm(false);
+                                    setDeviceName('');
+                                    setMasterPassword('');
+                                }}
+                            >
+                                {t('common.cancel')}
+                            </Button>
+                        </div>
+                    </form>
+                ) : (
+                    <Button
+                        variant="outline"
+                        className="w-full"
+                        onClick={() => setShowRegisterForm(true)}
+                    >
+                        <Plus className="w-4 h-4 mr-2" />
+                        {t('passkey.addPasskey', 'Add Passkey')}
+                    </Button>
+                )}
+            </CardContent>
+
+            {/* Delete confirmation dialog */}
+            <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>
+                            {t('passkey.deleteTitle', 'Remove Passkey?')}
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {t(
+                                'passkey.deleteDescription',
+                                'This will permanently remove "{{name}}". You will no longer be able to unlock your vault with this passkey. Your master password will still work.',
+                                { name: deleteTarget?.device_name },
+                            )}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={deleting}>
+                            {t('common.cancel')}
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleDelete}
+                            disabled={deleting}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                            {deleting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                            {t('common.delete')}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        </Card>
+    );
+}

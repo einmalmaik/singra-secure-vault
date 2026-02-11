@@ -29,7 +29,8 @@
     "days": "days",
     "noResults": "No results",
     "confirmAction": "Are you sure?",
-    "errorOccurred": "An unexpected error occurred."
+    "errorOccurred": "An unexpected error occurred.",
+    "or": "or"
   },
   "nav": {
     "home": "Home",
@@ -774,5 +775,33 @@
     "cancel_error": "Error canceling subscription.",
     "feature_locked_title": "Premium Feature",
     "feature_locked_description": "{{feature}} requires the {{tier}} plan."
+  },
+  "passkey": {
+    "title": "Passkeys",
+    "description": "Use biometrics or a security key to unlock your vault without typing your master password.",
+    "infoText": "Passkeys use the PRF extension to derive an encryption key from your authenticator. Your master password remains as a fallback and can always unlock the vault.",
+    "noPlatformAuth": "No platform authenticator detected. You can still use a security key (e.g. YubiKey).",
+    "noPasskeys": "No passkeys registered yet.",
+    "addPasskey": "Add Passkey",
+    "register": "Register Passkey",
+    "defaultName": "My Passkey",
+    "deviceNameLabel": "Passkey name",
+    "deviceNamePlaceholder": "e.g. MacBook Touch ID, YubiKey 5",
+    "confirmPassword": "Confirm master password",
+    "passwordRequired": "Master password is required to register a passkey.",
+    "passwordHint": "Required to securely link the passkey to your vault encryption key.",
+    "registeredWithPrf": "Passkey registered! You can now unlock your vault with this passkey.",
+    "registeredWithoutPrf": "Passkey registered for authentication, but this device does not support vault unlock (no PRF). You will still need your master password.",
+    "registerFailed": "Passkey registration failed.",
+    "created": "Created",
+    "lastUsed": "Last used",
+    "prfEnabled": "Vault unlock enabled",
+    "prfDisabled": "Authentication only (no PRF)",
+    "deleteTitle": "Remove Passkey?",
+    "deleteDescription": "This will permanently remove \"{{name}}\". You will no longer be able to unlock your vault with this passkey. Your master password will still work.",
+    "deleted": "Passkey removed.",
+    "deleteFailed": "Failed to remove passkey.",
+    "unlockWithPasskey": "Unlock with Passkey",
+    "unlockFailed": "Passkey unlock failed. Please try your master password."
   }
 }

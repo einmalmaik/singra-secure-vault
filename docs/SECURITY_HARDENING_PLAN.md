@@ -328,33 +328,72 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 ---
 
-## Phase 4: Fortgeschrittene Features (2-4 Wochen)
+## Phase 4: Fortgeschrittene Features (2-4 Wochen) — ✅ KOMPLETT (12.02.2026)
 
-### 4.1 WebAuthn/FIDO2 als zusätzlicher Unlock-Faktor
+### 4.1 WebAuthn/FIDO2 als zusätzlicher Unlock-Faktor — ✅ ERLEDIGT
 
-**Warum:** Hardware-Security-Keys (YubiKey, Titan, Passkeys) schützen gegen:
-- Keylogger (Passwort wird nicht getippt)
-- Phishing (WebAuthn bindet an Origin)
-- Shoulder-Surfing
+**Implementierung (11.02.2026):**
 
-**Architektur:**
-- WebAuthn PRF-Extension: Leitet einen deterministischen Schlüssel aus dem Hardware-Key ab
-- Dieser Schlüssel wird XOR'd mit dem Argon2id-Key: `finalKey = argon2Key XOR prfKey`
-- Ohne Hardware-Key ist der finalKey nicht ableitbar
-- Fallback: Nur Master-Passwort (wie bisher)
+Passkey-basierter Vault-Unlock mit WebAuthn PRF Extension. Zero-Knowledge-Architektur:
+Der PRF-Output wird verwendet, um den AES-256 Vault-Key zu wrappen/unwrappen.
+Das Master-Passwort bleibt als Fallback jederzeit verfügbar.
 
-**API:** `navigator.credentials.create()` / `navigator.credentials.get()` mit `prf` Extension
+**Architektur (wie Bitwarden, aber mit HKDF-Verbesserung):**
+1. **Registrierung** (Vault muss unlocked sein):
+   - User gibt Master-Passwort ein → `deriveRawKey()` → 32-byte AES Key
+   - Browser: `navigator.credentials.create()` mit `prf.eval.first = salt`
+   - PRF-Output (32 bytes) → HKDF-SHA-256 → AES-256-GCM Wrapping-Key
+   - Raw Key-Bytes werden mit dem Wrapping-Key verschlüsselt (IV || CT || Tag)
+   - Credential + verschlüsselter Key werden in `passkey_credentials` gespeichert
 
-**Betroffene Dateien:**
-- Neue: `src/services/webauthnService.ts`
-- Änderung: `src/contexts/VaultContext.tsx` (unlock-Funktion)
-- Änderung: `src/components/settings/` (neues Settings-Panel)
+2. **Unlock** (Vault ist locked):
+   - Browser: `navigator.credentials.get()` mit `prf.eval.first = salt`
+   - PRF-Output (32 bytes) → HKDF-SHA-256 → AES-256-GCM Wrapping-Key
+   - Verschlüsselter Key wird entschlüsselt → `importMasterKey()` → non-extractable CryptoKey
+   - Vault unlocked — kein Master-Passwort nötig!
+
+**Warum NICHT XOR (alter Plan):**
+Der alte Plan schlug `finalKey = argon2Key XOR prfKey` vor. Das funktioniert nicht,
+weil beim Passkey-Unlock kein Argon2-Key existiert (kein Passwort wird eingegeben).
+Stattdessen wird der Key direkt gewrappt — wie bei Bitwarden.
+
+**Sicherheitsgarantien:**
+- PRF-Output existiert nur im Authenticator (TPM/Secure Enclave) + transient im Browser
+- HKDF-SHA-256 mit Domain-Separation (`SingraPW-PasskeyWrappingKey-v1`)
+- AES-256-GCM für Key-Wrapping (12-byte IV, 128-bit Auth-Tag)
+- Der importierte CryptoKey ist non-extractable (gleich wie passwort-abgeleitet)
+- Server sieht nie den unverschlüsselten Key (Zero-Knowledge)
+- PRF-Salt wird server-seitig mit CSPRNG generiert (32 bytes)
+- Challenges werden server-seitig gespeichert (5 Min TTL)
+- Signature-Counter für Clone-Detection
+
+**Dateien:**
+- `supabase/migrations/20260211240000_add_passkey_credentials.sql` — DB-Schema
+- `supabase/functions/webauthn/index.ts` — Edge Function (SimpleWebAuthn v13 via JSR)
+- `src/services/passkeyService.ts` — Client-Side PRF + Key-Wrapping
+- `src/contexts/VaultContext.tsx` — `unlockWithPasskey()`, `getRawKeyForPasskey()`
+- `src/components/vault/VaultUnlock.tsx` — Passkey-Unlock-Button mit Fingerprint-Icon
+- `src/components/settings/PasskeySettings.tsx` — Passkey-Verwaltung
+- `src/components/settings/SecuritySettings.tsx` — PasskeySettings eingebunden
+
+**Browser-Support (PRF):**
+- Chrome 108+ (Windows Hello, Android 14+): ✅ Voll
+- Safari 16.4+ (macOS/iOS 18+): ✅ Voll
+- Firefox 122+: ✅ Voll
+- Security Keys: YubiKey 5.7+ (FIDO2.1), Nitrokey 3
+
+**Fallback:**
+- Wenn Authenticator kein PRF unterstützt → Registrierung erfolgt, aber ohne Vault-Unlock
+- Master-Passwort funktioniert immer als Alternative
+- PRF-Status wird pro Credential angezeigt
 
 ---
 
-### 4.2 Secure Memory Wrapper (SecureBuffer)
+### 4.2 Secure Memory Wrapper (SecureBuffer) — ✅ ERLEDIGT
 
-**Warum:** KeePass CVE-2023-32784 zeigte dass Memory-Dumps reale Angriffsvektoren sind. JavaScript hat keine explizite Speicherverwaltung, aber wir können es bestmöglich mitigieren.
+**Implementierung (12.02.2026):**
+
+Mitigiert Memory-Dump-Attacken (KeePass CVE-2023-32784) im Rahmen der JavaScript-Möglichkeiten.
 
 **Architektur:**
 ```typescript
@@ -362,47 +401,66 @@ class SecureBuffer {
     private buffer: Uint8Array;
     private destroyed = false;
 
-    constructor(size: number) {
-        this.buffer = new Uint8Array(size);
+    constructor(data: Uint8Array) {
+        this.buffer = new Uint8Array(data);
+        data.fill(0); // Original sofort löschen
+        registry.register(this, this.buffer); // Auto-cleanup via FinalizationRegistry
     }
 
-    // Zugriff nur über Callback (kein Leak durch Referenz)
     use<T>(fn: (data: Uint8Array) => T): T {
-        if (this.destroyed) throw new Error('Buffer destroyed');
+        if (this.destroyed) throw new Error('SecureBuffer: already disposed');
         return fn(this.buffer);
     }
 
-    destroy(): void {
+    dispose(): void {
         this.buffer.fill(0);
         this.destroyed = true;
     }
 }
 ```
 
-**Zusätzlich:** `FinalizationRegistry` für automatische Cleanup falls `.destroy()` vergessen wird:
-```typescript
-const registry = new FinalizationRegistry((buffer: Uint8Array) => {
-    buffer.fill(0);
-});
-```
+**Features:**
+- **`FinalizationRegistry`** — Automatisches Zeroing falls `dispose()` vergessen wird (GC-Trigger)
+- **Callback-basierter Zugriff** — Verhindert versehentliche Referenz-Leaks
+- **`clear()`** — Setzt alle Bytes auf 0 ohne den Buffer zu invalidieren
+- **`subarray()`** — Sichere View ohne Kopie, wird mit Original disposed
+- **20 Unit-Tests** — Alle bestanden
 
-**Neue Datei:** `src/services/secureBuffer.ts`
-**Änderung:** `src/services/cryptoService.ts` — `deriveRawKey()` gibt `SecureBuffer` statt `Uint8Array` zurück
+**Dateien:**
+- `src/services/secureBuffer.ts` — SecureBuffer-Klasse
+- `src/services/secureBuffer.test.ts` — Unit-Tests
+- `src/services/cryptoService.ts` — `deriveRawKeySecure()` gibt SecureBuffer zurück
+
+**Limitierung:** JavaScript hat keine echte Speicherverwaltung. `fill(0)` überschreibt den ArrayBuffer in-place, was gegen naive Memory-Dumps hilft, aber keinen Schutz gegen Heap-Snapshots mit V8-Internals bietet.
 
 ---
 
-### 4.3 Vault-Integrity-Checks (Tamper Detection)
+### 4.3 Vault-Integrity-Checks (Tamper Detection) — ✅ ERLEDIGT
 
-**Warum:** Schützt gegen einen kompromittierten Server (oder Supabase-Admin) der verschlüsselte Daten manipuliert (z.B. Items löscht, Ciphertext austauscht).
+**Implementierung (12.02.2026):**
+
+Schützt gegen kompromittierte Server oder Supabase-Admins die verschlüsselte Daten manipulieren (Items löschen, Ciphertext austauschen, Rollback-Attacken).
 
 **Architektur:**
-1. Jedes Vault-Item bekommt einen HMAC: `hmac = HMAC-SHA-256(integrityKey, itemId || encrypted_data)`
-2. Alle HMACs werden in einem Merkle-Tree organisiert
-3. Der Root-Hash wird client-seitig gespeichert (und optional signiert)
-4. Bei jedem Vault-Load: Tree neu berechnen, mit gespeichertem Root vergleichen
-5. Bei Mismatch: Warnung "Vault wurde serverseitig verändert"
+1. **Integrity-Key:** HKDF-SHA-256 aus Master-Key mit Domain-Separation `SingraPW-IntegrityKey-v1`
+2. **Item-Hashes:** Jedes Item → `SHA-256(itemId || encrypted_data || created_at)`
+3. **Merkle-Tree:** Flat-Array-Implementierung, paarweise SHA-256-Hashes bis zum Root
+4. **Root-Speicherung:** AES-256-GCM verschlüsselt mit Integrity-Key in `vault_integrity_hashes`
+5. **Verifikation:** Bei jedem Vault-Load: Tree neu berechnen, mit gespeichertem Root vergleichen
 
-**integrityKey:** Abgeleitet vom Master-Passwort (zweiter Argon2id-Aufruf mit anderem Salt oder HKDF-Expand)
+**Features:**
+- **Tamper Detection:** Erkennt Änderungen, Löschungen, Hinzufügungen von Items
+- **Rollback-Schutz:** Root-Hash inkludiert Timestamp der letzten Änderung
+- **16 Unit-Tests:** Merkle-Tree-Korrektheit, Tamper-Detection, Round-Trip-Encryption
+
+**Dateien:**
+- `src/services/vaultIntegrityService.ts` — Integrity-Service
+- `src/services/vaultIntegrityService.test.ts` — Unit-Tests
+
+**Warum Merkle-Tree statt einfacher Hash:**
+- Bei großen Vaults (1000+ Items) können inkrementelle Updates nur betroffene Zweige neu hashen
+- Ermöglicht zukünftige Sync-Protokolle (Partial-Vault-Sync mit Integritätsprüfung)
+- Standard-Architektur bei Git, Bitcoin, IPFS — gut verstanden und analysiert
 
 ---
 
@@ -460,7 +518,7 @@ Beide Verschlüsselungen unabhängig. Zur Entschlüsselung reicht eine (Fallback
 | **Phase 1** | 1-2 Tage | Kritische Lücken schließen | 4 Fixes (Math.random, Clipboard, Key-Zeroing, Headers) |
 | **Phase 2** | 1 Woche | Härtung auf Branchenniveau | 6 Fixes (Rate-Limit, Atomare Rotation, Salt-Hashing, Metadaten, Wortliste, CORS) |
 | **Phase 3** | 1-2 Wochen | KDF-Stärkung + Auto-Migration | 2 Features (128 MiB Argon2id, Version-Migration) |
-| **Phase 4** | 2-4 Wochen | Über Branchenstandard | 3 Features (WebAuthn, SecureBuffer, Integrity) |
+| **Phase 4** | 2-4 Wochen | Über Branchenstandard | 3 Features (WebAuthn PRF ✅, SecureBuffer ✅, Integrity ✅) |
 | **Phase 5** | Langfristig | Zukunftssicherung | 3 Features (Post-Quantum, Duress-PW, OPAQUE) |
 
 ### Vergleich nach Umsetzung
@@ -469,7 +527,7 @@ Beide Verschlüsselungen unabhängig. Zur Entschlüsselung reicht eine (Fallback
 |---|---|---|---|
 | KDF | PBKDF2 (default) | PBKDF2 650k | Argon2id 128 MiB |
 | Post-Quantum | Nein | Nein | Hybrid ML-KEM-768 + RSA-4096 |
-| Hardware-Key Unlock | Nur Premium | Ja | Ja (WebAuthn PRF) |
+| Hardware-Key Unlock | Nur Premium | Ja | ✅ Ja (WebAuthn PRF) |
 | Duress-Passwort | Nein | Nein | Ja |
 | Vault-Integrity | Nein | Nein | Merkle-Tree |
 | Clipboard-Auto-Clear | 30s | 60s | 30s |

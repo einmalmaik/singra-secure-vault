@@ -21,6 +21,7 @@ import {
 import { Separator } from '@/components/ui/separator';
 
 import { TwoFactorSettings } from './TwoFactorSettings';
+import { PasskeySettings } from './PasskeySettings';
 import { useVault } from '@/contexts/VaultContext';
 import { useToast } from '@/hooks/use-toast';
 
@@ -125,6 +126,10 @@ export function SecuritySettings() {
             {/* Two-Factor Authentication */}
             <Separator className="my-6" />
             <TwoFactorSettings />
+
+            {/* Passkey Authentication */}
+            <Separator className="my-6" />
+            <PasskeySettings />
         </>
     );
 }

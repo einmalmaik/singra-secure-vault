@@ -29,7 +29,8 @@
     "days": "Tage",
     "noResults": "Keine Ergebnisse",
     "confirmAction": "Bist du sicher?",
-    "errorOccurred": "Ein unerwarteter Fehler ist aufgetreten."
+    "errorOccurred": "Ein unerwarteter Fehler ist aufgetreten.",
+    "or": "oder"
   },
   "nav": {
     "home": "Startseite",
@@ -796,5 +797,33 @@
     "cancel_error": "Fehler beim Kündigen des Abonnements.",
     "feature_locked_title": "Premium-Funktion",
     "feature_locked_description": "{{feature}} benötigt den {{tier}}-Plan."
+  },
+  "passkey": {
+    "title": "Passkeys",
+    "description": "Verwende Biometrie oder einen Sicherheitsschlüssel, um deinen Tresor ohne Eingabe des Master-Passworts zu entsperren.",
+    "infoText": "Passkeys nutzen die PRF-Erweiterung, um einen Verschlüsselungsschlüssel aus deinem Authentifikator abzuleiten. Dein Master-Passwort bleibt als Fallback und kann den Tresor jederzeit entsperren.",
+    "noPlatformAuth": "Kein Plattform-Authentifikator erkannt. Du kannst trotzdem einen Sicherheitsschlüssel (z.B. YubiKey) verwenden.",
+    "noPasskeys": "Noch keine Passkeys registriert.",
+    "addPasskey": "Passkey hinzufügen",
+    "register": "Passkey registrieren",
+    "defaultName": "Mein Passkey",
+    "deviceNameLabel": "Passkey-Name",
+    "deviceNamePlaceholder": "z.B. MacBook Touch ID, YubiKey 5",
+    "confirmPassword": "Master-Passwort bestätigen",
+    "passwordRequired": "Das Master-Passwort wird benötigt, um einen Passkey zu registrieren.",
+    "passwordHint": "Erforderlich, um den Passkey sicher mit deinem Tresor-Verschlüsselungsschlüssel zu verknüpfen.",
+    "registeredWithPrf": "Passkey registriert! Du kannst deinen Tresor jetzt mit diesem Passkey entsperren.",
+    "registeredWithoutPrf": "Passkey für Authentifizierung registriert, aber dieses Gerät unterstützt kein Tresor-Entsperren (kein PRF). Du benötigst weiterhin dein Master-Passwort.",
+    "registerFailed": "Passkey-Registrierung fehlgeschlagen.",
+    "created": "Erstellt",
+    "lastUsed": "Zuletzt verwendet",
+    "prfEnabled": "Tresor-Entsperrung aktiviert",
+    "prfDisabled": "Nur Authentifizierung (kein PRF)",
+    "deleteTitle": "Passkey entfernen?",
+    "deleteDescription": "\"{{name}}\" wird dauerhaft entfernt. Du kannst deinen Tresor nicht mehr mit diesem Passkey entsperren. Dein Master-Passwort funktioniert weiterhin.",
+    "deleted": "Passkey entfernt.",
+    "deleteFailed": "Passkey konnte nicht entfernt werden.",
+    "unlockWithPasskey": "Mit Passkey entsperren",
+    "unlockFailed": "Passkey-Entsperrung fehlgeschlagen. Bitte verwende dein Master-Passwort."
   }
 }

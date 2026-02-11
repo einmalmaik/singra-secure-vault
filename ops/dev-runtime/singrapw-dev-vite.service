@@ -1,0 +1,15 @@
+[Unit]
+Description=SingraPW Dev Vite Server
+After=network-online.target singrapw-dev-supabase.service
+Wants=network-online.target singrapw-dev-supabase.service
+
+[Service]
+Type=simple
+WorkingDirectory=/var/www/singrapw-dev
+ExecStart=/usr/bin/npm run dev -- --host 0.0.0.0 --port 5173
+Restart=always
+RestartSec=5
+Environment=NODE_ENV=development
+
+[Install]
+WantedBy=multi-user.target

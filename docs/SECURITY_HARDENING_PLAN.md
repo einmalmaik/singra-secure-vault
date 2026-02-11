@@ -265,50 +265,66 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 ---
 
-## Phase 3: KDF & Migration (1-2 Wochen)
+## Phase 3: KDF & Migration (1-2 Wochen) — ✅ KOMPLETT (11.02.2026)
 
-### 3.1 Argon2id-Parameter erhöhen: 64 MiB -> 128 MiB
+### 3.1 Argon2id-Parameter erhöhen: 64 MiB -> 128 MiB — ✅ ERLEDIGT
 
-**Datei:** `src/services/cryptoService.ts:15`
+**Dateien:**
+- `src/services/cryptoService.ts` — KDF-Versioning-System
+- `supabase/migrations/20260211230000_add_kdf_version.sql` (NEU)
 
-**Aktueller Wert:** `ARGON2_MEMORY = 65536` (64 MiB)
+**Implementierung (11.02.2026):**
 
-**2025-Empfehlung (OWASP/Bellator Cyber):** Minimum 128 MiB für High-Security-Anwendungen.
+1. **KDF-Versioning-System** — `KDF_PARAMS` Record mit versionierten Parametersätzen:
+   - **v1**: 64 MiB, 3 iter, p=4 (aktuell, für bestehende User)
+   - **v2**: 128 MiB, 3 iter, p=4 (OWASP 2025 Enhanced, für neue User und nach Migration)
 
-**Problem:** 64 MiB ist "akzeptabel" aber bietet weniger GPU-Resistenz als möglich. Modernere GPUs mit viel VRAM (24+ GB) können 64 MiB-Argon2id schneller cracken.
+2. **`CURRENT_KDF_VERSION = 2`** — Neue Konten starten direkt mit v2.
 
-**Plan:**
-1. `KDF_VERSION`-Spalte in `profiles`-Tabelle hinzufügen (Default: 1)
-2. Version 1: aktuell (64 MiB, 3 iter, p=4)
-3. Version 2: neu (128 MiB, 3 iter, p=4)
-4. Beim Unlock: wenn User auf Version 1 steht, nach erfolgreichem Unlock automatisch:
-   - Neuen Key mit Version 2 ableiten
-   - Neuen Verifier erstellen
-   - Salt beibehalten (oder neuen generieren)
-   - Version in DB auf 2 setzen
-5. Feature-Detection: Wenn der Client weniger als 256 MiB RAM frei hat (via `navigator.deviceMemory` oder Performance API), bei Version 1 bleiben
+3. **`deriveRawKey(password, salt, kdfVersion)`** und **`deriveKey(password, salt, kdfVersion)`** — Akzeptieren jetzt einen optionalen `kdfVersion`-Parameter (Default: 1 für Rückwärtskompatibilität).
 
-**Warum nicht einfach überschreiben:** Bestehende User deren Verifier mit Version 1 erstellt wurde können sich sonst nicht mehr einloggen. Die Migration MUSS nach erfolgreichem Unlock passieren.
+4. **`attemptKdfUpgrade(password, salt, currentVersion)`** — Neue Funktion:
+   - Prüft ob aktuelle Version < `CURRENT_KDF_VERSION`
+   - Leitet neuen Key mit stärkeren Parametern ab
+   - Erstellt neuen Verifier
+   - Bei OOM/Fehler: Silent-Skip, User bleibt auf alter Version
+   - Gibt `KdfUpgradeResult` zurück mit `upgraded`, `newKey`, `newVerifier`, `activeVersion`
+
+5. **DB-Migration** — `kdf_version INTEGER NOT NULL DEFAULT 1` zu `profiles` hinzugefügt. Deployed.
+
+**Design-Entscheidungen (basierend auf Recherche):**
+- **Salt bleibt gleich** — Rotation nicht nötig bei Parameteränderung
+- **Kein `navigator.deviceMemory`** — Nur Chromium (~6% Nutzung), unzuverlässig. Stattdessen try-catch für OOM-Erkennung
+- **Automatisch statt manuell** — Anders als Bitwarden (manuelle Änderung in Settings). LastPass-Breach zeigte: Manuelle Migration führt dazu, dass Millionen User auf schwachen Parametern bleiben
+- **Parameter sind immutable** — Einmal veröffentlichte Versionen werden nie geändert, nur neue hinzugefügt
 
 ---
 
-### 3.2 KDF-Version-Auto-Migration-System
+### 3.2 KDF-Version-Auto-Migration-System — ✅ ERLEDIGT
 
-**Neue Dateien:**
-- Spalte `kdf_version` in `profiles` (Migration)
-- Funktion `migrateKdfIfNeeded()` in `cryptoService.ts`
+**Datei:** `src/contexts/VaultContext.tsx`
 
-**Architektur:**
-```
-Unlock -> verifyKey(v1) -> Erfolg -> Check kdf_version
-  -> wenn < CURRENT_KDF_VERSION:
-     -> deriveKey(password, salt, NEW_PARAMS)
-     -> createVerificationHash(newKey)
-     -> UPDATE profiles SET master_password_verifier=..., kdf_version=...
-     -> setEncryptionKey(newKey) // sofort den neuen Key verwenden
-```
+**Implementierung (11.02.2026):**
 
-**Warum das wichtig ist:** LastPass hatte genau dieses Problem — Millionen User blieben auf alten, schwachen KDF-Iterationen weil es keine Auto-Migration gab. Die gestohlenen Vaults konnten deshalb geknackt werden.
+1. **`checkSetup`** — Lädt jetzt `kdf_version` aus der DB (Default: 1 für bestehende User ohne Spalte).
+
+2. **`setupMasterPassword`** — Neue User starten mit `CURRENT_KDF_VERSION` (v2, 128 MiB). Speichert `kdf_version` in der DB.
+
+3. **`unlock`** — Nach erfolgreichem Unlock:
+   ```
+   verifyKey(verifier, keyV1) → Erfolg → attemptKdfUpgrade(password, salt, v1)
+     → deriveKey(password, salt, v2) → createVerificationHash(newKey)
+     → UPDATE profiles SET master_password_verifier=..., kdf_version=2
+     → setEncryptionKey(newKey) // sofort den neuen Key verwenden
+     → saveOfflineCredentials(userId, salt, newVerifier) // Cache aktualisieren
+   ```
+
+4. **Fehlertoleranz:**
+   - OOM bei Argon2id 128 MiB → Silent-Skip, User bleibt auf v1
+   - DB-Update fehlschlägt → Old Key wird weiterverwendet, kein Datenverlust
+   - Offline → Kein Upgrade-Versuch (kein Netzwerk), normaler Unlock mit cached v1 Verifier
+
+5. **Keine UI-Änderungen** — Migration ist komplett transparent. Kein Toast, kein Dialog. Nur ein `console.info` im DevTools-Log.
 
 ---
 

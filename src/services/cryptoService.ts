@@ -5,17 +5,36 @@
  * - Argon2id for key derivation from master password
  * - AES-256-GCM for authenticated encryption of vault data
  * 
+ * Supports KDF parameter versioning for transparent auto-migration
+ * to stronger parameters after successful unlock.
+ * 
  * SECURITY: The master password NEVER leaves the client.
  * Only encrypted data is stored on the server.
  */
 
 import { argon2id } from 'hash-wasm';
 
-// Argon2id parameters - tuned for ~300ms on modern devices
-const ARGON2_MEMORY = 65536; // 64 MiB
-const ARGON2_ITERATIONS = 3;
-const ARGON2_PARALLELISM = 4;
-const ARGON2_HASH_LENGTH = 32; // 256 bits for AES-256
+// ============ KDF Parameter Definitions ============
+
+/**
+ * The latest KDF version. Newly set-up accounts use this version.
+ * Existing users on older versions are auto-migrated on unlock.
+ */
+export const CURRENT_KDF_VERSION = 2;
+
+/**
+ * KDF parameter sets indexed by version number.
+ *
+ *   v1: Original (64 MiB) — ~300 ms on modern devices
+ *   v2: Enhanced (128 MiB) — ~500-600 ms on modern devices, OWASP 2025 recommended
+ *
+ * IMPORTANT: Once a version is released, its parameters MUST NEVER be changed.
+ * Only add new versions.
+ */
+export const KDF_PARAMS: Record<number, KdfParams> = {
+    1: { memory: 65536,  iterations: 3, parallelism: 4, hashLength: 32 },
+    2: { memory: 131072, iterations: 3, parallelism: 4, hashLength: 32 },
+};
 
 const SALT_LENGTH = 16; // 128 bits
 const IV_LENGTH = 12; // 96 bits (standard for AES-GCM)
@@ -31,26 +50,33 @@ export function generateSalt(): string {
 }
 
 /**
- * Derives an AES-256 encryption key from master password using Argon2id
+ * Derives raw AES-256 key bytes from master password using Argon2id.
  * 
  * @param masterPassword - The user's master password
  * @param saltBase64 - Base64-encoded salt from profiles table
- * @returns CryptoKey suitable for AES-GCM operations
+ * @param kdfVersion - KDF parameter version (defaults to 1 for backward compat)
+ * @returns Raw key bytes (caller is responsible for wiping with .fill(0))
  */
 export async function deriveRawKey(
     masterPassword: string,
-    saltBase64: string
+    saltBase64: string,
+    kdfVersion: number = 1
 ): Promise<Uint8Array> {
+    const params = KDF_PARAMS[kdfVersion];
+    if (!params) {
+        throw new Error(`Unknown KDF version: ${kdfVersion}`);
+    }
+
     const salt = base64ToUint8Array(saltBase64);
 
     // Derive raw key bytes using Argon2id via hash-wasm
     const hashHex = await argon2id({
         password: masterPassword,
         salt: salt,
-        parallelism: ARGON2_PARALLELISM,
-        iterations: ARGON2_ITERATIONS,
-        memorySize: ARGON2_MEMORY,
-        hashLength: ARGON2_HASH_LENGTH,
+        parallelism: params.parallelism,
+        iterations: params.iterations,
+        memorySize: params.memory,
+        hashLength: params.hashLength,
         outputType: 'hex',
     });
 
@@ -67,13 +93,15 @@ export async function deriveRawKey(
  * 
  * @param masterPassword - The user's master password
  * @param saltBase64 - Base64-encoded salt from profiles table
+ * @param kdfVersion - KDF parameter version (defaults to 1 for backward compat)
  * @returns CryptoKey suitable for AES-GCM operations
  */
 export async function deriveKey(
     masterPassword: string,
-    saltBase64: string
+    saltBase64: string,
+    kdfVersion: number = 1
 ): Promise<CryptoKey> {
-    const keyBytes = await deriveRawKey(masterPassword, saltBase64);
+    const keyBytes = await deriveRawKey(masterPassword, saltBase64, kdfVersion);
     try {
         return await importMasterKey(keyBytes);
     } finally {
@@ -227,6 +255,78 @@ export async function verifyKey(
     }
 }
 
+// ============ KDF Auto-Migration ============
+
+/**
+ * Result of a KDF upgrade attempt.
+ */
+export interface KdfUpgradeResult {
+    /** Whether the upgrade succeeded */
+    upgraded: boolean;
+    /** New CryptoKey derived with upgraded parameters (only if upgraded) */
+    newKey?: CryptoKey;
+    /** New verification hash (only if upgraded) */
+    newVerifier?: string;
+    /** The KDF version that is now active */
+    activeVersion: number;
+}
+
+/**
+ * Attempts to upgrade the KDF parameters to the latest version.
+ *
+ * This is called after a successful unlock. If the user is already on
+ * the latest version, returns immediately. Otherwise it:
+ *   1. Derives a new key using the latest KDF parameters
+ *   2. Creates a new verification hash with the new key
+ *   3. Returns the new key + verifier for the caller to persist
+ *
+ * The caller (VaultContext) is responsible for:
+ *   - Saving the new verifier and kdf_version to the profiles table
+ *   - Updating the in-memory encryption key
+ *   - Updating the offline credentials cache
+ *
+ * If the device cannot handle the higher memory requirement (OOM),
+ * the upgrade is silently skipped and the user stays on the old version.
+ *
+ * @param masterPassword - The user's master password (still in memory from unlock)
+ * @param saltBase64 - The user's encryption salt
+ * @param currentVersion - The user's current KDF version from profiles
+ * @returns Upgrade result
+ */
+export async function attemptKdfUpgrade(
+    masterPassword: string,
+    saltBase64: string,
+    currentVersion: number,
+): Promise<KdfUpgradeResult> {
+    if (currentVersion >= CURRENT_KDF_VERSION) {
+        return { upgraded: false, activeVersion: currentVersion };
+    }
+
+    try {
+        // Derive key with the new, stronger parameters
+        const newKey = await deriveKey(masterPassword, saltBase64, CURRENT_KDF_VERSION);
+
+        // Create a new verification hash so future unlocks use the new key
+        const newVerifier = await createVerificationHash(newKey);
+
+        return {
+            upgraded: true,
+            newKey,
+            newVerifier,
+            activeVersion: CURRENT_KDF_VERSION,
+        };
+    } catch (err) {
+        // If the device runs out of memory (OOM) or the WASM module fails,
+        // silently skip the upgrade. The user stays on their current version
+        // and can try again on a more capable device.
+        console.warn(
+            `KDF upgrade from v${currentVersion} to v${CURRENT_KDF_VERSION} failed (likely OOM), staying on v${currentVersion}:`,
+            err,
+        );
+        return { upgraded: false, activeVersion: currentVersion };
+    }
+}
+
 // ============ Utility Functions ============
 
 /**
@@ -253,6 +353,20 @@ function base64ToUint8Array(base64: string): Uint8Array {
 }
 
 // ============ Type Definitions ============
+
+/**
+ * Argon2id parameter set for a given KDF version.
+ */
+export interface KdfParams {
+    /** Memory in KiB (e.g. 65536 = 64 MiB) */
+    memory: number;
+    /** Number of Argon2id iterations */
+    iterations: number;
+    /** Degree of parallelism (threads) */
+    parallelism: number;
+    /** Output hash length in bytes */
+    hashLength: number;
+}
 
 /**
  * Sensitive vault item data that gets encrypted

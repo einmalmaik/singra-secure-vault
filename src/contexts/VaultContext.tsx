@@ -19,6 +19,8 @@ import {
     encryptVaultItem,
     decryptVaultItem,
     secureClear,
+    attemptKdfUpgrade,
+    CURRENT_KDF_VERSION,
     VaultItemData
 } from '@/services/cryptoService';
 import {
@@ -104,6 +106,7 @@ export function VaultProvider({ children }: VaultProviderProps) {
     const [encryptionKey, setEncryptionKey] = useState<CryptoKey | null>(null);
     const [salt, setSalt] = useState<string | null>(null);
     const [verificationHash, setVerificationHash] = useState<string | null>(null);
+    const [kdfVersion, setKdfVersion] = useState<number>(1);
     const [autoLockTimeout, setAutoLockTimeoutState] = useState(getInitialAutoLockTimeout);
     // Show session restore hint if session is still valid (user just needs to re-enter password)
     const [pendingSessionRestore, setPendingSessionRestore] = useState(() => isSessionValid());
@@ -135,11 +138,13 @@ export function VaultProvider({ children }: VaultProviderProps) {
             }
 
             try {
+                // NOTE: kdf_version may not exist in generated Supabase types until
+                // types are regenerated. Using explicit column list + type assertion.
                 const { data: profile, error } = await supabase
                     .from('profiles')
-                    .select('encryption_salt, master_password_verifier')
+                    .select('encryption_salt, master_password_verifier, kdf_version')
                     .eq('user_id', user.id)
-                    .single();
+                    .single() as { data: Record<string, unknown> | null; error: unknown };
 
                 if (error || !profile?.encryption_salt) {
                     // Online but no profile found - check if it's a network error
@@ -159,13 +164,14 @@ export function VaultProvider({ children }: VaultProviderProps) {
                     setIsLocked(true);
                 } else {
                     setIsSetupRequired(false);
-                    setSalt(profile.encryption_salt);
-                    setVerificationHash(profile.master_password_verifier || null);
+                    setSalt(profile.encryption_salt as string);
+                    setVerificationHash((profile.master_password_verifier as string) || null);
+                    setKdfVersion((profile.kdf_version as number) ?? 1);
                     // Cache credentials for offline use
                     await saveOfflineCredentials(
                         user.id,
-                        profile.encryption_salt,
-                        profile.master_password_verifier || null
+                        profile.encryption_salt as string,
+                        (profile.master_password_verifier as string) || null
                     );
                 }
             } catch (err) {
@@ -236,8 +242,8 @@ export function VaultProvider({ children }: VaultProviderProps) {
             // Generate new salt
             const newSalt = generateSalt();
 
-            // Derive encryption key
-            const key = await deriveKey(masterPassword, newSalt);
+            // Derive encryption key (new users start on latest KDF version)
+            const key = await deriveKey(masterPassword, newSalt, CURRENT_KDF_VERSION);
 
             // Create verification hash
             const verifyHash = await createVerificationHash(key);
@@ -258,13 +264,14 @@ export function VaultProvider({ children }: VaultProviderProps) {
                 });
             }
 
-            // Save salt and verifier to profile (NOT the password!)
+            // Save salt, verifier, and KDF version to profile (NOT the password!)
             const { error: updateError } = await supabase
                 .from('profiles')
                 .update({
                     encryption_salt: newSalt,
                     master_password_verifier: verifyHash,
-                })
+                    kdf_version: CURRENT_KDF_VERSION,
+                } as any)
                 .eq('user_id', user.id);
 
             if (updateError) {
@@ -275,6 +282,7 @@ export function VaultProvider({ children }: VaultProviderProps) {
             setSalt(newSalt);
             setVerificationHash(verifyHash);
             setEncryptionKey(key);
+            setKdfVersion(CURRENT_KDF_VERSION);
             setIsSetupRequired(false);
             setIsLocked(false);
             setLastActivity(Date.now());
@@ -313,8 +321,9 @@ export function VaultProvider({ children }: VaultProviderProps) {
         }
 
         try {
-            // Derive key from password
-            const key = await deriveKey(masterPassword, salt);
+            // Derive key from password using the user's CURRENT KDF version.
+            // This must match the version the verifier was created with.
+            const key = await deriveKey(masterPassword, salt, kdfVersion);
 
             // Primary verifier from profile, fallback to legacy localStorage.
             const legacyHash = localStorage.getItem(`singra_verify_${user.id}`);
@@ -345,8 +354,49 @@ export function VaultProvider({ children }: VaultProviderProps) {
                 }
             }
 
-            // Success - store key in memory
-            setEncryptionKey(key);
+            // Success - store key in memory (may be upgraded below)
+            let activeKey = key;
+
+            // ── KDF Auto-Migration ──
+            // After successful unlock, transparently upgrade KDF parameters
+            // if the user is on an older version. This is non-blocking: if
+            // the device cannot handle the new memory requirement (OOM), the
+            // user stays on their current version without disruption.
+            try {
+                const upgrade = await attemptKdfUpgrade(masterPassword, salt, kdfVersion);
+                if (upgrade.upgraded && upgrade.newKey && upgrade.newVerifier) {
+                    // Persist the new verifier and KDF version to the database
+                    const { error: upgradeError } = await supabase
+                        .from('profiles')
+                        .update({
+                            master_password_verifier: upgrade.newVerifier,
+                            kdf_version: upgrade.activeVersion,
+                        } as any)
+                        .eq('user_id', user.id);
+
+                    if (!upgradeError) {
+                        // Switch to the stronger key
+                        activeKey = upgrade.newKey;
+                        setVerificationHash(upgrade.newVerifier);
+                        setKdfVersion(upgrade.activeVersion);
+
+                        // Update offline cache with new verifier
+                        await saveOfflineCredentials(user.id, salt, upgrade.newVerifier);
+
+                        console.info(
+                            `KDF upgraded from v${kdfVersion} to v${upgrade.activeVersion}`,
+                        );
+                    } else {
+                        // DB update failed — stay on old key, no data loss
+                        console.warn('KDF upgrade: DB update failed, staying on old version', upgradeError);
+                    }
+                }
+            } catch {
+                // Non-fatal: upgrade is best-effort
+                console.warn('KDF upgrade failed, continuing with current version');
+            }
+
+            setEncryptionKey(activeKey);
             setIsLocked(false);
             setLastActivity(Date.now());
 
@@ -361,7 +411,7 @@ export function VaultProvider({ children }: VaultProviderProps) {
             recordFailedAttempt();
             return { error: new Error('Invalid master password') };
         }
-    }, [user, salt, verificationHash]);
+    }, [user, salt, verificationHash, kdfVersion]);
 
     /**
      * Locks the vault and clears encryption key from memory

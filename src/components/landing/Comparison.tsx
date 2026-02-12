@@ -1,149 +1,234 @@
 /**
  * @fileoverview Comparison Table Section
- * 
+ *
  * Compares Singra PW with other password managers.
+ * All competitor data is based on publicly available information
+ * from official documentation (verified Feb 2026).
+ *
+ * Sources:
+ * - Bitwarden: bitwarden.com/help/kdf-algorithms/, bitwarden.com/pricing/
+ * - 1Password: 1password.com/pricing, support.1password.com
+ * - LastPass: lastpass.com/pricing, support.lastpass.com
  */
 
 import { useTranslation } from 'react-i18next';
-import { Check, X, Minus } from 'lucide-react';
+import { Check, X, Minus, Shield } from 'lucide-react';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
 } from '@/components/ui/table';
 
 type FeatureStatus = 'yes' | 'no' | 'partial';
 
 interface Competitor {
-  name: string;
-  features: Record<string, FeatureStatus>;
+    name: string;
+    features: Record<string, FeatureStatus>;
+    details: Record<string, string>;
 }
 
 const competitors: Competitor[] = [
-  {
-    name: 'Singra PW',
-    features: {
-      openSource: 'yes',
-      e2ee: 'yes',
-      zeroKnowledge: 'yes',
-      free: 'yes',
-      selfHostable: 'yes',
-      totp: 'yes',
+    {
+        name: 'Singra PW',
+        features: {
+            openSource: 'yes',
+            e2ee: 'yes',
+            zeroKnowledge: 'yes',
+            free: 'yes',
+            kdf: 'yes',
+            postQuantum: 'yes',
+            passkeyUnlock: 'yes',
+            duressPassword: 'yes',
+            vaultIntegrity: 'yes',
+            clipboardClear: 'yes',
+            totp: 'yes',
+            pricing: 'yes',
+        },
+        details: {
+            kdf: 'Argon2id 128 MiB',
+            postQuantum: 'ML-KEM-768 + RSA-4096',
+            clipboardClear: '30s',
+            pricing: '€0 / €1,65/mo',
+        },
     },
-  },
-  {
-    name: 'LastPass',
-    features: {
-      openSource: 'no',
-      e2ee: 'yes',
-      zeroKnowledge: 'yes',
-      free: 'partial',
-      selfHostable: 'no',
-      totp: 'yes',
+    {
+        name: 'Bitwarden',
+        features: {
+            openSource: 'yes',
+            e2ee: 'yes',
+            zeroKnowledge: 'yes',
+            free: 'yes',
+            kdf: 'partial',
+            postQuantum: 'no',
+            passkeyUnlock: 'partial',
+            duressPassword: 'no',
+            vaultIntegrity: 'no',
+            clipboardClear: 'yes',
+            totp: 'partial',
+            pricing: 'partial',
+        },
+        details: {
+            kdf: 'PBKDF2 600K / Argon2id 64 MiB',
+            clipboardClear: '10–300s',
+            pricing: '$0 / $1.65/mo',
+        },
     },
-  },
-  {
-    name: '1Password',
-    features: {
-      openSource: 'no',
-      e2ee: 'yes',
-      zeroKnowledge: 'yes',
-      free: 'no',
-      selfHostable: 'no',
-      totp: 'yes',
+    {
+        name: '1Password',
+        features: {
+            openSource: 'no',
+            e2ee: 'yes',
+            zeroKnowledge: 'yes',
+            free: 'no',
+            kdf: 'partial',
+            postQuantum: 'no',
+            passkeyUnlock: 'yes',
+            duressPassword: 'no',
+            vaultIntegrity: 'no',
+            clipboardClear: 'yes',
+            totp: 'yes',
+            pricing: 'no',
+        },
+        details: {
+            kdf: 'PBKDF2 + Secret Key',
+            clipboardClear: '90s',
+            pricing: '$2.99/mo',
+        },
     },
-  },
-  {
-    name: 'Bitwarden',
-    features: {
-      openSource: 'yes',
-      e2ee: 'yes',
-      zeroKnowledge: 'yes',
-      free: 'yes',
-      selfHostable: 'yes',
-      totp: 'partial',
+    {
+        name: 'LastPass',
+        features: {
+            openSource: 'no',
+            e2ee: 'yes',
+            zeroKnowledge: 'yes',
+            free: 'partial',
+            kdf: 'partial',
+            postQuantum: 'no',
+            passkeyUnlock: 'partial',
+            duressPassword: 'no',
+            vaultIntegrity: 'no',
+            clipboardClear: 'yes',
+            totp: 'partial',
+            pricing: 'partial',
+        },
+        details: {
+            kdf: 'PBKDF2 600K',
+            clipboardClear: '120s',
+            pricing: '$3/mo',
+        },
     },
-  },
 ];
 
-const featureKeys = ['openSource', 'e2ee', 'zeroKnowledge', 'free', 'selfHostable', 'totp'];
+const featureKeys = [
+    'openSource',
+    'e2ee',
+    'zeroKnowledge',
+    'kdf',
+    'postQuantum',
+    'passkeyUnlock',
+    'duressPassword',
+    'vaultIntegrity',
+    'clipboardClear',
+    'totp',
+    'free',
+    'pricing',
+];
 
 function StatusIcon({ status }: { status: FeatureStatus }) {
-  switch (status) {
-    case 'yes':
-      return <Check className="w-5 h-5 text-success mx-auto" />;
-    case 'no':
-      return <X className="w-5 h-5 text-destructive mx-auto" />;
-    case 'partial':
-      return <Minus className="w-5 h-5 text-warning mx-auto" />;
-  }
+    switch (status) {
+        case 'yes':
+            return <Check className="w-5 h-5 text-success mx-auto" />;
+        case 'no':
+            return <X className="w-5 h-5 text-destructive mx-auto" />;
+        case 'partial':
+            return <Minus className="w-5 h-5 text-warning mx-auto" />;
+    }
 }
 
 export function Comparison() {
-  const { t } = useTranslation();
+    const { t } = useTranslation();
 
-  return (
-    <section id="comparison" className="py-20">
-      <div className="container px-4">
-        <div className="text-center mb-16">
-          <h2 className="text-3xl sm:text-4xl font-bold mb-4">
-            {t('landing.comparison.title')}
-          </h2>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            {t('landing.comparison.subtitle')}
-          </p>
-        </div>
+    return (
+        <section id="comparison" className="py-20">
+            <div className="container px-4">
+                <div className="text-center mb-16">
+                    <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-1.5 text-sm font-medium text-primary mb-4">
+                        <Shield className="w-4 h-4" />
+                        {t('landing.comparison.badge')}
+                    </div>
+                    <h2 className="text-3xl sm:text-4xl font-bold mb-4">
+                        {t('landing.comparison.title')}
+                    </h2>
+                    <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+                        {t('landing.comparison.subtitle')}
+                    </p>
+                </div>
 
-        <div className="max-w-4xl mx-auto overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[200px]">Feature</TableHead>
-                {competitors.map((c) => (
-                  <TableHead key={c.name} className="text-center">
-                    <span className={c.name === 'Singra PW' ? 'text-primary font-bold' : ''}>
-                      {c.name}
-                    </span>
-                  </TableHead>
-                ))}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {featureKeys.map((featureKey) => (
-                <TableRow key={featureKey}>
-                  <TableCell className="font-medium">
-                    {t(`landing.comparison.features.${featureKey}`)}
-                  </TableCell>
-                  {competitors.map((c) => (
-                    <TableCell key={`${c.name}-${featureKey}`} className="text-center">
-                      <StatusIcon status={c.features[featureKey]} />
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+                <div className="max-w-5xl mx-auto overflow-x-auto">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead className="w-[220px]">
+                                    {t('landing.comparison.featureLabel')}
+                                </TableHead>
+                                {competitors.map((c) => (
+                                    <TableHead key={c.name} className="text-center min-w-[120px]">
+                                        <span className={c.name === 'Singra PW' ? 'text-primary font-bold' : ''}>
+                                            {c.name}
+                                        </span>
+                                    </TableHead>
+                                ))}
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {featureKeys.map((featureKey) => (
+                                <TableRow key={featureKey}>
+                                    <TableCell className="font-medium">
+                                        {t(`landing.comparison.features.${featureKey}`)}
+                                    </TableCell>
+                                    {competitors.map((c) => (
+                                        <TableCell key={`${c.name}-${featureKey}`} className="text-center">
+                                            {c.details[featureKey] ? (
+                                                <div className="flex flex-col items-center gap-0.5">
+                                                    <StatusIcon status={c.features[featureKey]} />
+                                                    <span className="text-[10px] text-muted-foreground leading-tight">
+                                                        {c.details[featureKey]}
+                                                    </span>
+                                                </div>
+                                            ) : (
+                                                <StatusIcon status={c.features[featureKey]} />
+                                            )}
+                                        </TableCell>
+                                    ))}
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </div>
 
-        {/* Legend */}
-        <div className="flex justify-center gap-6 mt-6 text-sm text-muted-foreground">
-          <div className="flex items-center gap-2">
-            <Check className="w-4 h-4 text-success" />
-            <span>Vollständig</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Minus className="w-4 h-4 text-warning" />
-            <span>Eingeschränkt</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <X className="w-4 h-4 text-destructive" />
-            <span>Nicht verfügbar</span>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
+                {/* Legend */}
+                <div className="flex justify-center gap-6 mt-6 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-2">
+                        <Check className="w-4 h-4 text-success" />
+                        <span>{t('landing.comparison.legend.full')}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Minus className="w-4 h-4 text-warning" />
+                        <span>{t('landing.comparison.legend.partial')}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <X className="w-4 h-4 text-destructive" />
+                        <span>{t('landing.comparison.legend.unavailable')}</span>
+                    </div>
+                </div>
+
+                <p className="text-center text-xs text-muted-foreground mt-4 max-w-2xl mx-auto">
+                    {t('landing.comparison.disclaimer')}
+                </p>
+            </div>
+        </section>
+    );
 }

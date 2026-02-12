@@ -52,23 +52,39 @@
       "ctaSecondary": "Mehr erfahren"
     },
     "security": {
-      "title": "HÃ¶chste Sicherheitsstandards",
-      "subtitle": "Wir nutzen die gleichen VerschlÃ¼sselungsstandards wie fÃ¼hrende Passwortmanager.",
+      "title": "Höchste Sicherheitsstandards",
+      "subtitle": "Wir gehen über den Industriestandard hinaus - mit Post-Quantum-Schutz, Panik-Passwort und Manipulationserkennung.",
       "zeroKnowledge": {
         "title": "Zero-Knowledge Architektur",
-        "description": "Wir kÃ¶nnen deine PasswÃ¶rter niemals sehen. Die EntschlÃ¼sselung findet nur auf deinem GerÃ¤t statt."
+        "description": "Wir können deine Passwörter niemals sehen. Die Entschlüsselung findet nur auf deinem Gerät statt."
       },
       "e2ee": {
-        "title": "Ende-zu-Ende VerschlÃ¼sselung",
-        "description": "AES-256-GCM VerschlÃ¼sselung mit Argon2id Key Derivation - Industriestandard."
+        "title": "Ende-zu-Ende Verschlüsselung",
+        "description": "AES-256-GCM Verschlüsselung mit Argon2id (128 MiB) Key Derivation - stärker als der Industriestandard."
       },
       "openSource": {
         "title": "100% Open Source",
-        "description": "Der gesamte Code ist Ã¶ffentlich einsehbar und von der Community Ã¼berprÃ¼fbar."
+        "description": "Der gesamte Code ist öffentlich einsehbar und von der Community überprüfbar."
       },
       "clientSide": {
         "title": "Client-Side Encryption",
-        "description": "Alle Daten werden VOR dem Senden an den Server verschlÃ¼sselt."
+        "description": "Alle Daten werden VOR dem Senden an den Server verschlüsselt."
+      },
+      "postQuantum": {
+        "title": "Post-Quantum-Verschlüsselung",
+        "description": "ML-KEM-768 + RSA-4096 Hybrid-Verschlüsselung schützt gegen zukünftige Quantencomputer-Angriffe (NIST FIPS 203)."
+      },
+      "passkeyUnlock": {
+        "title": "Passkey Tresor-Entsperrung",
+        "description": "Entsperre deinen Tresor mit Biometrie oder Sicherheitsschlüssel über die WebAuthn PRF-Erweiterung - kein Passwort nötig."
+      },
+      "duressPassword": {
+        "title": "Panik-Passwort",
+        "description": "Ein zweites Passwort öffnet einen Köder-Tresor mit gefälschten Daten - Schutz bei erzwungener Passwort-Herausgabe."
+      },
+      "vaultIntegrity": {
+        "title": "Tresor-Integritätsprüfung",
+        "description": "Merkle-Tree basierte Manipulationserkennung stellt sicher, dass niemand deine Tresor-Daten serverseitig verändert hat."
       }
     },
     "features": {
@@ -107,16 +123,30 @@
       "community": "Teil der Community werden"
     },
     "comparison": {
+      "badge": "Ehrlicher Vergleich",
       "title": "Warum Singra PW?",
-      "subtitle": "Vergleich mit anderen Passwortmanagern",
+      "subtitle": "Ein faktenbasierter Vergleich mit führenden Passwortmanagern. Alle Daten aus offiziellen Quellen verifiziert (Feb. 2026).",
+      "featureLabel": "Funktion",
       "features": {
         "openSource": "Open Source",
-        "e2ee": "Ende-zu-Ende VerschlÃ¼sselung",
+        "e2ee": "Ende-zu-Ende Verschlüsselung",
         "zeroKnowledge": "Zero-Knowledge",
-        "free": "Kostenlos",
-        "selfHostable": "Self-Hosting mÃ¶glich",
-        "totp": "TOTP/2FA Support"
-      }
+        "free": "Kostenloser Plan verfügbar",
+        "kdf": "Schlüsselableitung (KDF)",
+        "postQuantum": "Post-Quantum-Verschlüsselung",
+        "passkeyUnlock": "Passkey Tresor-Entsperrung",
+        "duressPassword": "Panik-/Zwangspasswort",
+        "vaultIntegrity": "Tresor-Integritätsprüfung",
+        "clipboardClear": "Zwischenablage Auto-Löschen",
+        "totp": "TOTP/2FA Authenticator",
+        "pricing": "Ab-Preis"
+      },
+      "legend": {
+        "full": "Volle Unterstützung",
+        "partial": "Teilweise / nur Premium",
+        "unavailable": "Nicht verfügbar"
+      },
+      "disclaimer": "Alle Informationen basieren auf öffentlich zugänglicher Dokumentation der jeweiligen Anbieter, verifiziert im Februar 2026. Verfügbarkeit kann sich ändern. Bitwarden: bitwarden.com/help | 1Password: 1password.com | LastPass: lastpass.com"
     },
     "pwa": {
       "badge": "Progressive Web App",
@@ -755,16 +785,22 @@
       "secure_notes": "Sichere Notizen",
       "external_2fa": "2FA mit externer App",
       "core_features": "Alle Grundfunktionen",
+      "argon2id_encryption": "Argon2id 128 MiB Verschlüsselung",
+      "clipboard_auto_clear": "Zwischenablage Auto-Löschen (30s)",
+      "post_quantum": "Post-Quantum-Verschlüsselung (ML-KEM-768)",
+      "duress_password": "Panik-/Zwangspasswort",
       "file_attachments": "1 GB Datei-Anhänge",
       "builtin_authenticator": "Integrierter Authenticator",
       "emergency_access": "Notfallzugang",
       "vault_health": "Tresor-Gesundheitsbericht",
-      "vault_health_reports": "Tresor-Gesundheitsbericht",
+      "passkey_unlock": "Passkey Tresor-Entsperrung (PRF)",
+      "vault_integrity": "Tresor-Integritätsprüfung",
       "priority_support": "Prioritäts-Support",
       "six_accounts": "6 Premium-Konten",
       "shared_collections": "Geteilte Sammlungen",
       "family_organization": "Familien-Organisation"
     },
+    "free_security_note": "AES-256-GCM + Argon2id für alle Nutzer inklusive",
     "legal_info": "Alle Preise inkl. MwSt. Abonnements verlängern sich automatisch, sofern sie nicht vor Ablauf des Abrechnungszeitraums gekündigt werden.",
     "refund_info": "Erstattungen werden individuell über unseren Support abgewickelt.",
     "checkout_title": "Zur Kasse",
@@ -898,5 +934,19 @@
     "changeSuccess": "Panik-Passwort geändert",
     "changeSuccessDescription": "Dein Panik-Passwort wurde aktualisiert.",
     "changeFailed": "Panik-Passwort konnte nicht geändert werden"
+  },
+  "integrity": {
+    "title": "Tresor-Integrität",
+    "description": "Manipulationserkennung für deine Tresor-Daten",
+    "verified": "Verifiziert",
+    "unverified": "Nicht verifiziert",
+    "checking": "Wird geprüft...",
+    "checkPassed": "Integritätsprüfung bestanden",
+    "checkFailed": "Integritätsprüfung fehlgeschlagen",
+    "tamperWarning": "Warnung: Server-seitige Manipulation erkannt!",
+    "tamperDescription": "Deine Tresor-Daten wurden möglicherweise manipuliert. Einträge könnten ohne dein Wissen hinzugefügt, geändert oder gelöscht worden sein. Bitte überprüfe deinen Tresor-Inhalt sorgfältig.",
+    "baselineEstablished": "Integritäts-Baseline erstellt",
+    "itemCount": "{{count}} Einträge verifiziert",
+    "passkeyNote": "Integritätsprüfung ist für Passkey-Entsperrsitzungen nicht verfügbar."
   }
 }

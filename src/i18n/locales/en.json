@@ -53,14 +53,14 @@
     },
     "security": {
       "title": "Highest Security Standards",
-      "subtitle": "We use the same encryption standards as leading password managers.",
+      "subtitle": "We go beyond industry standard encryption - with post-quantum protection, duress passwords, and tamper detection.",
       "zeroKnowledge": {
         "title": "Zero-Knowledge Architecture",
         "description": "We can never see your passwords. Decryption happens only on your device."
       },
       "e2ee": {
         "title": "End-to-End Encryption",
-        "description": "AES-256-GCM encryption with Argon2id key derivation - industry standard."
+        "description": "AES-256-GCM encryption with Argon2id (128 MiB) key derivation - stronger than industry standard."
       },
       "openSource": {
         "title": "100% Open Source",
@@ -69,6 +69,22 @@
       "clientSide": {
         "title": "Client-Side Encryption",
         "description": "All data is encrypted BEFORE being sent to the server."
+      },
+      "postQuantum": {
+        "title": "Post-Quantum Encryption",
+        "description": "ML-KEM-768 + RSA-4096 hybrid encryption protects against future quantum computer attacks (NIST FIPS 203)."
+      },
+      "passkeyUnlock": {
+        "title": "Passkey Vault Unlock",
+        "description": "Unlock your vault with biometrics or a security key using the WebAuthn PRF extension - no password needed."
+      },
+      "duressPassword": {
+        "title": "Panic Password",
+        "description": "A secondary password opens a decoy vault with fake data - protection when forced to reveal your password."
+      },
+      "vaultIntegrity": {
+        "title": "Vault Integrity Verification",
+        "description": "Merkle-tree based tamper detection ensures no one has modified your vault data server-side."
       }
     },
     "features": {
@@ -107,16 +123,30 @@
       "community": "Join the community"
     },
     "comparison": {
+      "badge": "Honest Comparison",
       "title": "Why Singra PW?",
-      "subtitle": "Comparison with other password managers",
+      "subtitle": "A fact-based comparison with leading password managers. All data verified from official sources (Feb 2026).",
+      "featureLabel": "Feature",
       "features": {
         "openSource": "Open Source",
         "e2ee": "End-to-End Encryption",
         "zeroKnowledge": "Zero-Knowledge",
-        "free": "Free",
-        "selfHostable": "Self-Hostable",
-        "totp": "TOTP/2FA Support"
-      }
+        "free": "Free Tier Available",
+        "kdf": "Key Derivation (KDF)",
+        "postQuantum": "Post-Quantum Encryption",
+        "passkeyUnlock": "Passkey Vault Unlock",
+        "duressPassword": "Panic / Duress Password",
+        "vaultIntegrity": "Vault Integrity Check",
+        "clipboardClear": "Clipboard Auto-Clear",
+        "totp": "TOTP/2FA Authenticator",
+        "pricing": "Starting Price"
+      },
+      "legend": {
+        "full": "Full support",
+        "partial": "Partial / Premium only",
+        "unavailable": "Not available"
+      },
+      "disclaimer": "All information is based on publicly available documentation from the respective providers, verified in February 2026. Feature availability may change. Bitwarden: bitwarden.com/help | 1Password: 1password.com | LastPass: lastpass.com"
     },
     "pwa": {
       "badge": "Progressive Web App",
@@ -734,15 +764,22 @@
       "secure_notes": "Secure Notes",
       "external_2fa": "2FA with External App",
       "core_features": "All Core Features",
+      "argon2id_encryption": "Argon2id 128 MiB Encryption",
+      "clipboard_auto_clear": "Clipboard Auto-Clear (30s)",
+      "post_quantum": "Post-Quantum Encryption (ML-KEM-768)",
+      "duress_password": "Panic / Duress Password",
       "file_attachments": "1 GB File Attachments",
       "builtin_authenticator": "Built-in Authenticator",
       "emergency_access": "Emergency Access",
       "vault_health": "Vault Health Reports",
+      "passkey_unlock": "Passkey Vault Unlock (PRF)",
+      "vault_integrity": "Vault Integrity Verification",
       "priority_support": "Priority Support",
       "six_accounts": "6 Premium Accounts",
       "shared_collections": "Shared Collections",
       "family_organization": "Family Organization"
     },
+    "free_security_note": "AES-256-GCM + Argon2id included for all users",
     "legal_info": "All prices include VAT. Subscriptions renew automatically unless canceled before the end of the billing period.",
     "refund_info": "Refunds are handled individually through our support team.",
     "checkout_title": "Checkout",
@@ -876,5 +913,19 @@
     "changeSuccess": "Panic password changed",
     "changeSuccessDescription": "Your panic password has been updated.",
     "changeFailed": "Failed to change panic password"
+  },
+  "integrity": {
+    "title": "Vault Integrity",
+    "description": "Tamper detection for your vault data",
+    "verified": "Verified",
+    "unverified": "Not verified",
+    "checking": "Checking...",
+    "checkPassed": "Integrity check passed",
+    "checkFailed": "Integrity check failed",
+    "tamperWarning": "Warning: Server-side modification detected!",
+    "tamperDescription": "Your vault data may have been tampered with. Items may have been added, modified, or deleted without your knowledge. Please review your vault contents carefully.",
+    "baselineEstablished": "Integrity baseline established",
+    "itemCount": "{{count}} items verified",
+    "passkeyNote": "Integrity verification is not available for passkey unlock sessions."
   }
 }

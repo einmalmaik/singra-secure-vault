@@ -47,6 +47,14 @@ import {
     recordFailedAttempt,
     resetUnlockAttempts,
 } from '@/services/rateLimiterService';
+import {
+    deriveIntegrityKey,
+    verifyVaultIntegrity,
+    updateIntegrityRoot,
+    clearIntegrityRoot,
+    type VaultItemForIntegrity,
+    type IntegrityVerificationResult,
+} from '@/services/vaultIntegrityService';
 
 // Auto-lock timeout in milliseconds (default 15 minutes)
 const DEFAULT_AUTO_LOCK_TIMEOUT = 15 * 60 * 1000;
@@ -91,6 +99,27 @@ interface VaultContextType {
     // Settings
     autoLockTimeout: number;
     setAutoLockTimeout: (timeout: number) => void;
+
+    // Vault Integrity (tamper detection)
+    /**
+     * Verifies vault items against stored integrity root.
+     * Call this after loading vault items to detect server-side tampering.
+     * @returns Verification result with valid flag and details
+     */
+    verifyIntegrity: (items: VaultItemForIntegrity[]) => Promise<IntegrityVerificationResult | null>;
+    /**
+     * Updates the integrity root after vault modifications.
+     * Call this after creating, updating, or deleting vault items.
+     */
+    updateIntegrity: (items: VaultItemForIntegrity[]) => Promise<void>;
+    /**
+     * Whether integrity verification has been performed since unlock
+     */
+    integrityVerified: boolean;
+    /**
+     * Last integrity verification result (null if not yet verified)
+     */
+    lastIntegrityResult: IntegrityVerificationResult | null;
 }
 
 const VaultContext = createContext<VaultContextType | undefined>(undefined);
@@ -142,6 +171,10 @@ export function VaultProvider({ children }: VaultProviderProps) {
     // Duress (panic password) state
     const [isDuressMode, setIsDuressMode] = useState(false);
     const [duressConfig, setDuressConfig] = useState<DuressConfig | null>(null);
+    // Vault integrity state
+    const [integrityKey, setIntegrityKey] = useState<CryptoKey | null>(null);
+    const [integrityVerified, setIntegrityVerified] = useState(false);
+    const [lastIntegrityResult, setLastIntegrityResult] = useState<IntegrityVerificationResult | null>(null);
 
     const setAutoLockTimeout = (timeout: number) => {
         // Check for optional cookie consent
@@ -342,6 +375,14 @@ export function VaultProvider({ children }: VaultProviderProps) {
             setIsLocked(false);
             setLastActivity(Date.now());
 
+            // Derive integrity key for tamper detection
+            try {
+                const iKey = await deriveIntegrityKey(masterPassword, newSalt);
+                setIntegrityKey(iKey);
+            } catch {
+                console.warn('Failed to derive integrity key during setup');
+            }
+
             // Store session indicator in sessionStorage
             sessionStorage.setItem(SESSION_KEY, 'active');
             sessionStorage.setItem(SESSION_TIMESTAMP_KEY, Date.now().toString());
@@ -411,9 +452,11 @@ export function VaultProvider({ children }: VaultProviderProps) {
 
                 if (result.mode === 'duress') {
                     // Duress mode: user entered panic password
+                    // Note: No integrity key for duress mode (decoy vault)
                     setEncryptionKey(result.key);
                     setIsLocked(false);
                     setIsDuressMode(true);
+                    setIntegrityKey(null); // No integrity for duress
                     setLastActivity(Date.now());
 
                     // Store session indicator
@@ -468,6 +511,14 @@ export function VaultProvider({ children }: VaultProviderProps) {
                 setIsLocked(false);
                 setIsDuressMode(false);
                 setLastActivity(Date.now());
+
+                // Derive integrity key for tamper detection (real vault only)
+                try {
+                    const iKey = await deriveIntegrityKey(masterPassword, salt);
+                    setIntegrityKey(iKey);
+                } catch {
+                    console.warn('Failed to derive integrity key');
+                }
 
                 sessionStorage.setItem(SESSION_KEY, 'active');
                 sessionStorage.setItem(SESSION_TIMESTAMP_KEY, Date.now().toString());
@@ -535,6 +586,14 @@ export function VaultProvider({ children }: VaultProviderProps) {
             setIsDuressMode(false);
             setLastActivity(Date.now());
 
+            // Derive integrity key for tamper detection
+            try {
+                const iKey = await deriveIntegrityKey(masterPassword, salt);
+                setIntegrityKey(iKey);
+            } catch {
+                console.warn('Failed to derive integrity key');
+            }
+
             sessionStorage.setItem(SESSION_KEY, 'active');
             sessionStorage.setItem(SESSION_TIMESTAMP_KEY, Date.now().toString());
             setPendingSessionRestore(false);
@@ -592,6 +651,12 @@ export function VaultProvider({ children }: VaultProviderProps) {
             setIsDuressMode(false); // Passkey always unlocks real vault
             setLastActivity(Date.now());
 
+            // Note: Cannot derive integrity key during passkey unlock because
+            // we don't have access to the master password. Integrity verification
+            // is skipped for passkey-unlocked sessions. This is an acceptable
+            // trade-off since passkey unlock is already hardware-secured.
+            setIntegrityKey(null);
+
             // Store session indicator
             sessionStorage.setItem(SESSION_KEY, 'active');
             sessionStorage.setItem(SESSION_TIMESTAMP_KEY, Date.now().toString());
@@ -629,13 +694,64 @@ export function VaultProvider({ children }: VaultProviderProps) {
      */
     const lock = useCallback(() => {
         setEncryptionKey(null);
+        setIntegrityKey(null);
         setIsLocked(true);
         setIsDuressMode(false);
+        setIntegrityVerified(false);
+        setLastIntegrityResult(null);
         // Clear session data
         sessionStorage.removeItem(SESSION_KEY);
         sessionStorage.removeItem(SESSION_TIMESTAMP_KEY);
         setPendingSessionRestore(false);
     }, []);
+
+    /**
+     * Verifies vault items against stored integrity root.
+     * Detects server-side tampering (deleted/modified/added items).
+     */
+    const verifyIntegrity = useCallback(async (
+        items: VaultItemForIntegrity[]
+    ): Promise<IntegrityVerificationResult | null> => {
+        if (!user || !integrityKey) {
+            return null;
+        }
+
+        try {
+            const result = await verifyVaultIntegrity(items, integrityKey, user.id);
+            setIntegrityVerified(true);
+            setLastIntegrityResult(result);
+
+            if (!result.valid && !result.isFirstCheck) {
+                console.warn('Vault integrity check FAILED — possible tampering detected!');
+            } else if (result.isFirstCheck) {
+                // First check: establish baseline
+                await updateIntegrityRoot(items, integrityKey, user.id);
+                console.info('Vault integrity baseline established');
+            }
+
+            return result;
+        } catch (err) {
+            console.error('Vault integrity verification error:', err);
+            return null;
+        }
+    }, [user, integrityKey]);
+
+    /**
+     * Updates the integrity root after vault modifications.
+     */
+    const updateIntegrity = useCallback(async (
+        items: VaultItemForIntegrity[]
+    ): Promise<void> => {
+        if (!user || !integrityKey) {
+            return;
+        }
+
+        try {
+            await updateIntegrityRoot(items, integrityKey, user.id);
+        } catch (err) {
+            console.error('Failed to update integrity root:', err);
+        }
+    }, [user, integrityKey]);
 
     /**
      * Encrypts plaintext data
@@ -698,6 +814,10 @@ export function VaultProvider({ children }: VaultProviderProps) {
                 autoLockTimeout,
                 setAutoLockTimeout,
                 pendingSessionRestore,
+                verifyIntegrity,
+                updateIntegrity,
+                integrityVerified,
+                lastIntegrityResult,
             }}
         >
             {children}

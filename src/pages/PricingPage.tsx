@@ -15,6 +15,7 @@ import {
     Crown,
     Users,
     Zap,
+    Lock,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -32,14 +33,20 @@ const FREE_FEATURES = [
     'subscription.features.password_generator',
     'subscription.features.secure_notes',
     'subscription.features.external_2fa',
+    'subscription.features.argon2id_encryption',
+    'subscription.features.clipboard_auto_clear',
     'subscription.features.core_features',
 ];
 
 const PREMIUM_FEATURES = [
+    'subscription.features.post_quantum',
+    'subscription.features.duress_password',
     'subscription.features.file_attachments',
     'subscription.features.builtin_authenticator',
     'subscription.features.emergency_access',
     'subscription.features.vault_health',
+    'subscription.features.passkey_unlock',
+    'subscription.features.vault_integrity',
     'subscription.features.priority_support',
 ];
 
@@ -128,6 +135,10 @@ export default function PricingPage() {
                         <Button variant="outline" className="w-full" disabled={tier === 'free'}>
                             {tier === 'free' ? t('subscription.current_plan') : t('subscription.select_plan')}
                         </Button>
+                        <div className="mt-3 flex items-center gap-1.5 justify-center text-xs text-muted-foreground">
+                            <Lock className="w-3.5 h-3.5" />
+                            <span>{t('subscription.free_security_note')}</span>
+                        </div>
                     </div>
 
                     {/* PREMIUM */}

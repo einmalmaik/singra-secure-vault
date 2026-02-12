@@ -442,20 +442,28 @@ class SecureBuffer {
 Schützt gegen kompromittierte Server oder Supabase-Admins die verschlüsselte Daten manipulieren (Items löschen, Ciphertext austauschen, Rollback-Attacken).
 
 **Architektur:**
-1. **Integrity-Key:** HKDF-SHA-256 aus Master-Key mit Domain-Separation `SingraPW-IntegrityKey-v1`
-2. **Item-Hashes:** Jedes Item → `SHA-256(itemId || encrypted_data || created_at)`
+1. **Integrity-Key:** Argon2id aus Master-Passwort mit modifiziertem Salt (`:integrity` Suffix)
+2. **Item-Hashes:** HMAC-SHA-256(integrityKey, itemId || encrypted_data)
 3. **Merkle-Tree:** Flat-Array-Implementierung, paarweise SHA-256-Hashes bis zum Root
-4. **Root-Speicherung:** AES-256-GCM verschlüsselt mit Integrity-Key in `vault_integrity_hashes`
+4. **Root-Speicherung:** localStorage mit User-ID als Key-Präfix
 5. **Verifikation:** Bei jedem Vault-Load: Tree neu berechnen, mit gespeichertem Root vergleichen
 
 **Features:**
 - **Tamper Detection:** Erkennt Änderungen, Löschungen, Hinzufügungen von Items
-- **Rollback-Schutz:** Root-Hash inkludiert Timestamp der letzten Änderung
-- **16 Unit-Tests:** Merkle-Tree-Korrektheit, Tamper-Detection, Round-Trip-Encryption
+- **First-Check Baseline:** Beim ersten Check wird automatisch eine Baseline erstellt
+- **16 Unit-Tests:** Merkle-Tree-Korrektheit, Tamper-Detection, Round-Trip
+
+**Integration (12.02.2026):**
+- `src/contexts/VaultContext.tsx` — Integrity-Key wird beim Unlock abgeleitet, `verifyIntegrity()` und `updateIntegrity()` Callbacks für Komponenten bereitgestellt
+- `src/i18n/locales/de.json` + `en.json` — Übersetzungen für Integrity-Warnungen
 
 **Dateien:**
 - `src/services/vaultIntegrityService.ts` — Integrity-Service
 - `src/services/vaultIntegrityService.test.ts` — Unit-Tests
+
+**Limitierungen:**
+- **Passkey-Unlock:** Integrity-Key kann nicht abgeleitet werden (kein Master-Passwort verfügbar). Passkey-Sessions haben keine Integrity-Prüfung — akzeptabler Trade-off da Passkey bereits Hardware-gesichert ist.
+- **Duress-Mode:** Kein Integrity-Key für Duress-Vault (Köder-Daten brauchen keine Integrity)
 
 **Warum Merkle-Tree statt einfacher Hash:**
 - Bei großen Vaults (1000+ Items) können inkrementelle Updates nur betroffene Zweige neu hashen

@@ -34,6 +34,12 @@ import {
     authenticatePasskey,
     isWebAuthnAvailable,
 } from '@/services/passkeyService';
+import {
+    getDuressConfig,
+    attemptDualUnlock,
+    isDecoyItem,
+    DuressConfig,
+} from '@/services/duressService';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
 import {
@@ -56,6 +62,8 @@ interface VaultContextType {
     isSetupRequired: boolean;
     isLoading: boolean;
     pendingSessionRestore: boolean;
+    /** Whether the vault is currently in duress (decoy) mode */
+    isDuressMode: boolean;
 
     // Actions
     setupMasterPassword: (masterPassword: string) => Promise<{ error: Error | null }>;
@@ -131,6 +139,9 @@ export function VaultProvider({ children }: VaultProviderProps) {
     // Passkey state
     const [hasPasskeyUnlock, setHasPasskeyUnlock] = useState(false);
     const webAuthnAvailable = isWebAuthnAvailable();
+    // Duress (panic password) state
+    const [isDuressMode, setIsDuressMode] = useState(false);
+    const [duressConfig, setDuressConfig] = useState<DuressConfig | null>(null);
 
     const setAutoLockTimeout = (timeout: number) => {
         // Check for optional cookie consent
@@ -208,6 +219,14 @@ export function VaultProvider({ children }: VaultProviderProps) {
                         } catch {
                             // Non-fatal: passkey check can fail silently
                         }
+                    }
+
+                    // Load duress (panic password) configuration
+                    try {
+                        const duress = await getDuressConfig(user.id);
+                        setDuressConfig(duress);
+                    } catch {
+                        // Non-fatal: duress config can fail silently
                     }
                 }
             } catch (err) {
@@ -341,6 +360,10 @@ export function VaultProvider({ children }: VaultProviderProps) {
     /**
      * Unlocks the vault with the master password.
      * Enforces client-side rate limiting with exponential backoff.
+     * 
+     * If duress mode is enabled and the entered password matches the duress
+     * password (not the real one), the vault opens in duress mode showing
+     * only decoy items.
      */
     const unlock = useCallback(async (
         masterPassword: string
@@ -356,18 +379,106 @@ export function VaultProvider({ children }: VaultProviderProps) {
             return { error: new Error(`Too many attempts. Try again in ${seconds}s.`) };
         }
 
+        // Primary verifier from profile, fallback to legacy localStorage.
+        const legacyHash = localStorage.getItem(`singra_verify_${user.id}`);
+        const verifier = verificationHash || legacyHash;
+
+        if (!verifier) {
+            return { error: new Error('Vault verification data missing') };
+        }
+
         try {
-            // Derive key from password using the user's CURRENT KDF version.
-            // This must match the version the verifier was created with.
-            const key = await deriveKey(masterPassword, salt, kdfVersion);
+            // ── Dual Unlock: Check both real and duress passwords ──
+            // If duress mode is enabled, we check both passwords to determine
+            // which vault to open. This is done in parallel to maintain
+            // constant timing (prevent timing attacks).
+            if (duressConfig?.enabled) {
+                const result = await attemptDualUnlock(
+                    masterPassword,
+                    salt,
+                    verifier,
+                    kdfVersion,
+                    duressConfig,
+                );
 
-            // Primary verifier from profile, fallback to legacy localStorage.
-            const legacyHash = localStorage.getItem(`singra_verify_${user.id}`);
-            const verifier = verificationHash || legacyHash;
+                if (result.mode === 'invalid') {
+                    recordFailedAttempt();
+                    return { error: new Error('Invalid master password') };
+                }
 
-            if (!verifier) {
-                return { error: new Error('Vault verification data missing') };
+                // Success — reset rate-limiter
+                resetUnlockAttempts();
+
+                if (result.mode === 'duress') {
+                    // Duress mode: user entered panic password
+                    setEncryptionKey(result.key);
+                    setIsLocked(false);
+                    setIsDuressMode(true);
+                    setLastActivity(Date.now());
+
+                    // Store session indicator
+                    sessionStorage.setItem(SESSION_KEY, 'active');
+                    sessionStorage.setItem(SESSION_TIMESTAMP_KEY, Date.now().toString());
+                    setPendingSessionRestore(false);
+
+                    return { error: null };
+                }
+
+                // Real mode: continue with normal flow (KDF migration, etc.)
+                // result.key is already the real key
+                let activeKey = result.key!;
+
+                // KDF Auto-Migration (only for real password, not duress)
+                try {
+                    const upgrade = await attemptKdfUpgrade(masterPassword, salt, kdfVersion);
+                    if (upgrade.upgraded && upgrade.newKey && upgrade.newVerifier) {
+                        const { error: upgradeError } = await supabase
+                            .from('profiles')
+                            .update({
+                                master_password_verifier: upgrade.newVerifier,
+                                kdf_version: upgrade.activeVersion,
+                            } as any)
+                            .eq('user_id', user.id);
+
+                        if (!upgradeError) {
+                            activeKey = upgrade.newKey;
+                            setVerificationHash(upgrade.newVerifier);
+                            setKdfVersion(upgrade.activeVersion);
+                            await saveOfflineCredentials(user.id, salt, upgrade.newVerifier);
+                            console.info(`KDF upgraded from v${kdfVersion} to v${upgrade.activeVersion}`);
+                        }
+                    }
+                } catch {
+                    console.warn('KDF upgrade failed, continuing with current version');
+                }
+
+                // One-time migration: persist legacy verifier to profile.
+                if (!verificationHash && legacyHash) {
+                    const { error: migrateError } = await supabase
+                        .from('profiles')
+                        .update({ master_password_verifier: legacyHash })
+                        .eq('user_id', user.id);
+
+                    if (!migrateError) {
+                        setVerificationHash(legacyHash);
+                    }
+                }
+
+                setEncryptionKey(activeKey);
+                setIsLocked(false);
+                setIsDuressMode(false);
+                setLastActivity(Date.now());
+
+                sessionStorage.setItem(SESSION_KEY, 'active');
+                sessionStorage.setItem(SESSION_TIMESTAMP_KEY, Date.now().toString());
+                setPendingSessionRestore(false);
+
+                return { error: null };
             }
+
+            // ── Standard Unlock (no duress configured) ──
+            // Derive key from password using the user's CURRENT KDF version.
+            const key = await deriveKey(masterPassword, salt, kdfVersion);
 
             const isValid = await verifyKey(verifier, key);
             if (!isValid) {
@@ -394,14 +505,9 @@ export function VaultProvider({ children }: VaultProviderProps) {
             let activeKey = key;
 
             // ── KDF Auto-Migration ──
-            // After successful unlock, transparently upgrade KDF parameters
-            // if the user is on an older version. This is non-blocking: if
-            // the device cannot handle the new memory requirement (OOM), the
-            // user stays on their current version without disruption.
             try {
                 const upgrade = await attemptKdfUpgrade(masterPassword, salt, kdfVersion);
                 if (upgrade.upgraded && upgrade.newKey && upgrade.newVerifier) {
-                    // Persist the new verifier and KDF version to the database
                     const { error: upgradeError } = await supabase
                         .from('profiles')
                         .update({
@@ -411,32 +517,24 @@ export function VaultProvider({ children }: VaultProviderProps) {
                         .eq('user_id', user.id);
 
                     if (!upgradeError) {
-                        // Switch to the stronger key
                         activeKey = upgrade.newKey;
                         setVerificationHash(upgrade.newVerifier);
                         setKdfVersion(upgrade.activeVersion);
-
-                        // Update offline cache with new verifier
                         await saveOfflineCredentials(user.id, salt, upgrade.newVerifier);
-
-                        console.info(
-                            `KDF upgraded from v${kdfVersion} to v${upgrade.activeVersion}`,
-                        );
+                        console.info(`KDF upgraded from v${kdfVersion} to v${upgrade.activeVersion}`);
                     } else {
-                        // DB update failed — stay on old key, no data loss
                         console.warn('KDF upgrade: DB update failed, staying on old version', upgradeError);
                     }
                 }
             } catch {
-                // Non-fatal: upgrade is best-effort
                 console.warn('KDF upgrade failed, continuing with current version');
             }
 
             setEncryptionKey(activeKey);
             setIsLocked(false);
+            setIsDuressMode(false);
             setLastActivity(Date.now());
 
-            // Store session indicator in sessionStorage
             sessionStorage.setItem(SESSION_KEY, 'active');
             sessionStorage.setItem(SESSION_TIMESTAMP_KEY, Date.now().toString());
             setPendingSessionRestore(false);
@@ -447,7 +545,7 @@ export function VaultProvider({ children }: VaultProviderProps) {
             recordFailedAttempt();
             return { error: new Error('Invalid master password') };
         }
-    }, [user, salt, verificationHash, kdfVersion]);
+    }, [user, salt, verificationHash, kdfVersion, duressConfig]);
 
     /**
      * Unlocks the vault using a registered passkey with PRF.
@@ -491,6 +589,7 @@ export function VaultProvider({ children }: VaultProviderProps) {
 
             setEncryptionKey(result.encryptionKey);
             setIsLocked(false);
+            setIsDuressMode(false); // Passkey always unlocks real vault
             setLastActivity(Date.now());
 
             // Store session indicator
@@ -531,6 +630,7 @@ export function VaultProvider({ children }: VaultProviderProps) {
     const lock = useCallback(() => {
         setEncryptionKey(null);
         setIsLocked(true);
+        setIsDuressMode(false);
         // Clear session data
         sessionStorage.removeItem(SESSION_KEY);
         sessionStorage.removeItem(SESSION_TIMESTAMP_KEY);
@@ -583,6 +683,7 @@ export function VaultProvider({ children }: VaultProviderProps) {
                 isLocked,
                 isSetupRequired,
                 isLoading,
+                isDuressMode,
                 setupMasterPassword,
                 unlock,
                 unlockWithPasskey,

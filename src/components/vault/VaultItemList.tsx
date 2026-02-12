@@ -17,6 +17,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { VaultItemData } from '@/services/cryptoService';
 import { cn } from '@/lib/utils';
+import { isDecoyItem } from '@/services/duressService';
 import {
     isAppOnline,
     loadVaultSnapshot,
@@ -59,7 +60,7 @@ export function VaultItemList({
 }: VaultItemListProps) {
     const { t } = useTranslation();
     const { user } = useAuth();
-    const { decryptItem, encryptItem } = useVault();
+    const { decryptItem, encryptItem, isDuressMode } = useVault();
 
     const [items, setItems] = useState<VaultItem[]>([]);
     const [loading, setLoading] = useState(true);
@@ -179,6 +180,12 @@ export function VaultItemList({
                 ? item.decryptedData.isFavorite
                 : !!item.is_favorite;
 
+            // Duress mode filter: only show decoy items in duress mode, real items otherwise
+            // This is critical for plausible deniability — the filter happens AFTER decryption
+            const itemIsDecoy = item.decryptedData ? isDecoyItem(item.decryptedData) : false;
+            if (isDuressMode && !itemIsDecoy) return false;
+            if (!isDuressMode && itemIsDecoy) return false;
+
             // Category filter
             if (categoryId && resolvedCategoryId !== categoryId) return false;
 
@@ -201,7 +208,7 @@ export function VaultItemList({
 
             return true;
         });
-    }, [items, filter, categoryId, searchQuery]);
+    }, [items, filter, categoryId, searchQuery, isDuressMode]);
 
     if (loading || decrypting) {
         return (

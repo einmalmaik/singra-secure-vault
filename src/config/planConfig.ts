@@ -74,7 +74,9 @@ export type FeatureName =
     | 'vault_health_reports'
     | 'priority_support'
     | 'family_members'
-    | 'shared_collections';
+    | 'shared_collections'
+    | 'post_quantum_encryption'
+    | 'duress_password';
 
 export const FEATURE_MATRIX: Record<FeatureName, Record<SubscriptionTier, boolean>> = {
     unlimited_passwords: { free: true, premium: true, families: true },
@@ -89,6 +91,8 @@ export const FEATURE_MATRIX: Record<FeatureName, Record<SubscriptionTier, boolea
     priority_support: { free: false, premium: true, families: true },
     family_members: { free: false, premium: false, families: true },
     shared_collections: { free: false, premium: false, families: true },
+    post_quantum_encryption: { free: false, premium: true, families: true },
+    duress_password: { free: false, premium: true, families: true },
 };
 
 /** Minimum tier required for a feature */

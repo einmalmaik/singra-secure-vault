@@ -68,6 +68,7 @@ import { CategoryDialog } from './CategoryDialog';
 import { QRScanner } from './QRScanner';
 import { FileAttachments } from './FileAttachments';
 import { cn } from '@/lib/utils';
+import { markAsDecoyItem } from '@/services/duressService';
 import {
     buildVaultItemRowFromInsert,
     enqueueOfflineMutation,
@@ -124,7 +125,7 @@ export function VaultItemDialog({ open, onOpenChange, itemId, onSave, initialTyp
     const { t } = useTranslation();
     const { toast } = useToast();
     const { user } = useAuth();
-    const { encryptItem, decryptItem, encryptData, decryptData } = useVault();
+    const { encryptItem, decryptItem, encryptData, decryptData, isDuressMode } = useVault();
 
     const [itemType, setItemType] = useState<'password' | 'note' | 'totp'>(initialType);
     const [showPassword, setShowPassword] = useState(false);
@@ -344,8 +345,8 @@ export function VaultItemDialog({ open, onOpenChange, itemId, onSave, initialTyp
                 vaultId = newVault.id;
             }
 
-            // Encrypt sensitive data
-            const encryptedData = await encryptItem({
+            // Prepare item data
+            const itemDataToEncrypt = {
                 title: data.title,
                 websiteUrl: normalizeUrl(data.url) || undefined,
                 itemType,
@@ -355,7 +356,15 @@ export function VaultItemDialog({ open, onOpenChange, itemId, onSave, initialTyp
                 password: data.password,
                 notes: data.notes,
                 totpSecret: data.totpSecret,
-            });
+            };
+
+            // If in duress mode, mark as decoy item (internal marker inside encrypted data)
+            const finalItemData = isDuressMode
+                ? markAsDecoyItem(itemDataToEncrypt)
+                : itemDataToEncrypt;
+
+            // Encrypt sensitive data
+            const encryptedData = await encryptItem(finalItemData);
 
             const targetItemId = itemId ?? crypto.randomUUID();
             const itemData = {

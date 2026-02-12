@@ -1,4 +1,11 @@
 import { supabase } from "@/integrations/supabase/client";
+import { 
+    generatePQKeyPair, 
+    hybridEncrypt, 
+    hybridDecrypt,
+    isHybridEncrypted,
+    PQKeyPair 
+} from './pqCryptoService';
 
 export interface EmergencyAccess {
     id: string;
@@ -12,6 +19,9 @@ export interface EmergencyAccess {
     created_at: string;
     trustee_public_key: string | null;
     encrypted_master_key: string | null;
+    // Post-quantum fields
+    trustee_pq_public_key?: string | null;
+    pq_encrypted_master_key?: string | null;
     grantor?: {
         display_name: string | null;
         avatar_url: string | null;
@@ -36,7 +46,7 @@ export const emergencyAccessService = {
 
         if (error) throw error;
 
-        const rows = (data || []) as EmergencyAccess[];
+        const rows = (data || []) as unknown as EmergencyAccess[];
         const trustedIds = Array.from(new Set(rows.map(r => r.trusted_user_id).filter(Boolean))) as string[];
 
         let profileMap = new Map<string, { display_name: string | null; avatar_url: string | null }>();
@@ -71,7 +81,7 @@ export const emergencyAccessService = {
 
         if (error) throw error;
 
-        const rows = (data || []) as EmergencyAccess[];
+        const rows = (data || []) as unknown as EmergencyAccess[];
         const grantorIds = Array.from(new Set(rows.map(r => r.grantor_id).filter(Boolean))) as string[];
 
         let profileMap = new Map<string, { display_name: string | null; avatar_url: string | null }>();
@@ -192,5 +202,109 @@ export const emergencyAccessService = {
 
         if (error) throw error;
         return data as unknown as EmergencyAccess;
-    }
+    },
+
+    // ============ Post-Quantum Encryption Methods ============
+
+    /**
+     * Accept invitation with post-quantum keys (as trustee).
+     * Generates both RSA and ML-KEM-768 keys for hybrid encryption.
+     * 
+     * @param accessId - Emergency access record ID
+     * @param rsaPublicKeyJwk - RSA-4096 public key (JWK string)
+     * @param pqPublicKey - ML-KEM-768 public key (base64)
+     * @returns Updated EmergencyAccess record
+     */
+    async acceptInviteWithPQ(
+        accessId: string, 
+        rsaPublicKeyJwk: string,
+        pqPublicKey: string
+    ) {
+        const { data: userData } = await supabase.auth.getUser();
+        if (!userData.user) throw new Error("Not authenticated");
+
+        const { data, error } = await supabase
+            .from('emergency_access')
+            .update({
+                status: 'accepted',
+                trusted_user_id: userData.user.id,
+                trustee_public_key: rsaPublicKeyJwk,
+                trustee_pq_public_key: pqPublicKey
+            } as any)
+            .eq('id', accessId)
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data as unknown as EmergencyAccess;
+    },
+
+    /**
+     * Set encrypted master key with hybrid encryption (as grantor).
+     * Uses both RSA-4096 and ML-KEM-768 for quantum-resistant encryption.
+     * 
+     * @param accessId - Emergency access record ID
+     * @param masterKey - Raw master key to encrypt
+     * @param trusteePqPublicKey - Trustee's ML-KEM-768 public key (base64)
+     * @param trusteeRsaPublicKey - Trustee's RSA-4096 public key (JWK string)
+     */
+    async setHybridEncryptedMasterKey(
+        accessId: string,
+        masterKey: string,
+        trusteePqPublicKey: string,
+        trusteeRsaPublicKey: string
+    ) {
+        // Encrypt with hybrid scheme (ML-KEM-768 + RSA-4096)
+        const hybridCiphertext = await hybridEncrypt(
+            masterKey,
+            trusteePqPublicKey,
+            trusteeRsaPublicKey
+        );
+
+        const { error } = await supabase
+            .from('emergency_access')
+            .update({
+                pq_encrypted_master_key: hybridCiphertext,
+                updated_at: new Date().toISOString()
+            } as any)
+            .eq('id', accessId);
+
+        if (error) throw error;
+    },
+
+    /**
+     * Decrypt master key using hybrid decryption (as trustee).
+     * Requires both RSA and ML-KEM-768 private keys.
+     * 
+     * @param pqEncryptedMasterKey - Hybrid encrypted master key
+     * @param pqSecretKey - Trustee's ML-KEM-768 secret key (base64)
+     * @param rsaPrivateKey - Trustee's RSA-4096 private key (JWK string)
+     * @returns Decrypted master key
+     */
+    async decryptHybridMasterKey(
+        pqEncryptedMasterKey: string,
+        pqSecretKey: string,
+        rsaPrivateKey: string
+    ): Promise<string> {
+        return hybridDecrypt(
+            pqEncryptedMasterKey,
+            pqSecretKey,
+            rsaPrivateKey
+        );
+    },
+
+    /**
+     * Check if an emergency access record uses post-quantum encryption.
+     * 
+     * @param access - EmergencyAccess record
+     * @returns true if PQ encryption is enabled
+     */
+    hasPQEncryption(access: EmergencyAccess): boolean {
+        return !!(access.trustee_pq_public_key && access.pq_encrypted_master_key);
+    },
+
+    /**
+     * Check if a ciphertext uses hybrid encryption format.
+     */
+    isHybridEncrypted
 };

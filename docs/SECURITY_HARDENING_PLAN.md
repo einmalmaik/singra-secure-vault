@@ -464,50 +464,135 @@ Schützt gegen kompromittierte Server oder Supabase-Admins die verschlüsselte D
 
 ---
 
-## Phase 5: Zukunftssicherung (langfristig)
+## Phase 5: Zukunftssicherung (langfristig) — ✅ KOMPLETT (12.02.2026)
 
-### 5.1 Post-Quantum-Hybridverschlüsselung
+### 5.1 Post-Quantum-Hybridverschlüsselung — ✅ ERLEDIGT
 
-**Warum:** "Harvest now, decrypt later" — Geheimdienste und Angreifer können heute verschlüsselte Daten sammeln und warten bis Quantum-Computer RSA-4096 brechen können. NIST hat im August 2024 ML-KEM (Kyber) als FIPS 203 standardisiert.
+**Implementierung (12.02.2026):**
 
-**Betrifft:**
-- Emergency Access: RSA-4096 Verschlüsselung des Master-Keys (`src/services/cryptoService.ts:292-367`)
-- Shared Collections: RSA-4096 Key-Wrapping (`src/services/cryptoService.ts:380-504`)
+Schützt gegen "Harvest now, decrypt later" Angriffe mit ML-KEM-768 + RSA-4096 Hybrid-Verschlüsselung.
 
-**Plan:** Hybrides Schema einführen:
-```
-encryptedData = ML-KEM-768(plaintext) || RSA-OAEP-4096(plaintext)
-```
-Beide Verschlüsselungen unabhängig. Zur Entschlüsselung reicht eine (Fallback falls PQ-Library Probleme macht). Der Empfänger speichert beide Key-Paare.
-
-**Library-Optionen:** `@noble/post-quantum` (JavaScript-native ML-KEM), `liboqs` (WASM-Wrapper)
-
-**Signalwirkung:** "Erster Post-Quantum-ready Passwort-Manager aus Deutschland"
-
----
-
-### 5.2 Panic/Duress-Passwort
-
-**Warum:** Schutz bei physischer Bedrohung oder Erpressung (Grenzkontrollen, Zwang). Plausible Deniability.
+**Library:** `@noble/post-quantum` (Paul Miller's noble-Serie)
+- FIPS 203 konform (ML-KEM, nicht altes Kyber)
+- Auditierbar, pure TypeScript, ~16KB gzipped
+- Hybrid-Support eingebaut
 
 **Architektur:**
-1. User setzt ein zweites "Duress-Passwort"
-2. Dieses leitet einen separaten Argon2id-Key ab (eigener Salt)
-3. Damit werden 0-5 Dummy-Items verschlüsselt (konfigurierbar)
-4. Bei Eingabe des Duress-PW: Vault öffnet sich normal, zeigt aber nur Dummy-Items
-5. Optional: Stille Benachrichtigung an Notfallkontakt
+```
+Format: version(1) || pq_ciphertext(1088) || rsa_ciphertext(512) || iv(12) || aes_ciphertext(variable)
 
-**Anforderung:** Von außen DARF nicht erkennbar sein ob das echte oder das Duress-PW eingegeben wurde. Gleiche UI, gleiche Timing-Charakteristik, gleiche Anzahl DB-Queries.
+Version 0x01: Legacy RSA-only (Rückwärtskompatibilität)
+Version 0x02: Hybrid ML-KEM-768 + RSA-4096
+```
+
+**Encryption Flow (v2):**
+1. Generiere zufälligen AES-256-Key (32 bytes)
+2. Encapsulate mit ML-KEM-768 → `(ct_pq, ss_pq)`
+3. Encrypt AES-Key mit RSA-OAEP → `ct_rsa`
+4. XOR: `combined_key = aes_key XOR pq_shared_secret`
+5. Encrypt plaintext mit combined_key via AES-256-GCM
+6. Speichere: `0x02 || ct_pq || ct_rsa || iv || aes_ct`
+
+**Sicherheitsgarantien:**
+- **Dual-Layer:** Beide Algorithmen müssen kompromittiert werden
+- **Rückwärtskompatibel:** Legacy v1 (RSA-only) wird weiterhin entschlüsselt
+- **Automatische Migration:** `migrateToHybrid()` re-encryptet legacy data
+
+**Feature-Gating:**
+- `post_quantum_encryption` in FEATURE_MATRIX
+- Verfügbar für: Premium, Families
+- Nicht verfügbar für: Free
+
+**Dateien:**
+- `src/services/pqCryptoService.ts` — Hybrid-Encryption-Service
+- `src/services/pqCryptoService.test.ts` — 15 Unit-Tests
+- `src/services/emergencyAccessService.ts` — PQ-Integration
+- `src/services/collectionService.ts` — PQ-Integration
+- `src/components/settings/PostQuantumSettings.tsx` — UI-Komponente
+- `src/config/planConfig.ts` — Feature-Flag
+- `supabase/migrations/20260212004634_add_post_quantum_keys.sql` — DB-Schema
+
+**DB-Schema:**
+```sql
+-- profiles
+pq_public_key TEXT,            -- ML-KEM-768 public key (base64, 1184 bytes)
+pq_encrypted_private_key TEXT, -- Encrypted with master password (salt:ciphertext)
+pq_key_version INTEGER         -- NULL=keine PQ-Keys, 1=ML-KEM-768
+
+-- emergency_access
+trustee_pq_public_key TEXT,    -- Trustee's ML-KEM-768 public key
+pq_encrypted_master_key TEXT   -- Hybrid-encrypted master key
+
+-- collection_keys
+pq_wrapped_key TEXT            -- Hybrid-wrapped collection key
+```
+
+**i18n:** 26 neue Keys in DE + EN (`postQuantum.*`)
 
 ---
 
-### 5.3 OPAQUE-Protokoll für Server-Auth (Langfrist-Vision)
+### 5.2 Panic/Duress-Passwort — ✅ KOMPLETT (12.02.2026)
+
+**Implementierung (12.02.2026):**
+
+Schützt vor Zwangspreisgabe des Passworts (Grenzkontrollen, Bedrohungen). Bei Eingabe des Panik-Passworts öffnet sich ein Köder-Tresor mit Dummy-Einträgen.
+
+**Architektur:**
+```
+Duress-Passwort → eigener Salt → eigener Argon2id-Key
+                                          ↓
+                              Köder-Items (markiert mit _duress: true)
+```
+
+**Feature-Gating:**
+- `duress_password` in FEATURE_MATRIX
+- Verfügbar für: Premium, Families
+- Nicht verfügbar für: Free
+
+**Dateien:**
+- `src/services/duressService.ts` — **NEU** — Duress-Kryptographie und Hilfsfunktionen
+- `src/services/__tests__/duressService.test.ts` — **NEU** — 16 Unit-Tests
+- `src/components/settings/DuressSettings.tsx` — **NEU** — UI-Komponente (inkl. Default-Decoy-Item-Erstellung)
+- `src/components/settings/SecuritySettings.tsx` — Aktualisiert für DuressSettings
+- `src/contexts/VaultContext.tsx` — Aktualisiert für Dual-Unlock mit `isDuressMode` State
+- `src/components/vault/VaultItemList.tsx` — Aktualisiert: Filtert Items basierend auf `isDuressMode`
+- `src/components/vault/VaultItemDialog.tsx` — Aktualisiert: Markiert neue Items im Duress-Modus automatisch
+- `src/services/cryptoService.ts` — `VaultItemData` Interface erweitert um `_duress?: boolean`
+- `src/config/planConfig.ts` — Feature-Flag hinzugefügt
+- `supabase/migrations/20260212_add_duress_password_columns.sql` — **NEU** — DB-Schema
+
+**DB-Schema:**
+```sql
+ALTER TABLE profiles ADD COLUMN duress_salt TEXT;
+ALTER TABLE profiles ADD COLUMN duress_password_verifier TEXT;
+ALTER TABLE profiles ADD COLUMN duress_kdf_version INTEGER;
+```
+
+**Sicherheitsgarantien:**
+- **Konstante Zeit**: Beide Passwörter werden parallel abgeleitet (verhindert Timing-Angriffe)
+- **Kein Observable**: Unlock-UI zeigt keinen Unterschied zwischen echtem und Duress-Modus
+- **Separate Kryptographie**: Duress-Passwort hat eigenen Salt, eigenen Verifier
+- **Plausible Deniability**: Spalten mit vagen Kommentaren ("Optional secondary salt")
+- **Passkey**: Passkey-Unlock öffnet IMMER den echten Tresor (kein Duress über Passkey)
+- **Automatische Decoy-Items**: Beim Setup werden 3 Standard-Köder-Items erstellt
+- **UI-Filterung**: VaultItemList filtert Items nach `_duress` Marker
+- **Neue Items im Duress-Modus**: Werden automatisch mit `_duress: true` markiert
+
+**i18n:** 52 neue Keys in DE + EN (`duress.*`)
+
+---
+
+### 5.3 OPAQUE-Protokoll für Server-Auth (Langfrist-Vision) — ❌ ZURÜCKGESTELLT
+
+**Status:** Zurückgestellt für zukünftige Versionen.
 
 **Warum:** Aktuell wird das Supabase-Auth-Passwort (für Login) getrennt vom Master-Passwort verwaltet. Mit OPAQUE könnte das Master-Passwort gleichzeitig zur Server-Authentifizierung UND zur Vault-Verschlüsselung genutzt werden — ohne dass der Server jemals das Passwort sieht (auch nicht als Hash).
 
 **Status:** OPAQUE ist noch kein IETF-Standard (Draft), aber bereits in der Praxis bei Signal und WhatsApp im Einsatz.
 
 **Komplexität:** Hoch. Erfordert Server-seitige Änderungen (nicht nur Edge Functions).
+
+**Entscheidung:** Phase 5 gilt als abgeschlossen. OPAQUE bleibt als Langfrist-Vision dokumentiert, wird aber nicht aktiv verfolgt.
 
 ---
 
@@ -519,16 +604,16 @@ Beide Verschlüsselungen unabhängig. Zur Entschlüsselung reicht eine (Fallback
 | **Phase 2** | 1 Woche | Härtung auf Branchenniveau | 6 Fixes (Rate-Limit, Atomare Rotation, Salt-Hashing, Metadaten, Wortliste, CORS) |
 | **Phase 3** | 1-2 Wochen | KDF-Stärkung + Auto-Migration | 2 Features (128 MiB Argon2id, Version-Migration) |
 | **Phase 4** | 2-4 Wochen | Über Branchenstandard | 3 Features (WebAuthn PRF ✅, SecureBuffer ✅, Integrity ✅) |
-| **Phase 5** | Langfristig | Zukunftssicherung | 3 Features (Post-Quantum, Duress-PW, OPAQUE) |
+| **Phase 5** | Langfristig | Zukunftssicherung | 2 Features (Post-Quantum ✅, Duress-PW ✅) |
 
 ### Vergleich nach Umsetzung
 
 | Feature | Bitwarden Free | 1Password | SingraPW (nach Plan) |
 |---|---|---|---|
 | KDF | PBKDF2 (default) | PBKDF2 650k | Argon2id 128 MiB |
-| Post-Quantum | Nein | Nein | Hybrid ML-KEM-768 + RSA-4096 |
+| Post-Quantum | Nein | Nein | ✅ Hybrid ML-KEM-768 + RSA-4096 |
 | Hardware-Key Unlock | Nur Premium | Ja | ✅ Ja (WebAuthn PRF) |
-| Duress-Passwort | Nein | Nein | Ja |
+| Duress-Passwort | Nein | Nein | ✅ Ja (Premium) |
 | Vault-Integrity | Nein | Nein | Merkle-Tree |
 | Clipboard-Auto-Clear | 30s | 60s | 30s |
 | Memory-Schutz | Basic | Basic | SecureBuffer + auto-zero |

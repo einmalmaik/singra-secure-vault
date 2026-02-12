@@ -404,6 +404,8 @@ export interface VaultItemData {
     notes?: string;
     totpSecret?: string;
     customFields?: Record<string, string>;
+    /** Internal marker for duress/decoy items (never exposed to UI) */
+    _duress?: boolean;
 }
 
 /**

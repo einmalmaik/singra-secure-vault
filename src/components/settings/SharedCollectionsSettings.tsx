@@ -30,8 +30,9 @@ export function SharedCollectionsSettings() {
     setLoading(true);
     try {
       setItems(await getSharedCollections(user.id));
-    } catch (e: any) {
-      toast({ variant: 'destructive', title: t('common.error'), description: e?.message || 'Failed to load collections.' });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Failed to load collections.';
+      toast({ variant: 'destructive', title: t('common.error'), description: msg });
     } finally {
       setLoading(false);
     }
@@ -39,6 +40,7 @@ export function SharedCollectionsSettings() {
 
   useEffect(() => {
     load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
   const onCreate = async () => {
@@ -49,8 +51,9 @@ export function SharedCollectionsSettings() {
       setName('');
       await load();
       toast({ title: t('common.success'), description: t('settings.sharedCollections.created', { defaultValue: 'Collection created.' }) });
-    } catch (e: any) {
-      toast({ variant: 'destructive', title: t('common.error'), description: e?.message || t('settings.sharedCollections.createError', { defaultValue: 'Failed to create collection.' }) });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : t('settings.sharedCollections.createError', { defaultValue: 'Failed to create collection.' });
+      toast({ variant: 'destructive', title: t('common.error'), description: msg });
     } finally {
       setSaving(false);
     }
@@ -61,8 +64,9 @@ export function SharedCollectionsSettings() {
       await deleteSharedCollection(id);
       await load();
       toast({ title: t('common.success'), description: t('settings.sharedCollections.deleted', { defaultValue: 'Collection deleted.' }) });
-    } catch (e: any) {
-      toast({ variant: 'destructive', title: t('common.error'), description: e?.message || t('settings.sharedCollections.deleteError', { defaultValue: 'Failed to delete collection.' }) });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : t('settings.sharedCollections.deleteError', { defaultValue: 'Failed to delete collection.' });
+      toast({ variant: 'destructive', title: t('common.error'), description: msg });
     }
   };
 

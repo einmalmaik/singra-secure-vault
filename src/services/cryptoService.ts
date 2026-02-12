@@ -144,7 +144,7 @@ export async function importMasterKey(
 ): Promise<CryptoKey> {
     return crypto.subtle.importKey(
         'raw',
-        keyBytes as any, // Cast to any to avoid TS BufferSource mismatch
+        keyBytes as BufferSource, // BufferSource type for importKey
         { name: 'AES-GCM', length: 256 },
         false, // not extractable
         ['encrypt', 'decrypt']

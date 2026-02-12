@@ -93,6 +93,7 @@ export function QRScanner({ onScan, onClose, className }: QRScannerProps) {
 
     useEffect(() => {
         startCamera();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // Restart scanning if prop changes (not ideal, but keeps it simple)

@@ -27,8 +27,9 @@ export function FamilyOrganizationSettings() {
     setLoading(true);
     try {
       setMembers(await getFamilyMembers(user.id));
-    } catch (e: any) {
-      toast({ variant: 'destructive', title: t('common.error'), description: e?.message || 'Failed to load family members.' });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Failed to load family members.';
+      toast({ variant: 'destructive', title: t('common.error'), description: msg });
     } finally {
       setLoading(false);
     }
@@ -36,6 +37,7 @@ export function FamilyOrganizationSettings() {
 
   useEffect(() => {
     load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
   const onInvite = async () => {
@@ -46,8 +48,9 @@ export function FamilyOrganizationSettings() {
       setEmail('');
       toast({ title: t('common.success'), description: t('settings.family.inviteSent', { defaultValue: 'Invitation sent.' }) });
       await load();
-    } catch (e: any) {
-      toast({ variant: 'destructive', title: t('common.error'), description: e?.message || t('settings.family.inviteError', { defaultValue: 'Failed to invite family member.' }) });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : t('settings.family.inviteError', { defaultValue: 'Failed to invite family member.' });
+      toast({ variant: 'destructive', title: t('common.error'), description: msg });
     } finally {
       setSaving(false);
     }
@@ -58,8 +61,9 @@ export function FamilyOrganizationSettings() {
       await removeFamilyMember(id);
       await load();
       toast({ title: t('common.success'), description: t('settings.family.removed', { defaultValue: 'Family member removed.' }) });
-    } catch (e: any) {
-      toast({ variant: 'destructive', title: t('common.error'), description: e?.message || t('settings.family.removeError', { defaultValue: 'Failed to remove family member.' }) });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : t('settings.family.removeError', { defaultValue: 'Failed to remove family member.' });
+      toast({ variant: 'destructive', title: t('common.error'), description: msg });
     }
   };
 

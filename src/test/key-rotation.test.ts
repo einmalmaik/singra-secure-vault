@@ -11,6 +11,9 @@ import { createClient } from "@supabase/supabase-js";
  * 
  * This test verifies that for any set of TOTP secrets encrypted with key A,
  * rotating to key B and then decrypting with key B returns the original values.
+ * 
+ * Real auth.users are created via the Admin API to satisfy the foreign key
+ * constraint on user_2fa.user_id -> auth.users(id).
  */
 
 // Create a Supabase client with service role for testing
@@ -42,12 +45,18 @@ const hexKeyArbitrary = fc
   })
   .map((nums) => nums.map((n) => n.toString(16)).join(""));
 
+// Maximum number of test users needed (matches maxLength of secrets array)
+const MAX_TEST_USERS = 10;
+
 // Store original key for restoration
 let originalKey: string | null = null;
 
+// Pre-created test user IDs (real auth.users entries)
+const testUserIds: string[] = [];
+
 describe("2FA Key Rotation Property Tests", () => {
   beforeAll(async () => {
-    // Store the original encryption key
+    // 1. Store the original encryption key
     const { data, error } = await supabase.rpc("get_totp_encryption_key");
     
     if (error) {
@@ -59,16 +68,35 @@ describe("2FA Key Rotation Property Tests", () => {
     
     originalKey = data;
     expect(originalKey).toBeTruthy();
-  });
+
+    // 2. Create real test users in auth.users to satisfy FK constraints
+    for (let i = 0; i < MAX_TEST_USERS; i++) {
+      const email = `test-keyrot-${Date.now()}-${i}@example.com`;
+      const { data: userData, error: userError } = await supabase.auth.admin.createUser({
+        email,
+        password: "TestKeyRotation123!@#",
+        email_confirm: true,
+      });
+
+      if (userError || !userData.user) {
+        throw new Error(`Failed to create test user ${i}: ${userError?.message}`);
+      }
+
+      testUserIds.push(userData.user.id);
+    }
+
+    expect(testUserIds.length).toBe(MAX_TEST_USERS);
+  }, 60000); // 60s timeout for user creation
 
   afterAll(async () => {
-    // Restore the original encryption key after all tests
+    // 1. Clean up user_2fa records for all test users
+    if (testUserIds.length > 0) {
+      await supabase.from("user_2fa").delete().in("user_id", testUserIds);
+    }
+
+    // 2. Restore original encryption key
     if (originalKey) {
       try {
-        // Clean up any test users first
-        await supabase.from("user_2fa").delete().like("user_id", "00000000-0000-0000-0000-%");
-        
-        // Restore original key using the rotate function
         await supabase.rpc("rotate_totp_encryption_key", {
           p_new_key: originalKey,
         });
@@ -76,41 +104,48 @@ describe("2FA Key Rotation Property Tests", () => {
         console.error("Failed to restore original key:", error);
       }
     }
-  });
+
+    // 3. Delete test users from auth.users
+    for (const userId of testUserIds) {
+      try {
+        await supabase.auth.admin.deleteUser(userId);
+      } catch {
+        // Best-effort cleanup
+      }
+    }
+  }, 30000);
 
   it("should preserve all secrets through key rotation (100+ iterations)", async () => {
     await fc.assert(
       fc.asyncProperty(
-        fc.array(base32StringArbitrary, { minLength: 1, maxLength: 10 }),
+        fc.array(base32StringArbitrary, { minLength: 1, maxLength: MAX_TEST_USERS }),
         hexKeyArbitrary,
         async (totpSecrets, newKey) => {
-          // Generate unique test user IDs for this iteration
-          const testUserIds = totpSecrets.map((_, index) => 
-            `00000000-0000-0000-0000-${String(index).padStart(12, "0")}`
-          );
+          // Use pre-created real user IDs (sliced to match secrets count)
+          const userIds = testUserIds.slice(0, totpSecrets.length);
 
           try {
-            // Step 1: Clean up any existing test data
+            // Step 1: Clean up any existing 2FA data for these users
             await supabase
               .from("user_2fa")
               .delete()
-              .in("user_id", testUserIds);
+              .in("user_id", userIds);
 
             // Step 2: Encrypt secrets with current key (key A)
             const encryptedSecrets: string[] = [];
             for (const secret of totpSecrets) {
-              const { data: encrypted, error } = await supabase.rpc(
+              const { data: encrypted, error: encErr } = await supabase.rpc(
                 "user_2fa_encrypt_secret",
                 { _secret: secret }
               );
               
-              expect(error).toBeNull();
+              expect(encErr).toBeNull();
               expect(encrypted).toBeTruthy();
               encryptedSecrets.push(encrypted as string);
             }
 
-            // Step 3: Insert test users with encrypted secrets
-            const insertData = testUserIds.map((userId, index) => ({
+            // Step 3: Insert 2FA records for real users
+            const insertData = userIds.map((userId, index) => ({
               user_id: userId,
               totp_secret_enc: encryptedSecrets[index],
               is_enabled: true,
@@ -129,14 +164,15 @@ describe("2FA Key Rotation Property Tests", () => {
             );
 
             expect(rotateError).toBeNull();
-            expect(rotatedCount).toBe(totpSecrets.length);
+            // rotatedCount >= totpSecrets.length (may be more if other rows exist)
+            expect(rotatedCount).toBeGreaterThanOrEqual(totpSecrets.length);
 
             // Step 5: Decrypt all secrets with new key and verify
             for (let i = 0; i < totpSecrets.length; i++) {
               const { data: userRecord, error: fetchError } = await supabase
                 .from("user_2fa")
                 .select("totp_secret_enc")
-                .eq("user_id", testUserIds[i])
+                .eq("user_id", userIds[i])
                 .single();
 
               expect(fetchError).toBeNull();
@@ -160,11 +196,11 @@ describe("2FA Key Rotation Property Tests", () => {
               });
             }
           } finally {
-            // Clean up test data
+            // Clean up 2FA data for this iteration
             await supabase
               .from("user_2fa")
               .delete()
-              .in("user_id", testUserIds);
+              .in("user_id", userIds);
           }
         }
       ),
@@ -177,7 +213,7 @@ describe("2FA Key Rotation Property Tests", () => {
 
   it("should handle single secret rotation correctly", async () => {
     const testSecret = "JBSWY3DPEHPK3PXP"; // Example Base32 TOTP secret
-    const testUserId = "00000000-0000-0000-0000-999999999999";
+    const testUserId = testUserIds[0]; // Use first pre-created real user
     const newKey = "a".repeat(64); // Simple test key
 
     try {
@@ -193,7 +229,7 @@ describe("2FA Key Rotation Property Tests", () => {
       expect(encryptError).toBeNull();
       expect(encrypted).toBeTruthy();
 
-      // Insert test user
+      // Insert 2FA record for real user
       const { error: insertError } = await supabase.from("user_2fa").insert({
         user_id: testUserId,
         totp_secret_enc: encrypted,
@@ -209,7 +245,7 @@ describe("2FA Key Rotation Property Tests", () => {
       );
 
       expect(rotateError).toBeNull();
-      expect(rotatedCount).toBe(1);
+      expect(rotatedCount).toBeGreaterThanOrEqual(1);
 
       // Fetch and decrypt with new key
       const { data: userRecord } = await supabase

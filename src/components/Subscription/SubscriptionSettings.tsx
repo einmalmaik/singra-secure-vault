@@ -38,24 +38,6 @@ export function SubscriptionSettings() {
     const [cancelError, setCancelError] = useState<string | null>(null);
     const [portalLoading, setPortalLoading] = useState(false);
 
-    if (billingDisabled) return null;
-
-    const tierIcon = {
-        free: <Shield className="w-5 h-5 text-primary" />,
-        premium: <Crown className="w-5 h-5 text-yellow-500" />,
-        families: <Users className="w-5 h-5 text-blue-500" />,
-    }[tier];
-
-    const tierLabel = tier.toUpperCase();
-
-    const formattedEnd = currentPeriodEnd
-        ? new Date(currentPeriodEnd).toLocaleDateString('de-DE', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-        })
-        : null;
-
     const handlePortal = useCallback(async () => {
         setPortalLoading(true);
         try {
@@ -81,12 +63,30 @@ export function SubscriptionSettings() {
             } else {
                 setCancelError(result.error || t('subscription.cancel_error'));
             }
-        } catch (err) {
+        } catch {
             setCancelError(t('subscription.cancel_error'));
         } finally {
             setCancelling(false);
         }
     }, [refresh, t]);
+
+    if (billingDisabled) return null;
+
+    const tierIcon = {
+        free: <Shield className="w-5 h-5 text-primary" />,
+        premium: <Crown className="w-5 h-5 text-yellow-500" />,
+        families: <Users className="w-5 h-5 text-blue-500" />,
+    }[tier];
+
+    const tierLabel = tier.toUpperCase();
+
+    const formattedEnd = currentPeriodEnd
+        ? new Date(currentPeriodEnd).toLocaleDateString('de-DE', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+        })
+        : null;
 
     return (
         <div className="space-y-4">

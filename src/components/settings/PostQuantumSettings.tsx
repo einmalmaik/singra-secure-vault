@@ -51,9 +51,9 @@ export function PostQuantumSettings() {
 
                 if (error) throw error;
 
-                const profile = data as any;
+                const profile = data as unknown as Record<string, unknown>;
                 setPqEnabled(!!profile?.pq_public_key);
-                setPqKeyVersion(profile?.pq_key_version || null);
+                setPqKeyVersion((profile?.pq_key_version as number) || null);
             } catch (err) {
                 console.error('Failed to load PQ status:', err);
             } finally {
@@ -101,7 +101,7 @@ export function PostQuantumSettings() {
                     pq_public_key: pqKeys.publicKey,
                     pq_encrypted_private_key: encryptedPrivateKeyWithSalt,
                     pq_key_version: 1,
-                } as any)
+                } as Record<string, unknown>)
                 .eq('user_id', user.id);
 
             if (error) throw error;

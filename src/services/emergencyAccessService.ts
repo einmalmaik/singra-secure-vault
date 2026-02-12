@@ -7,6 +7,12 @@ import {
     PQKeyPair 
 } from './pqCryptoService';
 
+interface ProfileRow {
+    user_id: string;
+    display_name: string | null;
+    avatar_url: string | null;
+}
+
 export interface EmergencyAccess {
     id: string;
     grantor_id: string;
@@ -56,7 +62,7 @@ export const emergencyAccessService = {
                 .select('user_id, display_name, avatar_url')
                 .in('user_id', trustedIds);
 
-            profileMap = new Map((profiles || []).map((p: any) => [p.user_id, {
+            profileMap = new Map(((profiles || []) as ProfileRow[]).map((p) => [p.user_id, {
                 display_name: p.display_name,
                 avatar_url: p.avatar_url,
             }]));
@@ -91,7 +97,7 @@ export const emergencyAccessService = {
                 .select('user_id, display_name, avatar_url')
                 .in('user_id', grantorIds);
 
-            profileMap = new Map((profiles || []).map((p: any) => [p.user_id, {
+            profileMap = new Map(((profiles || []) as ProfileRow[]).map((p) => [p.user_id, {
                 display_name: p.display_name,
                 avatar_url: p.avatar_url,
             }]));
@@ -230,7 +236,7 @@ export const emergencyAccessService = {
                 trusted_user_id: userData.user.id,
                 trustee_public_key: rsaPublicKeyJwk,
                 trustee_pq_public_key: pqPublicKey
-            } as any)
+            } as Record<string, unknown>)
             .eq('id', accessId)
             .select()
             .single();
@@ -266,7 +272,7 @@ export const emergencyAccessService = {
             .update({
                 pq_encrypted_master_key: hybridCiphertext,
                 updated_at: new Date().toISOString()
-            } as any)
+            } as Record<string, unknown>)
             .eq('id', accessId);
 
         if (error) throw error;

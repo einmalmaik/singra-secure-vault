@@ -178,7 +178,7 @@ export async function setupDuressPassword(
                 duress_salt: duressSalt,
                 duress_password_verifier: duressVerifier,
                 duress_kdf_version: CURRENT_KDF_VERSION,
-            } as any)
+            } as Record<string, unknown>)
             .eq('user_id', userId);
 
         if (updateError) {
@@ -283,7 +283,7 @@ export async function disableDuressMode(userId: string): Promise<{ success: bool
                 duress_salt: null,
                 duress_password_verifier: null,
                 duress_kdf_version: null,
-            } as any)
+            } as Record<string, unknown>)
             .eq('user_id', userId);
 
         if (error) {
@@ -360,7 +360,7 @@ export async function changeDuressPassword(
                 duress_salt: newSalt,
                 duress_password_verifier: newVerifier,
                 duress_kdf_version: CURRENT_KDF_VERSION,
-            } as any)
+            } as Record<string, unknown>)
             .eq('user_id', userId);
 
         if (updateError) {

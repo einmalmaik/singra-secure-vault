@@ -28,12 +28,12 @@ describe('duressService', () => {
 
         it('should return false for items with _duress set to false', () => {
             const item = { title: 'Test', password: 'secret', _duress: false };
-            expect(isDecoyItem(item as any)).toBe(false);
+            expect(isDecoyItem(item as unknown as ReturnType<typeof markAsDecoyItem>)).toBe(false);
         });
 
         it('should return false for items with _duress set to non-boolean', () => {
             const item = { title: 'Test', password: 'secret', _duress: 'yes' };
-            expect(isDecoyItem(item as any)).toBe(false);
+            expect(isDecoyItem(item as unknown as ReturnType<typeof markAsDecoyItem>)).toBe(false);
         });
     });
 
@@ -159,7 +159,7 @@ describe('duressService', () => {
             expect(isDecoyItem(marked)).toBe(true);
 
             const stripped = stripDecoyMarker(marked);
-            expect(isDecoyItem(stripped as any)).toBe(false);
+            expect(isDecoyItem(stripped as unknown as ReturnType<typeof markAsDecoyItem>)).toBe(false);
 
             // All original fields should be preserved
             expect(stripped.title).toBe(original.title);

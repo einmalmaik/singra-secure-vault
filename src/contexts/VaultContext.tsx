@@ -242,12 +242,13 @@ export function VaultProvider({ children }: VaultProviderProps) {
                     // Check if user has passkeys with PRF for vault unlock
                     if (webAuthnAvailable) {
                         try {
-                            const { data: passkeys } = await supabase
-                                .from('passkey_credentials' as any)
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- passkey_credentials not in generated Supabase types
+                            const { data: passkeys } = await (supabase as any)
+                                .from('passkey_credentials')
                                 .select('id')
                                 .eq('user_id', user.id)
                                 .eq('prf_enabled', true)
-                                .limit(1) as any;
+                                .limit(1) as { data: Record<string, unknown>[] | null };
                             setHasPasskeyUnlock(passkeys && passkeys.length > 0);
                         } catch {
                             // Non-fatal: passkey check can fail silently
@@ -296,6 +297,7 @@ export function VaultProvider({ children }: VaultProviderProps) {
         }, 10000); // Check every 10 seconds
 
         return () => clearInterval(checkInactivity);
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- lock is defined later via useCallback with stable identity
     }, [isLocked, encryptionKey, lastActivity, autoLockTimeout]);
 
     // Track user activity
@@ -359,7 +361,7 @@ export function VaultProvider({ children }: VaultProviderProps) {
                     encryption_salt: newSalt,
                     master_password_verifier: verifyHash,
                     kdf_version: CURRENT_KDF_VERSION,
-                } as any)
+                } as Record<string, unknown>)
                 .eq('user_id', user.id);
 
             if (updateError) {
@@ -480,7 +482,7 @@ export function VaultProvider({ children }: VaultProviderProps) {
                             .update({
                                 master_password_verifier: upgrade.newVerifier,
                                 kdf_version: upgrade.activeVersion,
-                            } as any)
+                            } as Record<string, unknown>)
                             .eq('user_id', user.id);
 
                         if (!upgradeError) {
@@ -564,7 +566,7 @@ export function VaultProvider({ children }: VaultProviderProps) {
                         .update({
                             master_password_verifier: upgrade.newVerifier,
                             kdf_version: upgrade.activeVersion,
-                        } as any)
+                        } as Record<string, unknown>)
                         .eq('user_id', user.id);
 
                     if (!upgradeError) {
@@ -828,6 +830,7 @@ export function VaultProvider({ children }: VaultProviderProps) {
 /**
  * Hook to access vault context
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export function useVault() {
     const context = useContext(VaultContext);
     if (context === undefined) {

@@ -80,6 +80,7 @@ export default function GrantorVaultPage() {
         }
 
         fetchAndDecryptItems();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [state, navigate, t]);
 
     const fetchAndDecryptItems = async () => {

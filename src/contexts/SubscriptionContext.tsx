@@ -119,6 +119,7 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
 /**
  * Hook to access subscription context
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export function useSubscription() {
     const context = useContext(SubscriptionContext);
     if (context === undefined) {

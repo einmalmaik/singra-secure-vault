@@ -27,7 +27,7 @@ Deno.serve(async (req: Request) => {
         from: "Singra <noreply@mauntingstudios.de>",
         to: [to],
         subject: "Singra Test-Mail ✅",
-        html: `<div style=\"font-family:Arial,sans-serif\"><h2>Test erfolgreich</h2><p>Diese Testmail wurde über die neue Edge Function mit Resend versendet.</p></div>`,
+        html: `<div style="font-family:Arial,sans-serif"><h2>Test erfolgreich</h2><p>Diese Testmail wurde über die neue Edge Function mit Resend versendet.</p></div>`,
       }),
     });
 
@@ -44,8 +44,9 @@ Deno.serve(async (req: Request) => {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (err: any) {
-    return new Response(JSON.stringify({ error: err?.message || "Internal server error" }), {
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Internal server error";
+    return new Response(JSON.stringify({ error: message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

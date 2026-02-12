@@ -59,7 +59,7 @@ export interface AuditLogEntry {
     collection_id: string;
     user_id: string | null;
     action: string;
-    details: any;
+    details: Record<string, unknown> | null;
     created_at: string;
 }
 
@@ -156,7 +156,7 @@ export async function getAllCollections(): Promise<SharedCollection[]> {
     }));
     
     const member = (memberCollections || []).map(m => ({
-        ...(m.shared_collections as any),
+        ...(m.shared_collections as Record<string, unknown>),
         is_owner: false,
         user_permission: m.permission,
     }));
@@ -300,7 +300,7 @@ export async function getCollectionMembers(collectionId: string): Promise<Collec
     return (data || []).map(m => ({
         id: m.id,
         user_id: m.user_id,
-        email: (m.profiles as any).email,
+        email: (m.profiles as unknown as { email: string }).email,
         permission: m.permission as 'view' | 'edit',
         created_at: m.created_at,
     }));
@@ -615,14 +615,14 @@ export async function createCollectionWithHybridKey(
         const rsaWrappedKey = await wrapKey(sharedKey, rsaPublicKey);
         
         // 5. Store both wrapped keys
-        const { error: keyError } = await (supabase as any)
+        const { error: keyError } = await supabase
             .from('collection_keys')
             .insert({
                 collection_id: collection.id,
                 user_id: user.id,
                 wrapped_key: rsaWrappedKey,
                 pq_wrapped_key: hybridWrappedKey,
-            });
+            } as Record<string, unknown>);
         
         if (keyError) throw keyError;
         
@@ -664,12 +664,12 @@ export async function addMemberWithHybridKey(
     if (!user) throw new Error('Not authenticated');
     
     // 1. Load owner's wrapped keys
-    const { data: ownerKey, error: keyError } = await (supabase as any)
+    const { data: ownerKey, error: keyError } = await supabase
         .from('collection_keys')
         .select('wrapped_key, pq_wrapped_key')
         .eq('collection_id', collectionId)
         .eq('user_id', user.id)
-        .single();
+        .single() as { data: { wrapped_key: string; pq_wrapped_key: string | null } | null; error: unknown };
     
     if (keyError || !ownerKey) throw new Error('Collection key not found');
     
@@ -701,14 +701,14 @@ export async function addMemberWithHybridKey(
     if (memberError) throw memberError;
     
     // 5. Store wrapped keys for member
-    const { error: memberKeyError } = await (supabase as any)
+    const { error: memberKeyError } = await supabase
         .from('collection_keys')
         .insert({
             collection_id: collectionId,
             user_id: userId,
             wrapped_key: rsaWrappedKey,
             pq_wrapped_key: hybridWrappedKey,
-        });
+        } as Record<string, unknown>);
     
     if (memberKeyError) {
         // Rollback
@@ -731,12 +731,12 @@ export async function collectionUsesPQ(collectionId: string): Promise<boolean> {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return false;
     
-    const { data: keyData } = await (supabase as any)
+    const { data: keyData } = await supabase
         .from('collection_keys')
         .select('pq_wrapped_key')
         .eq('collection_id', collectionId)
         .eq('user_id', user.id)
-        .single();
+        .single() as { data: { pq_wrapped_key: string | null } | null };
     
     return !!(keyData?.pq_wrapped_key && isHybridEncrypted(keyData.pq_wrapped_key));
 }

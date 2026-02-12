@@ -94,6 +94,7 @@ export function TwoFactorSettings() {
         if (user?.id) {
             loadStatus();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user?.id]);
 
     const loadStatus = async () => {

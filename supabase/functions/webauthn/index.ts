@@ -24,6 +24,10 @@ import {
     verifyAuthenticationResponse,
 } from "jsr:@simplewebauthn/server";
 import { isoBase64URL } from "jsr:@simplewebauthn/server/helpers";
+import type {
+    RegistrationResponseJSON,
+    AuthenticationResponseJSON,
+} from "jsr:@simplewebauthn/server";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { corsHeaders } from "../_shared/cors.ts";
 
@@ -211,7 +215,7 @@ async function handleVerifyRegistration(
     try {
         // Verify the registration response
         const verification = await verifyRegistrationResponse({
-            response: credential as any,
+            response: credential as RegistrationResponseJSON,
             expectedChallenge: storedChallenge.challenge,
             expectedOrigin: rp.origin,
             expectedRPID: rp.rpID,
@@ -273,7 +277,7 @@ async function handleGenerateAuthenticationOptions(
         return jsonResponse({ error: "No passkeys registered" }, 404);
     }
 
-    const allowCredentials = credentials.map((c: any) => ({
+    const allowCredentials = credentials.map((c: { credential_id: string; transports?: string[]; prf_salt?: string; prf_enabled?: boolean }) => ({
         id: c.credential_id,
         transports: c.transports || undefined,
     }));
@@ -355,11 +359,19 @@ async function handleVerifyAuthentication(
         return jsonResponse({ error: "Credential not found" }, 400);
     }
 
-    const dbCredential = dbCredentials[0] as any;
+    const dbCredential = dbCredentials[0] as {
+        id: string;
+        credential_id: string;
+        public_key: string;
+        counter: number;
+        transports?: string[];
+        wrapped_master_key?: string;
+        prf_enabled?: boolean;
+    };
 
     try {
         const verification = await verifyAuthenticationResponse({
-            response: credential as any,
+            response: credential as AuthenticationResponseJSON,
             expectedChallenge: storedChallenge.challenge,
             expectedOrigin: rp.origin,
             expectedRPID: rp.rpID,

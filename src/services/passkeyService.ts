@@ -39,6 +39,64 @@ import type {
 import { supabase } from '@/integrations/supabase/client';
 import { importMasterKey } from '@/services/cryptoService';
 
+// ============ WebAuthn PRF Extension Types ============
+// PRF is a WebAuthn Level 3 extension not yet reflected in
+// @simplewebauthn's vendored DOM types, so we define the shapes locally.
+
+/** PRF eval input (salt buffers sent to the authenticator). */
+interface PrfEvalInput {
+    first: ArrayBuffer;
+    second?: ArrayBuffer;
+}
+
+/** PRF extension input passed via `extensions.prf`. */
+interface PrfExtensionInput {
+    eval?: PrfEvalInput;
+    evalByCredential?: Record<string, PrfEvalInput>;
+}
+
+/** PRF eval output (raw PRF results returned by the authenticator). */
+interface PrfEvalOutput {
+    first: ArrayBuffer;
+    second?: ArrayBuffer;
+}
+
+/** PRF extension output returned in `clientExtensionResults.prf`. */
+interface PrfExtensionOutput {
+    enabled?: boolean;
+    results?: PrfEvalOutput;
+}
+
+/** Extended client extension inputs including the PRF extension. */
+interface ExtensionsWithPrf extends AuthenticationExtensionsClientInputs {
+    prf?: PrfExtensionInput;
+}
+
+/** Extended client extension outputs including the PRF extension. */
+interface ClientExtensionOutputsWithPrf extends AuthenticationExtensionsClientOutputs {
+    prf?: PrfExtensionOutput;
+}
+
+/** Options JSON with PRF-aware extensions for registration. */
+interface CreationOptionsWithPrf extends Omit<PublicKeyCredentialCreationOptionsJSON, 'extensions'> {
+    extensions?: ExtensionsWithPrf;
+}
+
+/** Options JSON with PRF-aware extensions for authentication. */
+interface RequestOptionsWithPrf extends Omit<PublicKeyCredentialRequestOptionsJSON, 'extensions'> {
+    extensions?: ExtensionsWithPrf;
+}
+
+/** Response JSON with PRF-aware clientExtensionResults. */
+interface RegistrationResponseWithPrf extends Omit<RegistrationResponseJSON, 'clientExtensionResults'> {
+    clientExtensionResults: ClientExtensionOutputsWithPrf;
+}
+
+/** Response JSON with PRF-aware clientExtensionResults. */
+interface AuthenticationResponseWithPrf extends Omit<AuthenticationResponseJSON, 'clientExtensionResults'> {
+    clientExtensionResults: ClientExtensionOutputsWithPrf;
+}
+
 // ============ Constants ============
 
 /**
@@ -121,28 +179,29 @@ export async function registerPasskey(
     // 3. Call startRegistration with PRF extension injected
     let regResponse: RegistrationResponseJSON;
     try {
-        regResponse = await startRegistration({
-            optionsJSON: {
-                ...options,
-                extensions: {
-                    ...((options as any).extensions || {}),
-                    prf: {
-                        eval: {
-                            first: prfSaltBytes,
-                        },
+        const optionsWithPrf: CreationOptionsWithPrf = {
+            ...options,
+            extensions: {
+                ...(options.extensions || {}),
+                prf: {
+                    eval: {
+                        first: prfSaltBytes,
                     },
                 },
-            } as any,
+            },
+        };
+        regResponse = await startRegistration({
+            optionsJSON: optionsWithPrf as PublicKeyCredentialCreationOptionsJSON,
         });
-    } catch (err: any) {
-        if (err.name === 'NotAllowedError') {
+    } catch (err: unknown) {
+        if (err instanceof Error && err.name === 'NotAllowedError') {
             return { success: false, error: 'CANCELLED' };
         }
-        return { success: false, error: err.message || 'Registration failed' };
+        return { success: false, error: err instanceof Error ? err.message : 'Registration failed' };
     }
 
     // 4. Check if PRF is supported by this authenticator
-    const clientExtResults = (regResponse as any).clientExtensionResults;
+    const clientExtResults = (regResponse as unknown as RegistrationResponseWithPrf).clientExtensionResults;
     const prfEnabled = clientExtResults?.prf?.enabled === true;
 
     let wrappedMasterKey: string | null = null;
@@ -218,20 +277,21 @@ export async function activatePasskeyPrf(
     // 2. Call startAuthentication with PRF
     let authResponse: AuthenticationResponseJSON;
     try {
+        const optionsWithPrf: RequestOptionsWithPrf = {
+            ...options,
+            extensions: {
+                ...(options.extensions || {}),
+                prf: Object.keys(prfExtension).length > 0 ? prfExtension : undefined,
+            },
+        };
         authResponse = await startAuthentication({
-            optionsJSON: {
-                ...options,
-                extensions: {
-                    ...((options as any).extensions || {}),
-                    prf: Object.keys(prfExtension).length > 0 ? prfExtension : undefined,
-                },
-            } as any,
+            optionsJSON: optionsWithPrf as PublicKeyCredentialRequestOptionsJSON,
         });
-    } catch (err: any) {
-        if (err.name === 'NotAllowedError') {
+    } catch (err: unknown) {
+        if (err instanceof Error && err.name === 'NotAllowedError') {
             return { success: false, error: 'CANCELLED' };
         }
-        return { success: false, error: err.message || 'Authentication failed' };
+        return { success: false, error: err instanceof Error ? err.message : 'Authentication failed' };
     }
 
     // 3. Verify on server
@@ -244,7 +304,7 @@ export async function activatePasskeyPrf(
     }
 
     // 4. Extract PRF output and wrap the key
-    const clientExtResults = (authResponse as any).clientExtensionResults;
+    const clientExtResults = (authResponse as unknown as AuthenticationResponseWithPrf).clientExtensionResults;
     const prfResults = clientExtResults?.prf?.results;
 
     if (!prfResults?.first) {
@@ -256,9 +316,10 @@ export async function activatePasskeyPrf(
         const wrappedKey = await encryptRawKeyBytes(rawKeyBytes, prfOutput);
 
         // 5. Update the credential with the wrapped key
-        const { error: updateError } = await supabase
-            .from('passkey_credentials' as any)
-            .update({ wrapped_master_key: wrappedKey } as any)
+        // passkey_credentials is not in generated Supabase types yet
+        const { error: updateError } = await (supabase as unknown as { from(table: string): { update(values: Record<string, unknown>): { eq(column: string, value: string): PromiseLike<{ error: Error | null }> } } })
+            .from('passkey_credentials')
+            .update({ wrapped_master_key: wrappedKey })
             .eq('credential_id', verifyData.credentialId);
 
         if (updateError) {
@@ -298,20 +359,21 @@ export async function authenticatePasskey(): Promise<PasskeyAuthenticationResult
     // 3. Call startAuthentication with PRF extension
     let authResponse: AuthenticationResponseJSON;
     try {
+        const optionsWithPrf: RequestOptionsWithPrf = {
+            ...options,
+            extensions: {
+                ...(options.extensions || {}),
+                prf: Object.keys(prfExtension).length > 0 ? prfExtension : undefined,
+            },
+        };
         authResponse = await startAuthentication({
-            optionsJSON: {
-                ...options,
-                extensions: {
-                    ...((options as any).extensions || {}),
-                    prf: Object.keys(prfExtension).length > 0 ? prfExtension : undefined,
-                },
-            } as any,
+            optionsJSON: optionsWithPrf as PublicKeyCredentialRequestOptionsJSON,
         });
-    } catch (err: any) {
-        if (err.name === 'NotAllowedError') {
+    } catch (err: unknown) {
+        if (err instanceof Error && err.name === 'NotAllowedError') {
             return { success: false, error: 'CANCELLED' };
         }
-        return { success: false, error: err.message || 'Authentication failed' };
+        return { success: false, error: err instanceof Error ? err.message : 'Authentication failed' };
     }
 
     // 4. Verify authentication on the server
@@ -327,7 +389,7 @@ export async function authenticatePasskey(): Promise<PasskeyAuthenticationResult
     }
 
     // 5. Extract PRF output and unwrap the encryption key
-    const clientExtResults = (authResponse as any).clientExtensionResults;
+    const clientExtResults = (authResponse as unknown as AuthenticationResponseWithPrf).clientExtensionResults;
     const prfResults = clientExtResults?.prf?.results;
 
     if (!prfResults?.first || !verifyData.wrappedMasterKey) {
@@ -359,7 +421,7 @@ export async function authenticatePasskey(): Promise<PasskeyAuthenticationResult
             prfEnabled: true,
             credentialId: verifyData.credentialId,
         };
-    } catch (err: any) {
+    } catch (err: unknown) {
         console.error('Failed to unwrap encryption key:', err);
         return { success: false, error: 'Key unwrapping failed — passkey data may be corrupted' };
     } finally {

@@ -111,6 +111,7 @@ export default function EmergencyAccessSettings() {
         if (user && !isLocked) {
             fetchData();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user, isLocked]);
 
     const fetchData = async () => {
@@ -279,7 +280,7 @@ export default function EmergencyAccessSettings() {
 
             // We store the key in customFields or notes.
             // Using VaultItemData structure derived from cryptoService
-            const itemData: any = { // Type 'any' used to bypass strict VaultItemData check if defining customFields inline
+            const itemData: Record<string, unknown> = {
                 title: itemTitle,
                 itemType: 'note',
                 notes: `Emergency Access Key for access ID: ${invite.id}. \n\nDO NOT DELETE THIS ITEM manually unless you want to revoke your ability to access their vault.`,
@@ -306,10 +307,9 @@ export default function EmergencyAccessSettings() {
                 updated_at: new Date().toISOString()
             };
 
-            // @ts-ignore - Types compatibility issues between generated types and manual usage
+            // @ts-expect-error - Types compatibility issues between generated types and manual usage
             await upsertOfflineItemRow(user.id, buildVaultItemRowFromInsert(rowInsert));
 
-            // @ts-ignore
             await enqueueOfflineMutation({
                 userId: user.id,
                 type: 'upsert_item',

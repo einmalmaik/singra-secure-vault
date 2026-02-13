@@ -10,7 +10,7 @@ import { Helmet } from 'react-helmet-async';
 
 const SITE_NAME = 'Singra PW';
 const BASE_URL = 'https://singrapw.mauntingstudios.de';
-const DEFAULT_OG_IMAGE = '/og-image.png';
+const DEFAULT_OG_IMAGE = '/singra-icon.png';
 
 interface SEOProps {
     /** Page title (will be appended with site name) */

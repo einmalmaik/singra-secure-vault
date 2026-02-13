@@ -26,18 +26,28 @@ vi.mock("@/hooks/use-toast", () => ({
   useToast: () => ({ toast: mockToast }),
 }));
 
+const mockUser = { id: "user-1" };
 vi.mock("@/contexts/AuthContext", () => ({
   useAuth: () => ({
-    user: { id: "user-1" },
+    // Keep object identity stable across renders. FileAttachments
+    // depends on `user` in a useCallback/useEffect chain.
+    user: mockUser,
   }),
 }));
 
+const mockEncryptItem = vi.fn();
+const mockDecryptItem = vi.fn();
+const mockEncryptData = vi.fn();
+const mockDecryptData = vi.fn();
+
 vi.mock("@/contexts/VaultContext", () => ({
   useVault: () => ({
-    encryptItem: vi.fn(),
-    decryptItem: vi.fn(),
-    encryptData: vi.fn(),
-    decryptData: vi.fn(),
+    // Keep function identities stable across renders. FileAttachments
+    // depends on decryptData in a useCallback/useEffect chain.
+    encryptItem: mockEncryptItem,
+    decryptItem: mockDecryptItem,
+    encryptData: mockEncryptData,
+    decryptData: mockDecryptData,
   }),
 }));
 
@@ -116,10 +126,10 @@ describe("FileAttachments", () => {
 
     render(<FileAttachments vaultItemId="item-1" />);
 
-    await waitFor(() => {
-      expect(screen.getByText("document.pdf")).toBeInTheDocument();
-      expect(screen.getByText("photo.jpg")).toBeInTheDocument();
-    });
+    // In the full test suite this can be slightly delayed due to
+    // overall runtime load, so we allow a bit more time here.
+    expect(await screen.findByText("document.pdf", {}, { timeout: 3000 })).toBeInTheDocument();
+    expect(await screen.findByText("photo.jpg", {}, { timeout: 3000 })).toBeInTheDocument();
   });
 
   it("should call getAttachments and getStorageUsage on mount", async () => {

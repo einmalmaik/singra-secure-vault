@@ -31,6 +31,7 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 import { CookieConsent } from "./components/CookieConsent";
 import Impressum from "./pages/Impressum";
 import GrantorVaultPage from "./pages/GrantorVaultPage";
+import SecurityWhitepaper from "./pages/SecurityWhitepaper";
 
 const queryClient = new QueryClient();
 
@@ -54,6 +55,7 @@ const App = () => (
                   <Route path="/vault-health" element={<VaultHealthPage />} />
                   <Route path="/authenticator" element={<AuthenticatorPage />} />
                   <Route path="/vault/emergency/:id" element={<GrantorVaultPage />} />
+                  <Route path="/security" element={<SecurityWhitepaper />} />
                   <Route path="/privacy" element={<PrivacyPolicy />} />
                   <Route path="/impressum" element={<Impressum />} />
                   {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

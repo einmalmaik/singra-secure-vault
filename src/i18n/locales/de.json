@@ -204,13 +204,162 @@
     "footer": {
       "tagline": "Deine Passwörter. Deine Kontrolle.",
       "security": "Sicherheit",
+      "securityWhitepaper": "Security Whitepaper",
       "docs": "Dokumentation",
+      "linksHeading": "Links",
       "github": "GitHub",
       "privacy": "Datenschutz",
+      "legalHeading": "Rechtliches",
       "imprint": "Impressum",
       "cookies": "Cookie-Einstellungen",
       "copyright": "Â© {{year}} Singra PW. Open Source unter MIT Lizenz."
     }
+  },
+  "securityWhitepaper": {
+    "title": "Security Whitepaper",
+    "subtitle": "Faktenbasierte Beschreibung der Sicherheitsarchitektur – direkt aus dem Code und den DB-Policies abgeleitet.",
+    "disclaimer": "Hinweis: Diese Seite beschreibt die Implementierung (Code) – kein externes Audit. 100% Sicherheit gibt es nicht, aber wir dokumentieren transparent, was wir tun und was nicht.",
+    "privacyLink": "Datenschutz ansehen",
+    "searchPlaceholder": "Abschnitte durchsuchen (z.B. Argon2id, RLS, Integrity)…",
+    "clearFilters": "Filter zurücksetzen",
+    "evidenceTitle": "Belege im Repository",
+    "badges": {
+      "limitation": "Limitierung"
+    },
+    "tags": {
+      "crypto": "Krypto",
+      "client": "Client",
+      "rls": "RLS",
+      "storage": "Storage",
+      "sharing": "Sharing",
+      "offline": "Offline",
+      "integrity": "Integrity",
+      "hardening": "Hardening",
+      "limitations": "Grenzen"
+    },
+    "quickFacts": {
+      "title": "Kurzfakten",
+      "subtitle": "Was du sofort wissen solltest",
+      "items": [
+        "Tresor-Inhalte werden clientseitig verschlüsselt, bevor sie gespeichert/gesendet werden.",
+        "Key Derivation: Argon2id mit KDF-Versionen v1 (64 MiB) und v2 (128 MiB).",
+        "AES-GCM CryptoKeys sind nicht-extrahierbar; Roh-Bytes werden nach Import best-effort genullt.",
+        "RLS ist auf allen relevanten Tabellen aktiv; Policies beschränken Zugriff auf auth.uid()."
+      ]
+    },
+    "sections": {
+      "zeroKnowledge": {
+        "title": "Zero-Knowledge (Vault Items)",
+        "summary": "Sensitiver Inhalt liegt serverseitig als Ciphertext vor; Entschlüsselung findet im Client statt.",
+        "bullets": [
+          "Vault Items werden als encrypted_data gespeichert; Titel/URL-Metadaten werden bewusst nicht im Klartext gespeichert (Platzhalter + null).",
+          "Import/Erstellen verschlüsselt Daten vor dem DB-Write; der Server sieht dabei nie den Klartext der Tresor-Einträge.",
+          "Hinweis: Einige strukturelle Metadaten (z.B. Kategorien/Tags/Namen von Collections) sind weiterhin Klartext-DB-Felder."
+        ]
+      },
+      "cryptography": {
+        "title": "Kryptografie & KDF",
+        "summary": "AES-256-GCM für Daten; Argon2id für Key Derivation; KDF wird bei Bedarf auf stärkere Parameter migriert.",
+        "bullets": [
+          "AES-GCM: 96-bit IV, 128-bit Auth-Tag; Output-Format ist base64(IV || ciphertext || tag).",
+          "KDF-Versionen sind fest: v1 = 64 MiB, v2 = 128 MiB (Argon2id).",
+          "KDF Auto-Migration nach erfolgreichem Unlock: Upgrade kann bei OOM übersprungen werden (gerätetauglich)."
+        ]
+      },
+      "memory": {
+        "title": "Keys & Memory-Clearing",
+        "summary": "Best-effort: Roh-Key-Bytes werden genullt; beim Lock werden Key-Referenzen entfernt. JavaScript hat Grenzen.",
+        "bullets": [
+          "Roh-Bytes aus Argon2id werden nach CryptoKey-Import mit Uint8Array.fill(0) überschrieben (Best-effort).",
+          "Vault Lock entfernt Referenzen auf encryptionKey/integrityKey und löscht Session-Indikatoren.",
+          "SecureBuffer existiert als Defense-in-Depth (explizites destroy() + FinalizationRegistry-Fallback), aber JS/GC kann keine garantierte Speicherlöschung liefern.",
+          "Strings (z.B. entschlüsselte Passwörter) sind in JS nicht in-place löschbar; wir können nur Referenzen entfernen und auf GC hoffen."
+        ]
+      },
+      "clipboard": {
+        "title": "Clipboard-Schutz",
+        "summary": "Kopierte Secrets werden nach 30 Sekunden automatisch entfernt – aber nur, wenn der User es nicht überschrieben hat.",
+        "bullets": [
+          "writeClipboard() plant ein Auto-Clear nach 30s.",
+          "Nur wenn der Clipboard-Inhalt noch dem zuletzt geschriebenen Wert entspricht, wird geleert (kein Überschreiben von User-Content).",
+          "Limitierung: Clipboard APIs können durch Browser-Permissions/Focus eingeschränkt sein."
+        ]
+      },
+      "rls": {
+        "title": "Datenbankzugriff (Supabase RLS)",
+        "summary": "Row Level Security ist aktiv; Policies erlauben nur Zugriff auf eigene Zeilen bzw. explizite Mitgliedschaften.",
+        "bullets": [
+          "Owner-Model: Viele Tabellen nutzen auth.uid() = user_id (z.B. vault_items, file_attachments, categories, tags).",
+          "Emergency Access: Trustees erhalten SELECT auf vault_items nur, wenn status='granted' und grantor_id passt.",
+          "Shared Collections: Zugriff über owner_id oder Membership in shared_collection_members; Policy wurde rekursionsfrei gestaltet."
+        ]
+      },
+      "attachments": {
+        "title": "File Attachments",
+        "summary": "Datei-Inhalte und -Metadaten werden clientseitig verschlüsselt; DB/RLS schützt Owner-Zugriff.",
+        "bullets": [
+          "Upload speichert verschlüsselten Content in Supabase Storage (application/octet-stream).",
+          "Datei-Metadaten (Name/MIME) werden zusätzlich als encrypted_metadata gespeichert; Klartext-Spalten sind als Platzhalter gedacht.",
+          "DB-RLS Policies erzwingen Zugriff nur für auth.uid() = user_id."
+        ]
+      },
+      "sharing": {
+        "title": "Sharing (Collections & Emergency Access)",
+        "summary": "Sharing basiert auf Membership/Rollen in der DB + asymmetrischer Kryptografie für Key-Wrapping.",
+        "bullets": [
+          "Shared Collections haben owner/member + permission (view/edit) in shared_collection_members.",
+          "Emergency Access steuert Trustee-Zugriff über Status und grantor/trustee Zuordnungen.",
+          "Asymmetrische Kryptografie (RSA-OAEP 4096) wird für Sharing-/Notfallflüsse im Crypto-Service bereitgestellt."
+        ]
+      },
+      "offline": {
+        "title": "Offline-Modus",
+        "summary": "Offline Snapshots + Mutation Queue werden in IndexedDB gehalten und später serverseitig synchronisiert.",
+        "bullets": [
+          "OfflineVaultSnapshot speichert per-user Snapshots (items, categories) und queued Mutations.",
+          "Für Offline-Unlock werden salt + verifier im Snapshot gehalten (kein Klartext-Passwort).",
+          "Limitierung: Browser-Speicher kann vom Nutzer gelöscht werden; Integrität hängt von lokaler Baseline ab."
+        ]
+      },
+      "integrity": {
+        "title": "Manipulationserkennung (Integrity Root)",
+        "summary": "HMAC-Merkle-Tree über (itemId | encrypted_data); Root wird clientseitig gespeichert.",
+        "bullets": [
+          "Schützt gegen kompromittierten Server, der Items löscht/ersetzt/replayed.",
+          "IntegrityKey ist vom EncryptionKey getrennt abgeleitet (Domain Separation).",
+          "Limitierungen sind explizit dokumentiert (z.B. kein Schutz gegen stale reads ohne zusätzliche Mechanismen)."
+        ]
+      },
+      "headers": {
+        "title": "Browser-Hardening (Headers/CSP)",
+        "summary": "Vite liefert CSP + Sicherheitsheader aus (prod strikter als dev).",
+        "bullets": [
+          "Prod CSP: script-src 'self' (keine inline/eval) + frame-ancestors 'none'.",
+          "X-Frame-Options=DENY, X-Content-Type-Options=nosniff, strikte Referrer/Permissions-Policy.",
+          "Limitierung: CSP ist Defense-in-Depth, nicht alleiniger Schutz gegen XSS."
+        ]
+      },
+      "limitations": {
+        "title": "Grenzen & Threat Model",
+        "summary": "Transparenz: welche Risiken bleiben (wie bei jedem Web-Passwortmanager).",
+        "bullets": [
+          "Wenn der ausgelieferte Client-Code kompromittiert ist (Supply Chain/XSS), kann er beim Unlock Secrets abgreifen.",
+          "Malware auf dem Gerät oder kompromittierter Browser kann den Vault im entsperrten Zustand auslesen.",
+          "Metadaten-Trade-offs: Einige Tabellenfelder sind Klartext (z.B. categories.name, tags.name, shared_collections.name)."
+        ]
+      }
+    },
+    "references": {
+      "title": "Weiterführende Referenzen",
+      "subtitle": "Allgemeine Standards/Guides, die unsere Entscheidungen motivieren",
+      "links": {
+        "bitwarden": "Bitwarden Security Whitepaper",
+        "owaspPasswordStorage": "OWASP Password Storage Cheat Sheet",
+        "owaspCsp": "OWASP Content Security Policy Cheat Sheet",
+        "nist80063b": "NIST SP 800-63B (Memorized Secrets)"
+      }
+    },
+    "lastUpdated": "Zuletzt aktualisiert: {{date}}"
   },
   "privacy": {
     "title": "DatenschutzerklÃ¤rung",

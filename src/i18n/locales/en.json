@@ -204,13 +204,162 @@
     "footer": {
       "tagline": "Your Passwords. Your Control.",
       "security": "Security",
+      "securityWhitepaper": "Security Whitepaper",
       "docs": "Documentation",
+      "linksHeading": "Links",
       "github": "GitHub",
       "privacy": "Privacy",
+      "legalHeading": "Legal",
       "imprint": "Imprint",
       "cookies": "Cookie Settings",
       "copyright": "© {{year}} Singra PW. Open Source under MIT License."
     }
+  },
+  "securityWhitepaper": {
+    "title": "Security Whitepaper",
+    "subtitle": "A factual description of the security architecture – derived directly from the codebase and DB policies.",
+    "disclaimer": "Note: This page describes the implementation (code) – not an external audit. 100% security does not exist, but we document transparently what we do and what we do not.",
+    "privacyLink": "View privacy policy",
+    "searchPlaceholder": "Search sections (e.g., Argon2id, RLS, integrity)…",
+    "clearFilters": "Reset filters",
+    "evidenceTitle": "Evidence in repository",
+    "badges": {
+      "limitation": "Limitation"
+    },
+    "tags": {
+      "crypto": "Crypto",
+      "client": "Client",
+      "rls": "RLS",
+      "storage": "Storage",
+      "sharing": "Sharing",
+      "offline": "Offline",
+      "integrity": "Integrity",
+      "hardening": "Hardening",
+      "limitations": "Limits"
+    },
+    "quickFacts": {
+      "title": "Quick facts",
+      "subtitle": "What to know at a glance",
+      "items": [
+        "Vault item contents are encrypted client-side before storage/transmission.",
+        "Key derivation: Argon2id with KDF versions v1 (64 MiB) and v2 (128 MiB).",
+        "AES-GCM CryptoKeys are non-extractable; raw bytes are best-effort zeroed after import.",
+        "RLS is enabled on relevant tables; policies restrict access to auth.uid()."
+      ]
+    },
+    "sections": {
+      "zeroKnowledge": {
+        "title": "Zero-knowledge (vault items)",
+        "summary": "Sensitive vault content is stored server-side as ciphertext; decryption happens in the client.",
+        "bullets": [
+          "Vault items are stored as encrypted_data; title/URL metadata is intentionally not stored in plaintext (placeholder + null).",
+          "Create/import encrypts before writing to the database; the server never receives vault-item plaintext.",
+          "Note: Some structural metadata (e.g., category/tag/collection names) remains plaintext DB fields."
+        ]
+      },
+      "cryptography": {
+        "title": "Cryptography & KDF",
+        "summary": "AES-256-GCM for data; Argon2id for key derivation; KDF is migrated to stronger parameters when needed.",
+        "bullets": [
+          "AES-GCM: 96-bit IV, 128-bit auth tag; output format is base64(IV || ciphertext || tag).",
+          "Fixed KDF versions: v1 = 64 MiB, v2 = 128 MiB (Argon2id).",
+          "KDF auto-migration after successful unlock: upgrade may be skipped on OOM to stay device-compatible."
+        ]
+      },
+      "memory": {
+        "title": "Keys & memory clearing",
+        "summary": "Best-effort: raw key bytes are zeroed; lock removes key references. JavaScript has limits.",
+        "bullets": [
+          "Raw bytes derived from Argon2id are overwritten via Uint8Array.fill(0) after CryptoKey import (best-effort).",
+          "Vault lock removes references to encryptionKey/integrityKey and clears session indicators.",
+          "SecureBuffer exists as defense-in-depth (explicit destroy() + FinalizationRegistry fallback), but JS/GC cannot guarantee memory wiping.",
+          "Strings (e.g., decrypted passwords) cannot be wiped in-place in JS; we can only drop references and rely on GC."
+        ]
+      },
+      "clipboard": {
+        "title": "Clipboard protection",
+        "summary": "Copied secrets are auto-cleared after 30 seconds – only if the user hasn't overwritten them.",
+        "bullets": [
+          "writeClipboard() schedules auto-clear after 30s.",
+          "Only clears if clipboard still equals last written value (won't clobber user content).",
+          "Limitation: clipboard APIs can be restricted by browser permissions/focus."
+        ]
+      },
+      "rls": {
+        "title": "Database access (Supabase RLS)",
+        "summary": "Row Level Security is enabled; policies allow only own rows or explicit memberships.",
+        "bullets": [
+          "Owner model: many tables use auth.uid() = user_id (e.g., vault_items, file_attachments, categories, tags).",
+          "Emergency access: trustees get SELECT on vault_items only when status='granted' and grantor_id matches.",
+          "Shared collections: access via owner_id or membership in shared_collection_members; policy is implemented without recursion."
+        ]
+      },
+      "attachments": {
+        "title": "File attachments",
+        "summary": "File contents and metadata are encrypted client-side; DB/RLS restricts access to the owner.",
+        "bullets": [
+          "Upload stores encrypted content in Supabase Storage (application/octet-stream).",
+          "File metadata (name/MIME) is stored additionally as encrypted_metadata; plaintext columns are intended as opaque placeholders.",
+          "DB RLS policies enforce access only for auth.uid() = user_id."
+        ]
+      },
+      "sharing": {
+        "title": "Sharing (collections & emergency access)",
+        "summary": "Sharing is based on DB membership/roles plus asymmetric cryptography for key wrapping.",
+        "bullets": [
+          "Shared collections use owner/member + permission (view/edit) in shared_collection_members.",
+          "Emergency access controls trustee access via status and grantor/trustee linkage.",
+          "Asymmetric crypto (RSA-OAEP 4096) is provided in the crypto service for sharing/emergency flows."
+        ]
+      },
+      "offline": {
+        "title": "Offline mode",
+        "summary": "Offline snapshots + mutation queue live in IndexedDB and sync back when online.",
+        "bullets": [
+          "OfflineVaultSnapshot stores per-user snapshots (items, categories) and queued mutations.",
+          "Offline unlock stores salt + verifier in snapshot (no plaintext master password).",
+          "Limitation: browser storage can be wiped; integrity depends on a local baseline."
+        ]
+      },
+      "integrity": {
+        "title": "Tamper detection (integrity root)",
+        "summary": "HMAC Merkle tree over (itemId | encrypted_data); root is stored client-side.",
+        "bullets": [
+          "Protects against a compromised server that deletes/replaces/replays ciphertext.",
+          "Integrity key is derived separately from the encryption key (domain separation).",
+          "Limitations are explicitly documented (e.g., no protection against stale reads without additional mechanisms)."
+        ]
+      },
+      "headers": {
+        "title": "Browser hardening (headers/CSP)",
+        "summary": "Vite serves CSP + security headers (prod stricter than dev).",
+        "bullets": [
+          "Prod CSP: script-src 'self' (no inline/eval) + frame-ancestors 'none'.",
+          "X-Frame-Options=DENY, X-Content-Type-Options=nosniff, strict Referrer/Permissions-Policy.",
+          "Limitation: CSP is defense-in-depth, not a standalone XSS solution."
+        ]
+      },
+      "limitations": {
+        "title": "Limits & threat model",
+        "summary": "Transparency: what risks remain (as with any web password manager).",
+        "bullets": [
+          "If delivered client code is compromised (supply chain/XSS), it can steal secrets during unlock.",
+          "Malware on the device or a compromised browser can read the vault while unlocked.",
+          "Metadata trade-offs: some table fields are plaintext (e.g., categories.name, tags.name, shared_collections.name)."
+        ]
+      }
+    },
+    "references": {
+      "title": "Further references",
+      "subtitle": "General standards/guides that inform our decisions",
+      "links": {
+        "bitwarden": "Bitwarden Security Whitepaper",
+        "owaspPasswordStorage": "OWASP Password Storage Cheat Sheet",
+        "owaspCsp": "OWASP Content Security Policy Cheat Sheet",
+        "nist80063b": "NIST SP 800-63B (Memorized Secrets)"
+      }
+    },
+    "lastUpdated": "Last updated: {{date}}"
   },
   "privacy": {
     "title": "Privacy Policy",

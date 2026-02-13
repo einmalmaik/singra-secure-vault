@@ -1,3 +1,5 @@
+// Copyright (c) 2025-2026 Maunting Studios
+// Licensed under the Business Source License 1.1 — see LICENSE
 import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { createClient } from "@supabase/supabase-js";

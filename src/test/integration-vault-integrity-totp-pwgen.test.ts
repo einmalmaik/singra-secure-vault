@@ -1,3 +1,5 @@
+// Copyright (c) 2025-2026 Maunting Studios
+// Licensed under the Business Source License 1.1 — see LICENSE
 /**
  * @fileoverview Integration Tests — Vault Integrity, TOTP, Password Generator, Vault Health
  *

@@ -1,3 +1,5 @@
+// Copyright (c) 2025-2026 Maunting Studios
+// Licensed under the Business Source License 1.1 — see LICENSE
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import * as fc from "fast-check";
 import { createClient } from "@supabase/supabase-js";

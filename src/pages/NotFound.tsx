@@ -1,3 +1,5 @@
+// Copyright (c) 2025-2026 Maunting Studios
+// Licensed under the Business Source License 1.1 — see LICENSE
 import { useLocation } from "react-router-dom";
 import { useEffect } from "react";
 import { SEO } from '@/components/SEO';

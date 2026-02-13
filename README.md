@@ -55,4 +55,11 @@ Dieses Projekt basiert auf modernen Web-Technologien:
 
 ## Lizenz
 
-Dieses Projekt ist Open Source.
+Dieses Projekt ist unter der **Business Source License 1.1 (BSL 1.1)** lizenziert.
+
+- **Code einsehen**: Ja — der gesamte Quellcode ist öffentlich einsehbar
+- **Self-Hosting (privat)**: Ja — für persönliche, nicht-kommerzielle Nutzung
+- **Kommerzieller Verkauf/Hosting**: Nein — ohne schriftliche Genehmigung von Maunting Studios
+- **Change Date**: 4 Jahre nach Release wird der Code automatisch Apache 2.0
+
+Siehe [LICENSE](./LICENSE) für den vollständigen Lizenztext.

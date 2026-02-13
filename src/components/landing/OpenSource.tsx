@@ -1,3 +1,5 @@
+// Copyright (c) 2025-2026 Maunting Studios
+// Licensed under the Business Source License 1.1 — see LICENSE
 /**
  * @fileoverview Open Source Section
  * 
@@ -20,7 +22,7 @@ export function OpenSource() {
             <div>
               <div className="inline-flex items-center gap-2 px-3 py-1 mb-4 text-sm font-medium rounded-full bg-primary/10 text-primary">
                 <Github className="w-4 h-4" />
-                <span>MIT License</span>
+                <span>BSL 1.1 · Source Available</span>
               </div>
 
               <h2 className="text-3xl sm:text-4xl font-bold mb-4">

@@ -1,3 +1,5 @@
+// Copyright (c) 2025-2026 Maunting Studios
+// Licensed under the Business Source License 1.1 — see LICENSE
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Users, UserPlus, Trash2, Loader2 } from 'lucide-react';

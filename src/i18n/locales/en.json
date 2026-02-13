@@ -595,6 +595,9 @@
   "settings": {
     "title": "Settings",
     "footer": "Your data is encrypted locally and stored securely.",
+    "searchPlaceholder": "Search settings...",
+    "searchResults": "{{count}} results found",
+    "noResults": "No settings found",
     "account": {
       "title": "Account",
       "description": "Manage your account and login credentials.",
@@ -709,6 +712,8 @@
       "subject": "Subject",
       "subjectPlaceholder": "Short issue summary",
       "category": "Category",
+      "newTicket": "New Ticket",
+      "myTickets": "My Tickets",
       "categories": {
         "general": "General",
         "technical": "Technical issue",

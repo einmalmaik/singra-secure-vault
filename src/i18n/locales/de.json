@@ -618,6 +618,9 @@
   "settings": {
     "title": "Einstellungen",
     "footer": "Deine Daten werden lokal verschlÃ¼sselt und sicher gespeichert.",
+    "searchPlaceholder": "Einstellungen durchsuchen...",
+    "searchResults": "{{count}} Ergebnisse gefunden",
+    "noResults": "Keine Einstellungen gefunden",
     "account": {
       "title": "Konto",
       "description": "Verwalte dein Konto und deine Anmeldedaten.",
@@ -732,6 +735,8 @@
       "subject": "Betreff",
       "subjectPlaceholder": "Kurze Zusammenfassung deines Problems",
       "category": "Kategorie",
+      "newTicket": "Neues Ticket",
+      "myTickets": "Meine Tickets",
       "categories": {
         "general": "Allgemein",
         "technical": "Technisches Problem",

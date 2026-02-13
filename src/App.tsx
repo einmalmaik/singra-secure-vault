@@ -32,6 +32,7 @@ import AuthenticatorPage from "./pages/AuthenticatorPage";
 import NotFound from "./pages/NotFound";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import { CookieConsent } from "./components/CookieConsent";
+import { SupportWidget } from "./components/SupportWidget";
 import Impressum from "./pages/Impressum";
 import GrantorVaultPage from "./pages/GrantorVaultPage";
 import SecurityWhitepaper from "./pages/SecurityWhitepaper";
@@ -49,6 +50,7 @@ const App = () => (
                 <Toaster />
                 <Sonner />
                 <CookieConsent />
+                <SupportWidget />
                 <BrowserRouter>
                   <Routes>
                     <Route path="/" element={<Index />} />

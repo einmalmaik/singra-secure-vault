@@ -1,28 +1,24 @@
 // Copyright (c) 2025-2026 Maunting Studios
 // Licensed under the Business Source License 1.1 — see LICENSE
 /**
- * @fileoverview Settings Page
- * 
- * User settings management page with sections for:
- * - Account (email, logout, delete)
- * - Security (auto-lock, lock now)
- * - Appearance (theme, language)
- * - Data (export, import)
+ * @fileoverview Settings Page — Redesigned
+ *
+ * Searchable, filterable settings page with better visual organization
  */
 
-import { useEffect } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Settings, ArrowLeft, Shield } from 'lucide-react';
+import { Settings, ArrowLeft, Shield, Search } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 
 import { AccountSettings } from '@/components/settings/AccountSettings';
 import { SecuritySettings } from '@/components/settings/SecuritySettings';
 import { AppearanceSettings } from '@/components/settings/AppearanceSettings';
 import { DataSettings } from '@/components/settings/DataSettings';
-import { SupportSettings } from '@/components/settings/SupportSettings';
 import { SubscriptionSettings } from '@/components/Subscription/SubscriptionSettings';
 import EmergencyAccessSettings from '@/components/settings/EmergencyAccessSettings';
 import { FamilyOrganizationSettings } from '@/components/settings/FamilyOrganizationSettings';
@@ -32,7 +28,15 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useVault } from '@/contexts/VaultContext';
 import { useFeatureGate } from '@/hooks/useFeatureGate';
 
-// ... imports
+type SettingsSection = {
+    id: string;
+    component: React.ReactNode;
+    title: string;
+    keywords: string[];
+    premium?: boolean;
+    families?: boolean;
+};
+
 export default function SettingsPage() {
     const { t } = useTranslation();
     const navigate = useNavigate();
@@ -42,125 +46,178 @@ export default function SettingsPage() {
     const familyGate = useFeatureGate('family_members');
     const sharedCollectionsGate = useFeatureGate('shared_collections');
 
-    // ...
+    const [searchQuery, setSearchQuery] = useState('');
 
-    // Redirect to auth if not logged in
     useEffect(() => {
         if (!loading && !user) {
             navigate('/auth', { replace: true });
         }
     }, [user, loading, navigate]);
 
-    // Redirect to vault if locked (auto-lock or manual lock)
     useEffect(() => {
-        if (isLocked) {
+        if (user && isLocked) {
             navigate('/vault', { replace: true });
         }
-    }, [isLocked, navigate]);
+    }, [isLocked, user, navigate]);
+
+    const sections: SettingsSection[] = useMemo(
+        () => [
+            {
+                id: 'appearance',
+                component: <AppearanceSettings />,
+                title: t('settings.appearance.title'),
+                keywords: ['appearance', 'theme', 'dark', 'light', 'language', 'sprache', 'design', 'aussehen'],
+            },
+            {
+                id: 'security',
+                component: <SecuritySettings />,
+                title: t('settings.security.title'),
+                keywords: ['security', 'sicherheit', 'auto-lock', 'lock', 'passwort', 'password', '2fa', 'totp', 'passkey', 'duress'],
+            },
+            {
+                id: 'data',
+                component: <DataSettings />,
+                title: t('settings.data.title'),
+                keywords: ['data', 'daten', 'export', 'import', 'backup', 'sicherung'],
+            },
+            {
+                id: 'subscription',
+                component: <SubscriptionSettings />,
+                title: t('subscription.settings_title'),
+                keywords: ['subscription', 'billing', 'abonnement', 'zahlung', 'premium', 'families', 'plan'],
+            },
+            {
+                id: 'account',
+                component: <AccountSettings />,
+                title: t('settings.account.title'),
+                keywords: ['account', 'konto', 'email', 'logout', 'delete', 'löschen'],
+            },
+            {
+                id: 'emergency',
+                component: <EmergencyAccessSettings />,
+                title: t('emergencyAccess.title'),
+                keywords: ['emergency', 'notfall', 'trustee', 'recovery', 'wiederherstellung', 'zugriff'],
+                premium: true,
+            },
+            {
+                id: 'family',
+                component: <FamilyOrganizationSettings />,
+                title: t('settings.family.title'),
+                keywords: ['family', 'familie', 'organization', 'members', 'mitglieder', 'invite', 'einladen'],
+                families: true,
+            },
+            {
+                id: 'shared-collections',
+                component: <SharedCollectionsSettings />,
+                title: t('settings.sharedCollections.title'),
+                keywords: ['shared', 'collections', 'geteilt', 'sammlungen', 'share', 'teilen'],
+                families: true,
+            },
+        ],
+        [t],
+    );
+
+    const filteredSections = useMemo(() => {
+        const query = searchQuery.toLowerCase().trim();
+        if (!query) {
+            return sections.filter((section) => {
+                if (section.premium && !emergencyGate.allowed) return false;
+                if (section.families && !familyGate.allowed) return false;
+                return true;
+            });
+        }
+
+        return sections.filter((section) => {
+            if (section.premium && !emergencyGate.allowed) return false;
+            if (section.families && !familyGate.allowed) return false;
+
+            const titleMatch = section.title.toLowerCase().includes(query);
+            const keywordMatch = section.keywords.some((kw) => kw.toLowerCase().includes(query));
+
+            return titleMatch || keywordMatch;
+        });
+    }, [searchQuery, sections, emergencyGate.allowed, familyGate.allowed]);
 
     if (loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+            <div className="flex items-center justify-center min-h-screen">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-primary/10">
+        <div className="min-h-screen bg-background">
             {/* Header */}
-            <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-lg border-b">
-                <div className="container max-w-4xl mx-auto px-4 py-4">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
+            <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+                <div className="container max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-3">
                             <Button
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => navigate('/vault')}
+                                className="rounded-full"
                             >
                                 <ArrowLeft className="w-5 h-5" />
                             </Button>
                             <div className="flex items-center gap-2">
                                 <Settings className="w-6 h-6 text-primary" />
-                                <h1 className="text-xl font-bold">
-                                    {t('settings.title')}
-                                </h1>
+                                <h1 className="text-xl font-bold">{t('settings.title')}</h1>
                             </div>
                         </div>
-                        <Link to="/" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
-                            <Shield className="w-5 h-5" />
-                            <span className="hidden sm:inline font-semibold">Singra PW</span>
-                        </Link>
                     </div>
+                    <Link
+                        to="/"
+                        className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                        <Shield className="w-5 h-5" />
+                        <span className="hidden sm:inline font-semibold">Singra PW</span>
+                    </Link>
                 </div>
             </header>
 
             {/* Main Content */}
             <main className="container max-w-4xl mx-auto px-4 py-8">
-                <div className="space-y-6">
-                    {/* Appearance Settings */}
-                    <AppearanceSettings />
-
-                    <Separator />
-
-                    {/* Security Settings */}
-                    <SecuritySettings />
-
-                    <Separator />
-
-                    {/* Data Settings */}
-                    <DataSettings />
-
-                    <Separator />
-
-                    {/* Subscription Settings */}
-                    <SubscriptionSettings />
-
-                    <Separator />
-
-                    {/* Support Settings */}
-                    <SupportSettings />
-
-                    <Separator />
-
-                    {/* Account Settings */}
-                    <AccountSettings />
-
-                    <Separator />
-
-                    {/* Emergency Access Settings (Premium+) */}
-                    {emergencyGate.allowed && (
-                        <>
-                            <div className="mt-8">
-                                <EmergencyAccessSettings />
-                            </div>
-                            <Separator />
-                        </>
-                    )}
-
-                    {/* Family Organization (Families tier) */}
-                    {familyGate.allowed && (
-                        <>
-                            <FamilyOrganizationSettings />
-                            <Separator />
-                        </>
-                    )}
-
-                    {/* Shared Collections (Families tier) */}
-                    {sharedCollectionsGate.allowed && (
-                        <>
-                            <SharedCollectionsSettings />
-                            <Separator />
-                        </>
+                {/* Search Bar */}
+                <div className="mb-8">
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                        <Input
+                            type="search"
+                            placeholder={t('settings.searchPlaceholder')}
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="pl-10"
+                        />
+                    </div>
+                    {searchQuery && (
+                        <p className="mt-2 text-sm text-muted-foreground">
+                            {t('settings.searchResults', { count: filteredSections.length })}
+                        </p>
                     )}
                 </div>
+
+                {/* Settings Sections */}
+                {filteredSections.length === 0 ? (
+                    <div className="text-center py-12">
+                        <p className="text-muted-foreground">{t('settings.noResults')}</p>
+                    </div>
+                ) : (
+                    <div className="space-y-6">
+                        {filteredSections.map((section, index) => (
+                            <div key={section.id}>
+                                {section.component}
+                                {index < filteredSections.length - 1 && <Separator className="mt-6" />}
+                            </div>
+                        ))}
+                    </div>
+                )}
 
                 {/* Footer */}
                 <div className="mt-12 text-center text-sm text-muted-foreground">
                     <p>Singra PW v1.0.0</p>
-                    <p className="mt-1">
-                        {t('settings.footer')}
-                    </p>
+                    <p className="mt-1">{t('settings.footer')}</p>
                 </div>
             </main>
         </div>

@@ -33,3 +33,7 @@ Agent.md
 AGENTS.md
 GEMINI.md
 
+# GPG keys (never commit private key material)
+*.gpg
+*gpg-key*
+

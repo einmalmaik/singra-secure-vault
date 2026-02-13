@@ -18,6 +18,7 @@ Singra PW offers three subscription tiers: **FREE**, **PREMIUM**, and **FAMILIES
 | Emergency Access | ❌ | ✅ | ✅ |
 | Vault Health Reports | ❌ | ✅ | ✅ |
 | Priority Support | ❌ | ✅ | ✅ |
+| First Response Target | ~72h | ~24h | ~24h (Owner + active members) |
 | 6 Premium Accounts | ❌ | ❌ | ✅ |
 | Shared Collections | ❌ | ❌ | ✅ |
 
@@ -54,6 +55,8 @@ Singra PW offers three subscription tiers: **FREE**, **PREMIUM**, and **FAMILIES
 2. **Webhook-driven state sync:** Subscription status in the database is updated exclusively through Stripe webhooks, ensuring consistency.
 
 3. **Self-hosting mode:** Set `VITE_DISABLE_BILLING=true` to unlock all features without Stripe.
+
+4. **Support SLA tracking:** First-response metrics are tracked server-side (`sla_due_at`, `first_response_at`, `first_response_minutes`) to measure current average response times and SLA hit-rate.
 
 ### Edge Functions
 

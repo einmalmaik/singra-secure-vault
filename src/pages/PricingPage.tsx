@@ -18,6 +18,7 @@ import {
     Users,
     Zap,
     Lock,
+    Clock3,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -154,6 +155,10 @@ export default function PricingPage() {
                             <Lock className="w-3.5 h-3.5" />
                             <span>{t('subscription.free_security_note')}</span>
                         </div>
+                        <div className="mt-1.5 flex items-center gap-1.5 justify-center text-xs text-muted-foreground">
+                            <Clock3 className="w-3.5 h-3.5" />
+                            <span>{t('subscription.support.free_sla')}</span>
+                        </div>
                     </div>
 
                     {/* PREMIUM */}
@@ -203,6 +208,10 @@ export default function PricingPage() {
                         >
                             {tier === 'premium' ? t('subscription.current_plan') : t('subscription.upgrade')}
                         </Button>
+                        <div className="mt-3 flex items-center gap-1.5 justify-center text-xs text-muted-foreground">
+                            <Clock3 className="w-3.5 h-3.5" />
+                            <span>{t('subscription.support.premium_sla')}</span>
+                        </div>
                     </div>
 
                     {/* FAMILIES */}
@@ -248,11 +257,16 @@ export default function PricingPage() {
                         >
                             {tier === 'families' ? t('subscription.current_plan') : t('subscription.upgrade')}
                         </Button>
+                        <div className="mt-3 flex items-center gap-1.5 justify-center text-xs text-muted-foreground text-center">
+                            <Clock3 className="w-3.5 h-3.5" />
+                            <span>{t('subscription.support.families_sla')}</span>
+                        </div>
                     </div>
                 </div>
 
                 {/* Legal Info */}
                 <div className="mt-12 text-center text-xs text-muted-foreground max-w-2xl mx-auto space-y-2">
+                    <p>{t('subscription.support.sla_note')}</p>
                     <p>{t('subscription.legal_info')}</p>
                     <p>{t('subscription.refund_info')}</p>
                 </div>

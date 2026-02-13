@@ -22,6 +22,7 @@ import { AccountSettings } from '@/components/settings/AccountSettings';
 import { SecuritySettings } from '@/components/settings/SecuritySettings';
 import { AppearanceSettings } from '@/components/settings/AppearanceSettings';
 import { DataSettings } from '@/components/settings/DataSettings';
+import { SupportSettings } from '@/components/settings/SupportSettings';
 import { SubscriptionSettings } from '@/components/Subscription/SubscriptionSettings';
 import EmergencyAccessSettings from '@/components/settings/EmergencyAccessSettings';
 import { FamilyOrganizationSettings } from '@/components/settings/FamilyOrganizationSettings';
@@ -114,6 +115,11 @@ export default function SettingsPage() {
 
                     {/* Subscription Settings */}
                     <SubscriptionSettings />
+
+                    <Separator />
+
+                    {/* Support Settings */}
+                    <SupportSettings />
 
                     <Separator />
 

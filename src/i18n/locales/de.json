@@ -723,6 +723,49 @@
       "importFailed": "Import fehlgeschlagen. Stelle sicher, dass die Datei gÃ¼ltig ist.",
       "unlockRequired": "Bitte entsperre zuerst deinen Tresor."
     },
+    "support": {
+      "title": "Support",
+      "description": "Erstelle Support-Tickets und verfolge Antwortzeiten.",
+      "currentSla": "Aktuelles Antwortziel",
+      "slaDisclaimer": "Antwortzeiten sind Zielwerte (in der Regel), keine garantierten Fristen.",
+      "securityHint": "Sende niemals dein Master-Passwort, Recovery-Codes, private Schluessel oder Tresor-Inhalte ueber den Support.",
+      "subject": "Betreff",
+      "subjectPlaceholder": "Kurze Zusammenfassung deines Problems",
+      "category": "Kategorie",
+      "categories": {
+        "general": "Allgemein",
+        "technical": "Technisches Problem",
+        "billing": "Abrechnung",
+        "security": "Sicherheit",
+        "family": "Familien-Plan",
+        "other": "Sonstiges"
+      },
+      "message": "Nachricht",
+      "messagePlaceholder": "Beschreibe dein Problem moeglichst genau (Schritte, Fehler, Erwartung).",
+      "validation": "Bitte mindestens 3 Zeichen im Betreff und 10 Zeichen in der Nachricht eingeben.",
+      "submit": "Ticket erstellen",
+      "submitting": "Wird erstellt...",
+      "submitSuccess": "Support-Ticket wurde erfolgreich erstellt.",
+      "submitError": "Support-Ticket konnte nicht erstellt werden.",
+      "recentTickets": "Letzte Tickets",
+      "noTickets": "Noch keine Support-Tickets vorhanden.",
+      "firstResponseTime": "Erste Antwort: {{minutes}} Min",
+      "awaitingFirstResponse": "Warte auf erste Antwort",
+      "metricsTitle": "Aktueller Support-Durchschnitt",
+      "averageResponse30d": "Durchschnittliche erste Antwortzeit (30 Tage): {{hours}} h",
+      "metricsFootnote": "SLA-Trefferquote (beantwortete Tickets): {{hitRate}}%",
+      "status": {
+        "open": "Offen",
+        "in_progress": "In Bearbeitung",
+        "waiting_user": "Warten auf deine Rueckmeldung",
+        "resolved": "Geloest",
+        "closed": "Geschlossen"
+      },
+      "sla": {
+        "priority24h": "Prioritaets-Support - in der Regel 24h",
+        "standard72h": "Standard-Support - in der Regel 72h"
+      }
+    },
     "profile": {
       "title": "Profil",
       "displayName": "Anzeigename",
@@ -958,6 +1001,12 @@
       "six_accounts": "6 Premium-Konten",
       "shared_collections": "Geteilte Sammlungen",
       "family_organization": "Familien-Organisation"
+    },
+    "support": {
+      "free_sla": "Standard-Support - in der Regel 72h",
+      "premium_sla": "Prioritaets-Support - in der Regel 24h",
+      "families_sla": "Prioritaets-Support - in der Regel 24h (Owner + alle aktiven Familienmitglieder)",
+      "sla_note": "Support-Antwortzeiten sind Zielwerte in der Regel."
     },
     "free_security_note": "AES-256-GCM + Argon2id für alle Nutzer inklusive",
     "legal_info": "Alle Preise inkl. MwSt. Abonnements verlängern sich automatisch, sofern sie nicht vor Ablauf des Abrechnungszeitraums gekündigt werden.",

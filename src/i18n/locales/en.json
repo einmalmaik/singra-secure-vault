@@ -700,6 +700,49 @@
       "importFailed": "Import failed. Make sure the file is valid.",
       "unlockRequired": "Please unlock your vault first."
     },
+    "support": {
+      "title": "Support",
+      "description": "Create support tickets and track response times.",
+      "currentSla": "Current response target",
+      "slaDisclaimer": "Response times are target values (in the usual case), not guaranteed response deadlines.",
+      "securityHint": "Never send your master password, recovery codes, private keys, or vault content via support messages.",
+      "subject": "Subject",
+      "subjectPlaceholder": "Short issue summary",
+      "category": "Category",
+      "categories": {
+        "general": "General",
+        "technical": "Technical issue",
+        "billing": "Billing",
+        "security": "Security",
+        "family": "Family plan",
+        "other": "Other"
+      },
+      "message": "Message",
+      "messagePlaceholder": "Describe your issue in detail (steps, errors, expected result).",
+      "validation": "Please enter at least 3 characters for subject and 10 characters for message.",
+      "submit": "Create Ticket",
+      "submitting": "Creating...",
+      "submitSuccess": "Support ticket created successfully.",
+      "submitError": "Failed to create support ticket.",
+      "recentTickets": "Recent tickets",
+      "noTickets": "No support tickets yet.",
+      "firstResponseTime": "First response: {{minutes}} min",
+      "awaitingFirstResponse": "Waiting for first response",
+      "metricsTitle": "Current support average",
+      "averageResponse30d": "Average first response time (30 days): {{hours}} h",
+      "metricsFootnote": "SLA hit rate (responded tickets): {{hitRate}}%",
+      "status": {
+        "open": "Open",
+        "in_progress": "In progress",
+        "waiting_user": "Waiting for your reply",
+        "resolved": "Resolved",
+        "closed": "Closed"
+      },
+      "sla": {
+        "priority24h": "Priority support - usually within 24h",
+        "standard72h": "Standard support - usually within 72h"
+      }
+    },
     "profile": {
       "title": "Profile",
       "displayName": "Display Name",
@@ -937,6 +980,12 @@
       "six_accounts": "6 Premium Accounts",
       "shared_collections": "Shared Collections",
       "family_organization": "Family Organization"
+    },
+    "support": {
+      "free_sla": "Standard support - usually within 72h",
+      "premium_sla": "Priority support - usually within 24h",
+      "families_sla": "Priority support - usually within 24h (owner + all active family members)",
+      "sla_note": "Support response times are target values in the usual case."
     },
     "free_security_note": "AES-256-GCM + Argon2id included for all users",
     "legal_info": "All prices include VAT. Subscriptions renew automatically unless canceled before the end of the billing period.",

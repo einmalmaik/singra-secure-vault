@@ -792,6 +792,16 @@
       "rotateKeyError": "Schlüssel konnte nicht rotiert werden."
     }
   },
+  "fileAttachments": {
+    "title": "Dateianhänge",
+    "dropzone": "Dateien hierher ziehen oder klicken zum Hochladen",
+    "maxSize": "Max. {{size}} pro Datei",
+    "uploaded": "{{count}} Datei(en) hochgeladen",
+    "uploadError": "Fehler beim Hochladen",
+    "downloadError": "Fehler beim Herunterladen",
+    "deleted": "Anhang gelöscht",
+    "deleteError": "Fehler beim Löschen"
+  },
   "categories": {
     "add": "Kategorie hinzufÃ¼gen",
     "edit": "Kategorie bearbeiten",

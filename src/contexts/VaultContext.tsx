@@ -22,6 +22,7 @@ import {
     decryptVaultItem,
     secureClear,
     attemptKdfUpgrade,
+    reEncryptVault,
     CURRENT_KDF_VERSION,
     VaultItemData
 } from '@/services/cryptoService';
@@ -473,24 +474,76 @@ export function VaultProvider({ children }: VaultProviderProps) {
                 // result.key is already the real key
                 let activeKey = result.key!;
 
-                // KDF Auto-Migration (only for real password, not duress)
+                // KDF Auto-Migration with Re-Encryption (only for real password, not duress)
                 try {
                     const upgrade = await attemptKdfUpgrade(masterPassword, salt, kdfVersion);
                     if (upgrade.upgraded && upgrade.newKey && upgrade.newVerifier) {
-                        const { error: upgradeError } = await supabase
-                            .from('profiles')
-                            .update({
-                                master_password_verifier: upgrade.newVerifier,
-                                kdf_version: upgrade.activeVersion,
-                            } as Record<string, unknown>)
-                            .eq('user_id', user.id);
+                        try {
+                            // Load all vault items and categories for re-encryption
+                            const { data: vaultItems } = await supabase
+                                .from('vault_items')
+                                .select('id, encrypted_data')
+                                .eq('user_id', user.id);
 
-                        if (!upgradeError) {
-                            activeKey = upgrade.newKey;
-                            setVerificationHash(upgrade.newVerifier);
-                            setKdfVersion(upgrade.activeVersion);
-                            await saveOfflineCredentials(user.id, salt, upgrade.newVerifier);
-                            console.info(`KDF upgraded from v${kdfVersion} to v${upgrade.activeVersion}`);
+                            const { data: categories } = await supabase
+                                .from('categories')
+                                .select('id, name, icon, color')
+                                .eq('user_id', user.id);
+
+                            // Re-encrypt everything with the new key
+                            const reEncResult = await reEncryptVault(
+                                vaultItems || [],
+                                categories || [],
+                                result.key!, // old key
+                                upgrade.newKey,
+                            );
+
+                            // Persist re-encrypted items
+                            for (const itemUpdate of reEncResult.itemUpdates) {
+                                const { error: itemError } = await supabase
+                                    .from('vault_items')
+                                    .update({ encrypted_data: itemUpdate.encrypted_data })
+                                    .eq('id', itemUpdate.id)
+                                    .eq('user_id', user.id);
+                                if (itemError) {
+                                    throw new Error(`Failed to update item ${itemUpdate.id}: ${itemError.message}`);
+                                }
+                            }
+
+                            // Persist re-encrypted categories
+                            for (const catUpdate of reEncResult.categoryUpdates) {
+                                const { error: catError } = await supabase
+                                    .from('categories')
+                                    .update({ name: catUpdate.name, icon: catUpdate.icon, color: catUpdate.color })
+                                    .eq('id', catUpdate.id)
+                                    .eq('user_id', user.id);
+                                if (catError) {
+                                    throw new Error(`Failed to update category ${catUpdate.id}: ${catError.message}`);
+                                }
+                            }
+
+                            // Only NOW update the profile
+                            const { error: upgradeError } = await supabase
+                                .from('profiles')
+                                .update({
+                                    master_password_verifier: upgrade.newVerifier,
+                                    kdf_version: upgrade.activeVersion,
+                                } as Record<string, unknown>)
+                                .eq('user_id', user.id);
+
+                            if (!upgradeError) {
+                                activeKey = upgrade.newKey;
+                                setVerificationHash(upgrade.newVerifier);
+                                setKdfVersion(upgrade.activeVersion);
+                                await saveOfflineCredentials(user.id, salt, upgrade.newVerifier);
+                                console.info(
+                                    `KDF upgraded from v${kdfVersion} to v${upgrade.activeVersion}. ` +
+                                    `Re-encrypted ${reEncResult.itemsReEncrypted} items and ` +
+                                    `${reEncResult.categoriesReEncrypted} categories.`
+                                );
+                            }
+                        } catch (reEncErr) {
+                            console.warn('KDF upgrade: re-encryption failed, staying on old version', reEncErr);
                         }
                     }
                 } catch {
@@ -506,6 +559,75 @@ export function VaultProvider({ children }: VaultProviderProps) {
 
                     if (!migrateError) {
                         setVerificationHash(legacyHash);
+                    }
+                }
+
+                // ── Fallback: Detect and repair broken KDF upgrades (duress real-mode path) ──
+                // This MUST run BEFORE setIsLocked(false) to prevent UI race conditions.
+                if (kdfVersion >= 2) {
+                    try {
+                        const { data: probeItems } = await supabase
+                            .from('vault_items')
+                            .select('id, encrypted_data')
+                            .eq('user_id', user.id)
+                            .limit(1);
+
+                        if (probeItems && probeItems.length > 0) {
+                            try {
+                                await decryptVaultItem(probeItems[0].encrypted_data, activeKey);
+                            } catch {
+                                console.warn('Detected broken KDF upgrade (duress path). Starting repair...');
+                                for (let oldVersion = kdfVersion - 1; oldVersion >= 1; oldVersion--) {
+                                    try {
+                                        const oldKey = await deriveKey(masterPassword, salt, oldVersion);
+                                        await decryptVaultItem(probeItems[0].encrypted_data, oldKey);
+
+                                        const { data: allItems } = await supabase
+                                            .from('vault_items')
+                                            .select('id, encrypted_data')
+                                            .eq('user_id', user.id);
+
+                                        const { data: allCategories } = await supabase
+                                            .from('categories')
+                                            .select('id, name, icon, color')
+                                            .eq('user_id', user.id);
+
+                                        const repairResult = await reEncryptVault(
+                                            allItems || [],
+                                            allCategories || [],
+                                            oldKey,
+                                            activeKey,
+                                        );
+
+                                        for (const itemUpdate of repairResult.itemUpdates) {
+                                            await supabase
+                                                .from('vault_items')
+                                                .update({ encrypted_data: itemUpdate.encrypted_data })
+                                                .eq('id', itemUpdate.id)
+                                                .eq('user_id', user.id);
+                                        }
+
+                                        for (const catUpdate of repairResult.categoryUpdates) {
+                                            await supabase
+                                                .from('categories')
+                                                .update({ name: catUpdate.name, icon: catUpdate.icon, color: catUpdate.color })
+                                                .eq('id', catUpdate.id)
+                                                .eq('user_id', user.id);
+                                        }
+
+                                        console.info(
+                                            `KDF repair (duress path) complete: re-encrypted ${repairResult.itemsReEncrypted} items ` +
+                                            `and ${repairResult.categoriesReEncrypted} categories.`
+                                        );
+                                        break;
+                                    } catch {
+                                        continue;
+                                    }
+                                }
+                            }
+                        }
+                    } catch (repairErr) {
+                        console.error('KDF repair check failed (duress path):', repairErr);
                     }
                 }
 
@@ -557,30 +679,172 @@ export function VaultProvider({ children }: VaultProviderProps) {
             // Success - store key in memory (may be upgraded below)
             let activeKey = key;
 
-            // ── KDF Auto-Migration ──
+            // ── KDF Auto-Migration with Re-Encryption ──
+            // CRITICAL: We must re-encrypt ALL existing vault data before
+            // switching to the new key. Otherwise, data encrypted with the
+            // old key becomes unreadable.
             try {
                 const upgrade = await attemptKdfUpgrade(masterPassword, salt, kdfVersion);
                 if (upgrade.upgraded && upgrade.newKey && upgrade.newVerifier) {
-                    const { error: upgradeError } = await supabase
-                        .from('profiles')
-                        .update({
-                            master_password_verifier: upgrade.newVerifier,
-                            kdf_version: upgrade.activeVersion,
-                        } as Record<string, unknown>)
-                        .eq('user_id', user.id);
+                    try {
+                        // Load all vault items and categories for re-encryption
+                        const { data: vaultItems } = await supabase
+                            .from('vault_items')
+                            .select('id, encrypted_data')
+                            .eq('user_id', user.id);
 
-                    if (!upgradeError) {
-                        activeKey = upgrade.newKey;
-                        setVerificationHash(upgrade.newVerifier);
-                        setKdfVersion(upgrade.activeVersion);
-                        await saveOfflineCredentials(user.id, salt, upgrade.newVerifier);
-                        console.info(`KDF upgraded from v${kdfVersion} to v${upgrade.activeVersion}`);
-                    } else {
-                        console.warn('KDF upgrade: DB update failed, staying on old version', upgradeError);
+                        const { data: categories } = await supabase
+                            .from('categories')
+                            .select('id, name, icon, color')
+                            .eq('user_id', user.id);
+
+                        // Re-encrypt everything with the new key
+                        const reEncResult = await reEncryptVault(
+                            vaultItems || [],
+                            categories || [],
+                            key, // old key (current session key)
+                            upgrade.newKey,
+                        );
+
+                        // Persist re-encrypted items
+                        for (const itemUpdate of reEncResult.itemUpdates) {
+                            const { error: itemError } = await supabase
+                                .from('vault_items')
+                                .update({ encrypted_data: itemUpdate.encrypted_data })
+                                .eq('id', itemUpdate.id)
+                                .eq('user_id', user.id);
+                            if (itemError) {
+                                throw new Error(`Failed to update item ${itemUpdate.id}: ${itemError.message}`);
+                            }
+                        }
+
+                        // Persist re-encrypted categories
+                        for (const catUpdate of reEncResult.categoryUpdates) {
+                            const { error: catError } = await supabase
+                                .from('categories')
+                                .update({ name: catUpdate.name, icon: catUpdate.icon, color: catUpdate.color })
+                                .eq('id', catUpdate.id)
+                                .eq('user_id', user.id);
+                            if (catError) {
+                                throw new Error(`Failed to update category ${catUpdate.id}: ${catError.message}`);
+                            }
+                        }
+
+                        // Only NOW update the profile with the new KDF version
+                        const { error: upgradeError } = await supabase
+                            .from('profiles')
+                            .update({
+                                master_password_verifier: upgrade.newVerifier,
+                                kdf_version: upgrade.activeVersion,
+                            } as Record<string, unknown>)
+                            .eq('user_id', user.id);
+
+                        if (!upgradeError) {
+                            // All re-encryption + profile update succeeded — safe to switch
+                            activeKey = upgrade.newKey;
+                            setVerificationHash(upgrade.newVerifier);
+                            setKdfVersion(upgrade.activeVersion);
+                            await saveOfflineCredentials(user.id, salt, upgrade.newVerifier);
+                            console.info(
+                                `KDF upgraded from v${kdfVersion} to v${upgrade.activeVersion}. ` +
+                                `Re-encrypted ${reEncResult.itemsReEncrypted} items and ` +
+                                `${reEncResult.categoriesReEncrypted} categories.`
+                            );
+                        } else {
+                            // Profile update failed — all data is still on old key, keep old key
+                            console.warn('KDF upgrade: profile update failed, staying on old version', upgradeError);
+                        }
+                    } catch (reEncErr) {
+                        // Re-encryption failed — keep old key, data is still intact
+                        console.warn('KDF upgrade: re-encryption failed, staying on old version', reEncErr);
                     }
                 }
             } catch {
                 console.warn('KDF upgrade failed, continuing with current version');
+            }
+
+            // ── Fallback: Detect and repair broken KDF upgrades ──
+            // This MUST run BEFORE setIsLocked(false) so that UI components
+            // don't try to decrypt with the wrong key while repair is in progress.
+            // If a previous KDF upgrade updated the verifier + kdf_version
+            // but failed to re-encrypt vault data, existing items are still
+            // encrypted with the old key.
+            if (kdfVersion >= 2) {
+                try {
+                    const { data: probeItems } = await supabase
+                        .from('vault_items')
+                        .select('id, encrypted_data')
+                        .eq('user_id', user.id)
+                        .limit(1);
+
+                    if (probeItems && probeItems.length > 0) {
+                        try {
+                            await decryptVaultItem(probeItems[0].encrypted_data, activeKey);
+                            // Decrypt succeeded — data is consistent, nothing to repair
+                        } catch {
+                            // Decrypt failed — data is likely encrypted with an older KDF version
+                            console.warn('Detected broken KDF upgrade: data encrypted with older key. Starting repair...');
+
+                            // Try each older KDF version as fallback
+                            for (let oldVersion = kdfVersion - 1; oldVersion >= 1; oldVersion--) {
+                                try {
+                                    const oldKey = await deriveKey(masterPassword, salt, oldVersion);
+                                    // Test if this old key can decrypt the probe item
+                                    await decryptVaultItem(probeItems[0].encrypted_data, oldKey);
+
+                                    // Old key works! Re-encrypt all data with the current key
+                                    console.info(`Fallback key v${oldVersion} works. Re-encrypting vault data...`);
+
+                                    const { data: allItems } = await supabase
+                                        .from('vault_items')
+                                        .select('id, encrypted_data')
+                                        .eq('user_id', user.id);
+
+                                    const { data: allCategories } = await supabase
+                                        .from('categories')
+                                        .select('id, name, icon, color')
+                                        .eq('user_id', user.id);
+
+                                    const repairResult = await reEncryptVault(
+                                        allItems || [],
+                                        allCategories || [],
+                                        oldKey,
+                                        activeKey,
+                                    );
+
+                                    // Persist repairs
+                                    for (const itemUpdate of repairResult.itemUpdates) {
+                                        await supabase
+                                            .from('vault_items')
+                                            .update({ encrypted_data: itemUpdate.encrypted_data })
+                                            .eq('id', itemUpdate.id)
+                                            .eq('user_id', user.id);
+                                    }
+
+                                    for (const catUpdate of repairResult.categoryUpdates) {
+                                        await supabase
+                                            .from('categories')
+                                            .update({ name: catUpdate.name, icon: catUpdate.icon, color: catUpdate.color })
+                                            .eq('id', catUpdate.id)
+                                            .eq('user_id', user.id);
+                                    }
+
+                                    console.info(
+                                        `KDF repair complete: re-encrypted ${repairResult.itemsReEncrypted} items ` +
+                                        `and ${repairResult.categoriesReEncrypted} categories from v${oldVersion} to v${kdfVersion}.`
+                                    );
+                                    break; // Repair done, stop trying older versions
+                                } catch {
+                                    // This old version didn't work either, try the next
+                                    continue;
+                                }
+                            }
+                        }
+                    }
+                } catch (repairErr) {
+                    // Non-fatal: vault still opens with whatever key works
+                    console.error('KDF repair check failed:', repairErr);
+                }
             }
 
             setEncryptionKey(activeKey);

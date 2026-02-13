@@ -769,6 +769,16 @@
       "rotateKeyError": "Failed to rotate key."
     }
   },
+  "fileAttachments": {
+    "title": "File Attachments",
+    "dropzone": "Drop files here or click to upload",
+    "maxSize": "Max {{size}} per file",
+    "uploaded": "{{count}} file(s) uploaded",
+    "uploadError": "Upload failed",
+    "downloadError": "Download failed",
+    "deleted": "Attachment deleted",
+    "deleteError": "Failed to delete attachment"
+  },
   "categories": {
     "add": "Add Category",
     "edit": "Edit Category",

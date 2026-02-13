@@ -287,6 +287,8 @@ export interface KdfUpgradeResult {
     upgraded: boolean;
     /** New CryptoKey derived with upgraded parameters (only if upgraded) */
     newKey?: CryptoKey;
+    /** Old CryptoKey (returned so caller can re-encrypt existing data) */
+    oldKey?: CryptoKey;
     /** New verification hash (only if upgraded) */
     newVerifier?: string;
     /** The KDF version that is now active */
@@ -300,11 +302,18 @@ export interface KdfUpgradeResult {
  * the latest version, returns immediately. Otherwise it:
  *   1. Derives a new key using the latest KDF parameters
  *   2. Creates a new verification hash with the new key
- *   3. Returns the new key + verifier for the caller to persist
+ *   3. Returns BOTH the old key and new key for the caller to:
+ *      a) Re-encrypt all vault data from oldKey -> newKey
+ *      b) Only THEN switch the in-memory key to the new one
+ *
+ * IMPORTANT: The caller (VaultContext) MUST re-encrypt all existing
+ * vault data before switching to the new key. Otherwise, existing
+ * data encrypted with the old key will become unreadable.
  *
  * The caller (VaultContext) is responsible for:
+ *   - Re-encrypting all vault items and categories with the new key
  *   - Saving the new verifier and kdf_version to the profiles table
- *   - Updating the in-memory encryption key
+ *   - Updating the in-memory encryption key AFTER re-encryption
  *   - Updating the offline credentials cache
  *
  * If the device cannot handle the higher memory requirement (OOM),
@@ -328,12 +337,16 @@ export async function attemptKdfUpgrade(
         // Derive key with the new, stronger parameters
         const newKey = await deriveKey(masterPassword, saltBase64, CURRENT_KDF_VERSION);
 
+        // Also derive the old key so the caller can re-encrypt data
+        const oldKey = await deriveKey(masterPassword, saltBase64, currentVersion);
+
         // Create a new verification hash so future unlocks use the new key
         const newVerifier = await createVerificationHash(newKey);
 
         return {
             upgraded: true,
             newKey,
+            oldKey,
             newVerifier,
             activeVersion: CURRENT_KDF_VERSION,
         };
@@ -347,6 +360,132 @@ export async function attemptKdfUpgrade(
         );
         return { upgraded: false, activeVersion: currentVersion };
     }
+}
+
+// ============ Vault Re-Encryption ============
+
+/**
+ * Encrypted category field prefix used for category name/icon/color.
+ */
+const ENCRYPTED_CATEGORY_PREFIX = 'enc:cat:v1:';
+
+/**
+ * Re-encrypts a single encrypted string from oldKey to newKey.
+ *
+ * @param encryptedBase64 - The encrypted data (base64)
+ * @param oldKey - The old CryptoKey used to encrypt the data
+ * @param newKey - The new CryptoKey to re-encrypt with
+ * @returns Re-encrypted base64 string
+ * @throws Error if decryption or re-encryption fails
+ */
+export async function reEncryptString(
+    encryptedBase64: string,
+    oldKey: CryptoKey,
+    newKey: CryptoKey,
+): Promise<string> {
+    const plaintext = await decrypt(encryptedBase64, oldKey);
+    return encrypt(plaintext, newKey);
+}
+
+/**
+ * Result of a vault re-encryption operation.
+ */
+export interface ReEncryptionResult {
+    /** Number of vault items re-encrypted */
+    itemsReEncrypted: number;
+    /** Number of categories re-encrypted */
+    categoriesReEncrypted: number;
+    /** Item updates to persist: array of { id, encrypted_data } */
+    itemUpdates: Array<{ id: string; encrypted_data: string }>;
+    /** Category updates to persist: array of { id, name, icon, color } */
+    categoryUpdates: Array<{ id: string; name: string; icon: string | null; color: string | null }>;
+}
+
+/**
+ * Re-encrypts all vault items and encrypted category fields from
+ * an old key to a new key. This is required during KDF version upgrades
+ * so that existing data remains readable with the new key.
+ *
+ * SECURITY: This function is pure (no DB side effects). The caller
+ * is responsible for persisting the re-encrypted data atomically.
+ *
+ * @param items - Array of vault items with { id, encrypted_data }
+ * @param categories - Array of categories with { id, name, icon, color }
+ * @param oldKey - The old CryptoKey
+ * @param newKey - The new CryptoKey
+ * @returns Re-encryption result with all updates ready to persist
+ */
+export async function reEncryptVault(
+    items: Array<{ id: string; encrypted_data: string }>,
+    categories: Array<{ id: string; name: string; icon: string | null; color: string | null }>,
+    oldKey: CryptoKey,
+    newKey: CryptoKey,
+): Promise<ReEncryptionResult> {
+    // Re-encrypt vault items
+    const itemUpdates: Array<{ id: string; encrypted_data: string }> = [];
+    for (const item of items) {
+        try {
+            const newEncrypted = await reEncryptString(item.encrypted_data, oldKey, newKey);
+            itemUpdates.push({ id: item.id, encrypted_data: newEncrypted });
+        } catch (err) {
+            // If a single item fails, abort the entire operation.
+            // Partial re-encryption is worse than no re-encryption.
+            throw new Error(`Failed to re-encrypt vault item ${item.id}: ${err}`);
+        }
+    }
+
+    // Re-encrypt category fields (only those with the encrypted prefix)
+    const categoryUpdates: Array<{ id: string; name: string; icon: string | null; color: string | null }> = [];
+    for (const cat of categories) {
+        let newName = cat.name;
+        let newIcon = cat.icon;
+        let newColor = cat.color;
+        let changed = false;
+
+        if (cat.name.startsWith(ENCRYPTED_CATEGORY_PREFIX)) {
+            try {
+                const encPart = cat.name.slice(ENCRYPTED_CATEGORY_PREFIX.length);
+                const reEncrypted = await reEncryptString(encPart, oldKey, newKey);
+                newName = `${ENCRYPTED_CATEGORY_PREFIX}${reEncrypted}`;
+                changed = true;
+            } catch (err) {
+                throw new Error(`Failed to re-encrypt category name ${cat.id}: ${err}`);
+            }
+        }
+
+        if (cat.icon && cat.icon.startsWith(ENCRYPTED_CATEGORY_PREFIX)) {
+            try {
+                const encPart = cat.icon.slice(ENCRYPTED_CATEGORY_PREFIX.length);
+                const reEncrypted = await reEncryptString(encPart, oldKey, newKey);
+                newIcon = `${ENCRYPTED_CATEGORY_PREFIX}${reEncrypted}`;
+                changed = true;
+            } catch (err) {
+                throw new Error(`Failed to re-encrypt category icon ${cat.id}: ${err}`);
+            }
+        }
+
+        if (cat.color && cat.color.startsWith(ENCRYPTED_CATEGORY_PREFIX)) {
+            try {
+                const encPart = cat.color.slice(ENCRYPTED_CATEGORY_PREFIX.length);
+                const reEncrypted = await reEncryptString(encPart, oldKey, newKey);
+                newColor = `${ENCRYPTED_CATEGORY_PREFIX}${reEncrypted}`;
+                changed = true;
+            } catch (err) {
+                throw new Error(`Failed to re-encrypt category color ${cat.id}: ${err}`);
+            }
+        }
+
+        if (changed) {
+            categoryUpdates.push({ id: cat.id, name: newName, icon: newIcon, color: newColor });
+        }
+    }
+
+    return {
+        itemsReEncrypted: itemUpdates.length,
+        categoriesReEncrypted: categoryUpdates.length,
+        itemUpdates,
+        categoryUpdates,
+    };
 }
 
 // ============ Utility Functions ============

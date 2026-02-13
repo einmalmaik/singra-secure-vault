@@ -22,6 +22,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { TwoFactorVerificationModal } from '@/components/auth/TwoFactorVerificationModal';
 import { get2FAStatus, verifyTwoFactorForLogin } from '@/services/twoFactorService';
 import { supabase } from '@/integrations/supabase/client';
+import { SEO } from '@/components/SEO';
 
 // Validation schemas
 const loginSchema = z.object({
@@ -183,6 +184,12 @@ export default function Auth() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-primary/10 p-4">
+      <SEO
+        title={mode === 'login' ? 'Anmelden' : 'Registrieren'}
+        description="Melde dich bei Singra PW an oder erstelle ein neues Konto. Sicherer Zero-Knowledge Passwort Manager mit clientseitiger Verschlüsselung."
+        path="/auth"
+        noIndex={true}
+      />
       <div className="w-full max-w-md">
         {/* Logo */}
         <Link to="/" className="flex items-center justify-center gap-2 mb-8">

@@ -5,6 +5,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Shield, Lock, Eye, Server, Cookie, HelpCircle } from 'lucide-react';
 import { Header } from "@/components/landing/Header";
 import { Footer } from "@/components/landing/Footer";
+import { SEO } from '@/components/SEO';
 
 const PrivacyPolicy = () => {
     const { t } = useTranslation();
@@ -50,6 +51,19 @@ const PrivacyPolicy = () => {
 
     return (
         <div className="min-h-screen bg-background flex flex-col">
+            <SEO
+                title="Datenschutzerklärung"
+                description="Datenschutzerklärung von Singra PW. Erfahre wie wir deine Daten schützen: Zero-Knowledge Architektur, clientseitige Verschlüsselung, keine Weitergabe an Dritte."
+                path="/privacy"
+                keywords={[
+                    'Datenschutz',
+                    'Datenschutzerklärung',
+                    'Privacy Policy',
+                    'DSGVO',
+                    'Zero-Knowledge',
+                    'Datenverarbeitung',
+                ]}
+            />
             <Header />
             <main className="flex-grow flex flex-col items-center py-32 px-4 sm:px-6 lg:px-8">
                 <div className="w-full max-w-4xl space-y-8">

@@ -4,6 +4,7 @@
  * Sets up providers and routing for Singra PW.
  */
 
+import { HelmetProvider } from "react-helmet-async";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -36,38 +37,40 @@ import SecurityWhitepaper from "./pages/SecurityWhitepaper";
 const queryClient = new QueryClient();
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <ThemeProvider>
-      <AuthProvider>
-        <SubscriptionProvider>
-          <VaultProvider>
-            <TooltipProvider>
-              <Toaster />
-              <Sonner />
-              <CookieConsent />
-              <BrowserRouter>
-                <Routes>
-                  <Route path="/" element={<Index />} />
-                  <Route path="/auth" element={<Auth />} />
-                  <Route path="/vault" element={<VaultPage />} />
-                  <Route path="/settings" element={<SettingsPage />} />
-                  <Route path="/pricing" element={<PricingPage />} />
-                  <Route path="/vault-health" element={<VaultHealthPage />} />
-                  <Route path="/authenticator" element={<AuthenticatorPage />} />
-                  <Route path="/vault/emergency/:id" element={<GrantorVaultPage />} />
-                  <Route path="/security" element={<SecurityWhitepaper />} />
-                  <Route path="/privacy" element={<PrivacyPolicy />} />
-                  <Route path="/impressum" element={<Impressum />} />
-                  {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </BrowserRouter>
-            </TooltipProvider>
-          </VaultProvider>
-        </SubscriptionProvider>
-      </AuthProvider>
-    </ThemeProvider>
-  </QueryClientProvider>
+  <HelmetProvider>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider>
+        <AuthProvider>
+          <SubscriptionProvider>
+            <VaultProvider>
+              <TooltipProvider>
+                <Toaster />
+                <Sonner />
+                <CookieConsent />
+                <BrowserRouter>
+                  <Routes>
+                    <Route path="/" element={<Index />} />
+                    <Route path="/auth" element={<Auth />} />
+                    <Route path="/vault" element={<VaultPage />} />
+                    <Route path="/settings" element={<SettingsPage />} />
+                    <Route path="/pricing" element={<PricingPage />} />
+                    <Route path="/vault-health" element={<VaultHealthPage />} />
+                    <Route path="/authenticator" element={<AuthenticatorPage />} />
+                    <Route path="/vault/emergency/:id" element={<GrantorVaultPage />} />
+                    <Route path="/security" element={<SecurityWhitepaper />} />
+                    <Route path="/privacy" element={<PrivacyPolicy />} />
+                    <Route path="/impressum" element={<Impressum />} />
+                    {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </BrowserRouter>
+              </TooltipProvider>
+            </VaultProvider>
+          </SubscriptionProvider>
+        </AuthProvider>
+      </ThemeProvider>
+    </QueryClientProvider>
+  </HelmetProvider>
 );
 
 export default App;

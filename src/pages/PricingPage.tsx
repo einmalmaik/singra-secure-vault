@@ -25,6 +25,7 @@ import { useSubscription } from '@/contexts/SubscriptionContext';
 import { CheckoutDialog } from '@/components/Subscription/CheckoutDialog';
 import { Header } from '@/components/landing/Header';
 import { Footer } from '@/components/landing/Footer';
+import { SEO } from '@/components/SEO';
 import type { PlanKey } from '@/config/planConfig';
 
 const FREE_FEATURES = [
@@ -79,6 +80,18 @@ export default function PricingPage() {
 
     return (
         <div className="min-h-screen flex flex-col bg-gradient-to-br from-primary/5 via-background to-primary/10">
+            <SEO
+                title="Preise & Pläne"
+                description="Wähle den passenden Plan für Singra PW: Kostenlos für Einzelnutzer, Premium für erweiterte Sicherheitsfunktionen, oder Families für bis zu 6 Personen."
+                path="/pricing"
+                keywords={[
+                    'Passwort Manager Preise',
+                    'Passwortmanager kostenlos',
+                    'Password Manager Premium',
+                    'Familien Passwort Manager',
+                    'Abo Preise',
+                ]}
+            />
             {/* Global Header */}
             <Header />
 

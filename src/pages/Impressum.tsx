@@ -2,10 +2,17 @@
 import React from "react";
 import { Header } from "@/components/landing/Header";
 import { Footer } from "@/components/landing/Footer";
+import { SEO } from '@/components/SEO';
 
 const Impressum = () => {
     return (
         <div className="min-h-screen bg-background flex flex-col">
+            <SEO
+                title="Impressum"
+                description="Impressum und Angaben gemäß § 5 TMG für Singra PW. Kontaktinformationen und rechtliche Hinweise."
+                path="/impressum"
+                keywords={['Impressum', 'Kontakt', 'Rechtliche Hinweise', 'TMG']}
+            />
             <Header />
             <main className="flex-grow flex flex-col items-center py-32 px-4 sm:px-6 lg:px-8">
                 <div className="w-full max-w-2xl space-y-8">

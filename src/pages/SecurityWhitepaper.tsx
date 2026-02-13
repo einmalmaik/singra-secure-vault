@@ -29,6 +29,7 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { cn } from '@/lib/utils';
+import { SEO, createArticleStructuredData, createBreadcrumbStructuredData } from '@/components/SEO';
 
 import { Header } from '@/components/landing/Header';
 import { Footer } from '@/components/landing/Footer';
@@ -252,8 +253,38 @@ export default function SecurityWhitepaper() {
         });
     };
 
+    // Structured data for SEO
+    const structuredData = {
+        ...createArticleStructuredData({
+            title: 'Security Whitepaper - Singra PW',
+            description: 'Faktenbasierte Beschreibung der Sicherheitsarchitektur von Singra PW – direkt aus dem Code und den DB-Policies abgeleitet.',
+            path: '/security',
+        }),
+        ...createBreadcrumbStructuredData([
+            { name: 'Home', path: '/' },
+            { name: 'Security Whitepaper', path: '/security' },
+        ]),
+    };
+
     return (
         <div className="min-h-screen bg-background flex flex-col">
+            <SEO
+                title="Security Whitepaper"
+                description="Faktenbasierte Beschreibung der Sicherheitsarchitektur von Singra PW. Zero-Knowledge Verschlüsselung, Argon2id KDF, AES-GCM, Row Level Security und mehr – direkt aus dem Code abgeleitet."
+                path="/security"
+                keywords={[
+                    'Security Whitepaper',
+                    'Zero-Knowledge',
+                    'Argon2id',
+                    'AES-GCM',
+                    'Row Level Security',
+                    'Clientseitige Verschlüsselung',
+                    'End-to-End Encryption',
+                    'Kryptographie',
+                    'Datensicherheit',
+                ]}
+                structuredData={structuredData}
+            />
             <Header />
             <main className="flex-grow py-28 px-4 sm:px-6 lg:px-8">
                 <div className="mx-auto w-full max-w-5xl space-y-8">

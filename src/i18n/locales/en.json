@@ -746,6 +746,20 @@
       "sla": {
         "priority24h": "Priority support - usually within 24h",
         "standard72h": "Standard support - usually within 72h"
+      },
+      "chat": {
+        "title": "Chat",
+        "you": "You",
+        "support": "Support",
+        "replyPlaceholder": "Write a message...",
+        "loadError": "Could not load chat.",
+        "sendError": "Could not send message.",
+        "ticketClosed": "This ticket is closed.",
+        "closeTicket": "Close ticket",
+        "closeError": "Could not close ticket.",
+        "closeSuccess": "Ticket has been closed.",
+        "newReplyNotification": "New support reply",
+        "newReplyBody": "You received a new reply on your support ticket."
       }
     },
     "profile": {

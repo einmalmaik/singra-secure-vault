@@ -12,6 +12,33 @@ const VALID_STATUSES = new Set<TicketStatus>([
   "closed",
 ]);
 
+async function sendResendMail(to: string, subject: string, html: string) {
+  const resendApiKey = Deno.env.get("RESEND_API_KEY");
+  if (!resendApiKey) {
+    console.warn("RESEND_API_KEY not set, skipping email notification");
+    return;
+  }
+
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${resendApiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: "Singra Support <support@mauntingstudios.de>",
+      to: [to],
+      subject,
+      html,
+    }),
+  });
+
+  if (!res.ok) {
+    const txt = await res.text();
+    console.warn(`Resend API error: ${res.status} ${txt}`);
+  }
+}
+
 function jsonResponse(
   corsHeaders: Record<string, string>,
   body: Record<string, unknown>,
@@ -357,6 +384,40 @@ async function handleReplyTicket(
     }
 
     statusResult = updatedTicket;
+  }
+
+  // Send email notification to the ticket owner for non-internal replies
+  if (!isInternal) {
+    try {
+      const { data: ticket } = await adminClient
+        .from("support_tickets")
+        .select("user_id, requester_email, subject")
+        .eq("id", ticketId)
+        .single();
+
+      if (ticket?.requester_email) {
+        const siteUrl = Deno.env.get("SITE_URL") || "https://singrapw.mauntingstudios.de";
+        await sendResendMail(
+          ticket.requester_email,
+          `Neue Antwort auf dein Support-Ticket (#${ticketId.slice(0, 8)})`,
+          `
+          <div style="font-family:Arial,sans-serif;line-height:1.6;color:#111">
+            <h2>Neue Antwort auf dein Ticket</h2>
+            <p>Hallo,</p>
+            <p>unser Support-Team hat auf dein Ticket geantwortet:</p>
+            <ul>
+              <li><strong>Betreff:</strong> ${ticket.subject || "Support-Ticket"}</li>
+            </ul>
+            <div style="background:#f5f5f5;border-radius:8px;padding:12px 16px;margin:16px 0;white-space:pre-wrap">${message.slice(0, 500)}${message.length > 500 ? "..." : ""}</div>
+            <p>Oeffne das Support-Widget in der App, um zu antworten.</p>
+            <p><a href="${siteUrl}/vault" style="display:inline-block;padding:10px 16px;background:#111;color:#fff;text-decoration:none;border-radius:8px">Zur App</a></p>
+          </div>
+          `,
+        );
+      }
+    } catch (notifyErr) {
+      console.warn("Failed to send user reply notification email:", notifyErr);
+    }
   }
 
   return jsonResponse(

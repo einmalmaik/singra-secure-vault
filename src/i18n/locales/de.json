@@ -769,6 +769,20 @@
       "sla": {
         "priority24h": "Prioritaets-Support - in der Regel 24h",
         "standard72h": "Standard-Support - in der Regel 72h"
+      },
+      "chat": {
+        "title": "Chat",
+        "you": "Du",
+        "support": "Support",
+        "replyPlaceholder": "Nachricht schreiben...",
+        "loadError": "Chat konnte nicht geladen werden.",
+        "sendError": "Nachricht konnte nicht gesendet werden.",
+        "ticketClosed": "Dieses Ticket ist geschlossen.",
+        "closeTicket": "Ticket schliessen",
+        "closeError": "Ticket konnte nicht geschlossen werden.",
+        "closeSuccess": "Ticket wurde geschlossen.",
+        "newReplyNotification": "Neue Support-Antwort",
+        "newReplyBody": "Du hast eine neue Antwort auf dein Ticket erhalten."
       }
     },
     "profile": {

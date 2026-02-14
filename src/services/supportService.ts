@@ -50,7 +50,7 @@ export async function listSupportTickets(): Promise<{
     error: Error | null;
 }> {
     const { data, error } = await supabase.functions.invoke('support-list', {
-        body: {},
+        body: { action: 'list' },
     });
 
     if (error) {
@@ -111,6 +111,86 @@ export async function getSupportResponseMetrics(days: number = 30): Promise<{
     };
 }
 
+/**
+ * Loads full ticket detail with all public messages for the current user.
+ *
+ * @param ticketId - The ticket UUID
+ * @returns Ticket + messages or error
+ */
+export async function getSupportTicketDetail(ticketId: string): Promise<{
+    ticket: SupportTicketSummary | null;
+    messages: SupportMessage[];
+    error: Error | null;
+}> {
+    const { data, error } = await supabase.functions.invoke('support-list', {
+        body: { action: 'get_ticket', ticket_id: ticketId },
+    });
+
+    if (error) {
+        return { ticket: null, messages: [], error: new Error(error.message || 'Failed to load ticket') };
+    }
+
+    if (!data?.success) {
+        return { ticket: null, messages: [], error: new Error('Ticket detail returned invalid payload') };
+    }
+
+    return {
+        ticket: (data.ticket || null) as SupportTicketSummary | null,
+        messages: (data.messages || []) as SupportMessage[],
+        error: null,
+    };
+}
+
+/**
+ * Sends a reply to a support ticket on behalf of the current user.
+ *
+ * @param ticketId - The ticket UUID
+ * @param message - The reply message body
+ * @returns Inserted message or error
+ */
+export async function replySupportTicket(
+    ticketId: string,
+    message: string,
+): Promise<{ message: SupportMessage | null; error: Error | null }> {
+    const { data, error } = await supabase.functions.invoke('support-list', {
+        body: { action: 'reply_ticket', ticket_id: ticketId, message },
+    });
+
+    if (error) {
+        return { message: null, error: new Error(error.message || 'Failed to send reply') };
+    }
+
+    if (!data?.success) {
+        return { message: null, error: new Error('Reply returned invalid payload') };
+    }
+
+    return { message: (data.message || null) as SupportMessage | null, error: null };
+}
+
+/**
+ * Closes a support ticket on behalf of the current user.
+ *
+ * @param ticketId - The ticket UUID
+ * @returns Updated ticket or error
+ */
+export async function closeSupportTicket(
+    ticketId: string,
+): Promise<{ error: Error | null }> {
+    const { data, error } = await supabase.functions.invoke('support-list', {
+        body: { action: 'close_ticket', ticket_id: ticketId },
+    });
+
+    if (error) {
+        return { error: new Error(error.message || 'Failed to close ticket') };
+    }
+
+    if (!data?.success) {
+        return { error: new Error('Close ticket returned invalid payload') };
+    }
+
+    return { error: null };
+}
+
 // ============ Type Definitions ============
 
 export interface CreateSupportTicketInput {
@@ -147,6 +227,16 @@ export interface SupportTicketSummary {
         author_role: 'user' | 'support' | 'system';
     } | null;
     sla_label?: string;
+    unread_count?: number;
+}
+
+export interface SupportMessage {
+    id: string;
+    ticket_id: string;
+    author_user_id: string;
+    author_role: 'user' | 'support' | 'system';
+    body: string;
+    created_at: string;
 }
 
 export interface SupportResponseMetric {

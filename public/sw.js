@@ -70,3 +70,34 @@ self.addEventListener('fetch', (event) => {
 
   event.respondWith(staleWhileRevalidate(request));
 });
+
+// ============ Support Reply Notifications ============
+
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SUPPORT_REPLY_NOTIFICATION') {
+    const { title, body, url } = event.data;
+    self.registration.showNotification(title || 'Singra PW Support', {
+      body: body || 'Du hast eine neue Support-Antwort.',
+      icon: '/singra-icon.png',
+      badge: '/singra-icon.png',
+      tag: 'support-reply',
+      data: { url: url || '/vault' },
+    });
+  }
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetUrl = event.notification.data?.url || '/vault';
+
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if (client.url.includes(self.location.origin) && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      return self.clients.openWindow(targetUrl);
+    }),
+  );
+});

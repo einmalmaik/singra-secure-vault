@@ -817,6 +817,97 @@
       "rotateKeyError": "Failed to rotate key."
     }
   },
+  "admin": {
+    "title": "Admin Area",
+    "brand": "Singra PW",
+    "description": "Internal operations for support, team roles, and permission management.",
+    "loadError": "Failed to load admin access.",
+    "accessDeniedTitle": "Access denied",
+    "accessDeniedDescription": "You don't have permission to access the internal admin area.",
+    "backToSettings": "Back to settings",
+    "tabs": {
+      "support": "Support",
+      "team": "Team & Permissions"
+    },
+    "support": {
+      "title": "Support Inbox",
+      "noAccess": "You don't have permission to read the internal support inbox.",
+      "loadError": "Failed to load support tickets.",
+      "ticketLoadError": "Failed to load ticket details.",
+      "replyError": "Failed to send reply.",
+      "replySent": "Reply sent successfully.",
+      "statusError": "Failed to update ticket status.",
+      "statusUpdated": "Ticket status updated.",
+      "metricsTitle": "Support metrics (30 days)",
+      "metricResponse": "Average first response time: {{hours}} h",
+      "metricHitRate": "SLA hit rate: {{rate}}%",
+      "noMetrics": "No metric data available.",
+      "inboxTitle": "Tickets",
+      "refresh": "Refresh",
+      "filters": {
+        "status": "Status",
+        "allStatuses": "All statuses",
+        "searchPlaceholder": "Search by subject",
+        "applySearch": "Search"
+      },
+      "noTickets": "No tickets found.",
+      "priority": "Priority",
+      "ticketDetails": "Ticket details",
+      "selectTicket": "Select a ticket on the left.",
+      "unknownRequester": "Unknown requester email",
+      "messages": "Messages",
+      "noMessages": "No messages yet.",
+      "author": {
+        "user": "User",
+        "support": "Support team",
+        "system": "System"
+      },
+      "internalBadge": "Internal",
+      "statusUpdateLabel": "Update status",
+      "statusUpdateAction": "Save status",
+      "replyLabel": "Compose reply",
+      "replyPlaceholder": "Write a user reply or internal note...",
+      "internalNoteToggle": "Save as internal note",
+      "replySending": "Sending...",
+      "replyAction": "Send reply"
+    },
+    "team": {
+      "title": "Team & Permissions",
+      "noAccess": "You don't have permission to manage roles or permissions.",
+      "membersTitle": "Team members",
+      "membersDescription": "Manage internal roles for team members.",
+      "membersLoadError": "Failed to load team members.",
+      "noMembers": "No team members found.",
+      "columns": {
+        "member": "Member",
+        "roles": "Active roles",
+        "primaryRole": "Primary role"
+      },
+      "roleLabels": {
+        "user": "User",
+        "moderator": "Moderator",
+        "admin": "Admin"
+      },
+      "roleUpdateError": "Failed to update role.",
+      "roleUpdated": "Role updated successfully.",
+      "permissionsTitle": "Role permissions",
+      "permissionsDescription": "Manage role permissions without code deployment.",
+      "permissionsLoadError": "Failed to load permission matrix.",
+      "noPermissions": "No permissions found.",
+      "permissionColumns": {
+        "permission": "Permission",
+        "user": "User",
+        "moderator": "Moderator",
+        "admin": "Admin"
+      },
+      "categories": {
+        "support": "Support",
+        "team": "Team"
+      },
+      "permissionsUpdateError": "Failed to update permission.",
+      "permissionsUpdated": "Permission updated successfully."
+    }
+  },
   "fileAttachments": {
     "title": "File Attachments",
     "dropzone": "Drop files here or click to upload",

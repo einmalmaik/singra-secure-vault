@@ -45,6 +45,8 @@ This prevents client-side spoofing of support priority.
 - `support-submit`: create ticket + first user message + email notifications
 - `support-list`: return current user entitlement + recent tickets
 - `support-metrics`: return aggregate response metrics (admin/moderator only)
+- `admin-support`: internal support inbox actions (list/detail/reply/status/metrics)
+- `admin-team`: internal team role + permission matrix management
 
 ### Metrics
 
@@ -82,6 +84,16 @@ Pricing page explicitly lists support response targets for all plans.
 - Do not include secrets in tickets (master password, recovery codes, private keys, vault contents)
 - Email send failures do not block ticket creation
 - Track SLA performance with 7d and 30d windows for internal operations
+
+## Internal Team Access (No-Code)
+
+Internal support and team-rights access is now permission-based via DB-managed role mappings.
+
+- Roles keep using `app_role` (`admin`, `moderator`, `user`)
+- Effective access is derived from `role_permissions`
+- Permission checks use `has_permission(user_id, permission_key)`
+
+See `docs/ADMIN_TEAM_ACCESS.md` for the full architecture and default permission seeds.
 
 ## Required Secrets (Supabase Edge Functions)
 

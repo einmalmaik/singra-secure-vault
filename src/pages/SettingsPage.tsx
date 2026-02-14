@@ -9,7 +9,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Settings, ArrowLeft, Shield, Search } from 'lucide-react';
+import { Settings, ArrowLeft, Shield, Search, Wrench } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,6 +27,7 @@ import { SharedCollectionsSettings } from '@/components/settings/SharedCollectio
 import { useAuth } from '@/contexts/AuthContext';
 import { useVault } from '@/contexts/VaultContext';
 import { useFeatureGate } from '@/hooks/useFeatureGate';
+import { getTeamAccess } from '@/services/adminService';
 
 type SettingsSection = {
     id: string;
@@ -47,6 +48,7 @@ export default function SettingsPage() {
     const sharedCollectionsGate = useFeatureGate('shared_collections');
 
     const [searchQuery, setSearchQuery] = useState('');
+    const [showAdminButton, setShowAdminButton] = useState(false);
 
     useEffect(() => {
         if (!loading && !user) {
@@ -59,6 +61,37 @@ export default function SettingsPage() {
             navigate('/vault', { replace: true });
         }
     }, [isLocked, user, navigate]);
+
+    useEffect(() => {
+        let isCancelled = false;
+
+        const loadAdminAccess = async () => {
+            if (!user) {
+                if (!isCancelled) {
+                    setShowAdminButton(false);
+                }
+                return;
+            }
+
+            const { access, error } = await getTeamAccess();
+            if (isCancelled) {
+                return;
+            }
+
+            if (error || !access) {
+                setShowAdminButton(false);
+                return;
+            }
+
+            setShowAdminButton(access.is_admin && access.can_access_admin);
+        };
+
+        void loadAdminAccess();
+
+        return () => {
+            isCancelled = true;
+        };
+    }, [user]);
 
     const sections: SettingsSection[] = useMemo(
         () => [
@@ -167,13 +200,26 @@ export default function SettingsPage() {
                             </div>
                         </div>
                     </div>
-                    <Link
-                        to="/"
-                        className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                        <Shield className="w-5 h-5" />
-                        <span className="hidden sm:inline font-semibold">Singra PW</span>
-                    </Link>
+                    <div className="flex items-center gap-2">
+                        {showAdminButton && (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => navigate('/admin')}
+                                className="flex items-center gap-2"
+                            >
+                                <Wrench className="w-4 h-4" />
+                                <span>{t('admin.title')}</span>
+                            </Button>
+                        )}
+                        <Link
+                            to="/"
+                            className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                            <Shield className="w-5 h-5" />
+                            <span className="hidden sm:inline font-semibold">Singra PW</span>
+                        </Link>
+                    </div>
                 </div>
             </header>
 

@@ -187,6 +187,9 @@ export function useMy() {
 ## Commit and PR Guidelines
 
 - Short, imperative commit messages (e.g., `fix vault unlock race condition`, `add TOTP export feature`).
+- Create a git commit after each completed logical change set (small, atomic commits).
+- Do not push directly to the owner's working branch or default branches (`main`/`master`). Create a feature branch first (for example `feature/support-admin-hardening`) and push that branch.
+- Open a PR from the feature branch into the target branch instead of direct branch pushes.
 - PRs must include: summary of behavioral changes, linked issue if applicable, screenshots for UI changes, notes for env/migration changes.
 - Run `npm run lint` and `npm run test` before pushing.
 

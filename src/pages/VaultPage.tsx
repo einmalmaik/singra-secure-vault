@@ -22,7 +22,8 @@ import {
     Loader2,
     Menu,
     WifiOff,
-    RefreshCw
+    RefreshCw,
+    Wrench,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -37,6 +38,7 @@ import { VaultItemList } from '@/components/vault/VaultItemList';
 import { VaultItemDialog } from '@/components/vault/VaultItemDialog';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { getTeamAccess } from '@/services/adminService';
 import { syncOfflineMutations } from '@/services/offlineVaultService';
 import { useToast } from '@/hooks/use-toast';
 
@@ -62,6 +64,7 @@ export default function VaultPage() {
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [isOnline, setIsOnline] = useState(() => navigator.onLine);
     const [isSyncing, setIsSyncing] = useState(false);
+    const [showAdminButton, setShowAdminButton] = useState(false);
 
     useEffect(() => {
         const goOnline = () => setIsOnline(true);
@@ -109,6 +112,38 @@ export default function VaultPage() {
             cancelled = true;
         };
     }, [user, isLocked, isSetupRequired, isOnline, toast, t]);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        const loadAdminAccess = async () => {
+            if (!user) {
+                if (!cancelled) {
+                    setShowAdminButton(false);
+                }
+                return;
+            }
+
+            const { access, error } = await getTeamAccess();
+
+            if (cancelled) {
+                return;
+            }
+
+            if (error || !access) {
+                setShowAdminButton(false);
+                return;
+            }
+
+            setShowAdminButton(access.is_admin && access.can_access_admin);
+        };
+
+        void loadAdminAccess();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [user]);
 
     // Redirect if not authenticated
     if (!authLoading && !user) {
@@ -208,6 +243,17 @@ export default function VaultPage() {
                             <Button asChild variant="outline">
                                 <Link to="/">{t('nav.home')}</Link>
                             </Button>
+
+                            {showAdminButton && (
+                                <Button
+                                    variant="outline"
+                                    onClick={() => navigate('/admin')}
+                                    className="flex items-center gap-2"
+                                >
+                                    <Wrench className="w-4 h-4" />
+                                    <span className="hidden md:inline">{t('admin.title')}</span>
+                                </Button>
+                            )}
 
                             {/* View Mode Toggle */}
                             <div className="hidden sm:flex border rounded-lg p-0.5">

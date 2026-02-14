@@ -21,7 +21,10 @@ const productionOrigins = configuredOrigin === "*"
 function isAllowedOrigin(origin: string): boolean {
     if (productionOrigins.includes("*")) return true;
     if (productionOrigins.includes(origin)) return true;
-    if (/^https?:\/\/localhost(:\d+)?$/.test(origin)) return true;
+    if (/^https?:\/\/localhost(:\d+)?$/.test(origin)) {
+        const isDev = Deno.env.get("ENVIRONMENT") === "development";
+        if (isDev) return true;
+    }
     return false;
 }
 

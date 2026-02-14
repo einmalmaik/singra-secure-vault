@@ -1,5 +1,3 @@
-// Copyright (c) 2025-2026 Maunting Studios
-// Licensed under the Business Source License 1.1 — see LICENSE
 export type Json =
   | string
   | number
@@ -87,40 +85,122 @@ export type Database = {
           },
         ]
       }
+      collection_audit_log: {
+        Row: {
+          action: string
+          collection_id: string
+          created_at: string
+          details: Json | null
+          id: string
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          collection_id: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          collection_id?: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collection_audit_log_collection_id_fkey"
+            columns: ["collection_id"]
+            isOneToOne: false
+            referencedRelation: "shared_collections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      collection_keys: {
+        Row: {
+          collection_id: string
+          created_at: string
+          id: string
+          pq_wrapped_key: string | null
+          user_id: string
+          wrapped_key: string
+        }
+        Insert: {
+          collection_id: string
+          created_at?: string
+          id?: string
+          pq_wrapped_key?: string | null
+          user_id: string
+          wrapped_key: string
+        }
+        Update: {
+          collection_id?: string
+          created_at?: string
+          id?: string
+          pq_wrapped_key?: string | null
+          user_id?: string
+          wrapped_key?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collection_keys_collection_id_fkey"
+            columns: ["collection_id"]
+            isOneToOne: false
+            referencedRelation: "shared_collections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       emergency_access: {
         Row: {
           created_at: string
+          encrypted_master_key: string | null
           granted_at: string | null
           grantor_id: string
           id: string
+          pq_encrypted_master_key: string | null
           requested_at: string | null
           status: string
           trusted_email: string
           trusted_user_id: string | null
+          trustee_pq_public_key: string | null
+          trustee_public_key: string | null
           updated_at: string
           wait_days: number
         }
         Insert: {
           created_at?: string
+          encrypted_master_key?: string | null
           granted_at?: string | null
           grantor_id: string
           id?: string
+          pq_encrypted_master_key?: string | null
           requested_at?: string | null
           status?: string
           trusted_email: string
           trusted_user_id?: string | null
+          trustee_pq_public_key?: string | null
+          trustee_public_key?: string | null
           updated_at?: string
           wait_days?: number
         }
         Update: {
           created_at?: string
+          encrypted_master_key?: string | null
           granted_at?: string | null
           grantor_id?: string
           id?: string
+          pq_encrypted_master_key?: string | null
           requested_at?: string | null
           status?: string
           trusted_email?: string
           trusted_user_id?: string | null
+          trustee_pq_public_key?: string | null
+          trustee_public_key?: string | null
           updated_at?: string
           wait_days?: number
         }
@@ -163,6 +243,7 @@ export type Database = {
         Row: {
           created_at: string
           encrypted: boolean | null
+          encrypted_metadata: string | null
           file_name: string
           file_size: number
           id: string
@@ -175,6 +256,7 @@ export type Database = {
         Insert: {
           created_at?: string
           encrypted?: boolean | null
+          encrypted_metadata?: string | null
           file_name: string
           file_size: number
           id?: string
@@ -187,6 +269,7 @@ export type Database = {
         Update: {
           created_at?: string
           encrypted?: boolean | null
+          encrypted_metadata?: string | null
           file_name?: string
           file_size?: number
           id?: string
@@ -206,15 +289,70 @@ export type Database = {
           },
         ]
       }
+      passkey_credentials: {
+        Row: {
+          aaguid: string | null
+          counter: number
+          created_at: string
+          credential_id: string
+          device_name: string
+          id: string
+          last_used_at: string | null
+          prf_enabled: boolean
+          prf_salt: string | null
+          public_key: string
+          transports: string[] | null
+          user_id: string
+          wrapped_master_key: string | null
+        }
+        Insert: {
+          aaguid?: string | null
+          counter?: number
+          created_at?: string
+          credential_id: string
+          device_name?: string
+          id?: string
+          last_used_at?: string | null
+          prf_enabled?: boolean
+          prf_salt?: string | null
+          public_key: string
+          transports?: string[] | null
+          user_id: string
+          wrapped_master_key?: string | null
+        }
+        Update: {
+          aaguid?: string | null
+          counter?: number
+          created_at?: string
+          credential_id?: string
+          device_name?: string
+          id?: string
+          last_used_at?: string | null
+          prf_enabled?: boolean
+          prf_salt?: string | null
+          public_key?: string
+          transports?: string[] | null
+          user_id?: string
+          wrapped_master_key?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
           created_at: string
           display_name: string | null
+          duress_kdf_version: number | null
+          duress_password_verifier: string | null
+          duress_salt: string | null
           encryption_salt: string | null
           hide_community_ads: boolean | null
           id: string
+          kdf_version: number
           master_password_verifier: string | null
+          pq_encrypted_private_key: string | null
+          pq_key_version: number | null
+          pq_public_key: string | null
           preferred_language: string | null
           theme: string | null
           updated_at: string
@@ -224,10 +362,17 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string
           display_name?: string | null
+          duress_kdf_version?: number | null
+          duress_password_verifier?: string | null
+          duress_salt?: string | null
           encryption_salt?: string | null
           hide_community_ads?: boolean | null
           id?: string
+          kdf_version?: number
           master_password_verifier?: string | null
+          pq_encrypted_private_key?: string | null
+          pq_key_version?: number | null
+          pq_public_key?: string | null
           preferred_language?: string | null
           theme?: string | null
           updated_at?: string
@@ -237,10 +382,17 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string
           display_name?: string | null
+          duress_kdf_version?: number | null
+          duress_password_verifier?: string | null
+          duress_salt?: string | null
           encryption_salt?: string | null
           hide_community_ads?: boolean | null
           id?: string
+          kdf_version?: number
           master_password_verifier?: string | null
+          pq_encrypted_private_key?: string | null
+          pq_key_version?: number | null
+          pq_public_key?: string | null
           preferred_language?: string | null
           theme?: string | null
           updated_at?: string
@@ -248,11 +400,41 @@ export type Database = {
         }
         Relationships: []
       }
+      role_permissions: {
+        Row: {
+          created_at: string
+          id: string
+          permission_key: string
+          role: Database["public"]["Enums"]["app_role"]
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          permission_key: string
+          role: Database["public"]["Enums"]["app_role"]
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          permission_key?: string
+          role?: Database["public"]["Enums"]["app_role"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "role_permissions_permission_key_fkey"
+            columns: ["permission_key"]
+            isOneToOne: false
+            referencedRelation: "team_permissions"
+            referencedColumns: ["permission_key"]
+          },
+        ]
+      }
       shared_collection_items: {
         Row: {
           added_by: string | null
           collection_id: string
           created_at: string
+          encrypted_data: string | null
           id: string
           vault_item_id: string
         }
@@ -260,6 +442,7 @@ export type Database = {
           added_by?: string | null
           collection_id: string
           created_at?: string
+          encrypted_data?: string | null
           id?: string
           vault_item_id: string
         }
@@ -267,6 +450,7 @@ export type Database = {
           added_by?: string | null
           collection_id?: string
           created_at?: string
+          encrypted_data?: string | null
           id?: string
           vault_item_id?: string
         }
@@ -324,6 +508,8 @@ export type Database = {
           created_at: string
           description: string | null
           id: string
+          item_count: number | null
+          member_count: number | null
           name: string
           owner_id: string
           updated_at: string
@@ -332,6 +518,8 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          item_count?: number | null
+          member_count?: number | null
           name: string
           owner_id: string
           updated_at?: string
@@ -340,6 +528,8 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          item_count?: number | null
+          member_count?: number | null
           name?: string
           owner_id?: string
           updated_at?: string
@@ -391,6 +581,145 @@ export type Database = {
         }
         Relationships: []
       }
+      support_events: {
+        Row: {
+          actor_user_id: string | null
+          created_at: string
+          event_payload: Json | null
+          event_type: string
+          id: string
+          ticket_id: string
+        }
+        Insert: {
+          actor_user_id?: string | null
+          created_at?: string
+          event_payload?: Json | null
+          event_type: string
+          id?: string
+          ticket_id: string
+        }
+        Update: {
+          actor_user_id?: string | null
+          created_at?: string
+          event_payload?: Json | null
+          event_type?: string
+          id?: string
+          ticket_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_events_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "support_tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      support_messages: {
+        Row: {
+          author_role: string
+          author_user_id: string | null
+          body: string
+          created_at: string
+          id: string
+          is_internal: boolean
+          ticket_id: string
+        }
+        Insert: {
+          author_role: string
+          author_user_id?: string | null
+          body: string
+          created_at?: string
+          id?: string
+          is_internal?: boolean
+          ticket_id: string
+        }
+        Update: {
+          author_role?: string
+          author_user_id?: string | null
+          body?: string
+          created_at?: string
+          id?: string
+          is_internal?: boolean
+          ticket_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_messages_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "support_tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      support_tickets: {
+        Row: {
+          category: string
+          closed_at: string | null
+          created_at: string
+          first_responded_by: string | null
+          first_response_at: string | null
+          first_response_minutes: number | null
+          id: string
+          is_priority: boolean
+          last_message_at: string
+          priority_reason: string
+          requester_email: string | null
+          resolved_at: string | null
+          sla_due_at: string
+          sla_hours: number
+          status: string
+          subject: string
+          tier_snapshot: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category?: string
+          closed_at?: string | null
+          created_at?: string
+          first_responded_by?: string | null
+          first_response_at?: string | null
+          first_response_minutes?: number | null
+          id?: string
+          is_priority?: boolean
+          last_message_at?: string
+          priority_reason?: string
+          requester_email?: string | null
+          resolved_at?: string | null
+          sla_due_at?: string
+          sla_hours?: number
+          status?: string
+          subject: string
+          tier_snapshot?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string
+          closed_at?: string | null
+          created_at?: string
+          first_responded_by?: string | null
+          first_response_at?: string | null
+          first_response_minutes?: number | null
+          id?: string
+          is_priority?: boolean
+          last_message_at?: string
+          priority_reason?: string
+          requester_email?: string | null
+          resolved_at?: string | null
+          sla_due_at?: string
+          sla_hours?: number
+          status?: string
+          subject?: string
+          tier_snapshot?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       tags: {
         Row: {
           color: string | null
@@ -412,6 +741,57 @@ export type Database = {
           id?: string
           name?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      team_access_audit_log: {
+        Row: {
+          action: string
+          actor_user_id: string | null
+          created_at: string
+          id: string
+          payload: Json | null
+          target_user_id: string | null
+        }
+        Insert: {
+          action: string
+          actor_user_id?: string | null
+          created_at?: string
+          id?: string
+          payload?: Json | null
+          target_user_id?: string | null
+        }
+        Update: {
+          action?: string
+          actor_user_id?: string | null
+          created_at?: string
+          id?: string
+          payload?: Json | null
+          target_user_id?: string | null
+        }
+        Relationships: []
+      }
+      team_permissions: {
+        Row: {
+          category: string
+          created_at: string
+          description: string
+          label: string
+          permission_key: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          description: string
+          label: string
+          permission_key: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          description?: string
+          label?: string
+          permission_key?: string
         }
         Relationships: []
       }
@@ -451,6 +831,30 @@ export type Database = {
           updated_at?: string | null
           user_id?: string
           vault_2fa_enabled?: boolean | null
+        }
+        Relationships: []
+      }
+      user_keys: {
+        Row: {
+          created_at: string
+          encrypted_private_key: string
+          public_key: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          encrypted_private_key: string
+          public_key: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          encrypted_private_key?: string
+          public_key?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -607,16 +1011,77 @@ export type Database = {
         }
         Relationships: []
       }
+      webauthn_challenges: {
+        Row: {
+          challenge: string
+          created_at: string
+          expires_at: string
+          id: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          challenge: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          challenge?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      check_family_size: { Args: { owner_id: string }; Returns: number }
+      check_subscription_tier: { Args: { user_id: string }; Returns: string }
+      cleanup_expired_webauthn_challenges: { Args: never; Returns: undefined }
       delete_my_account: { Args: never; Returns: Json }
+      get_my_permissions: {
+        Args: never
+        Returns: {
+          permission_key: string
+        }[]
+      }
+      get_support_response_metrics: {
+        Args: { _days?: number }
+        Returns: {
+          avg_first_response_hours: number
+          avg_first_response_minutes: number
+          responded_count: number
+          segment: string
+          sla_hit_rate_percent: number
+          ticket_count: number
+          window_days: number
+        }[]
+      }
+      get_support_sla_for_user: {
+        Args: { _user_id: string }
+        Returns: {
+          is_priority: boolean
+          priority_reason: string
+          sla_hours: number
+          tier_snapshot: string
+        }[]
+      }
       get_totp_encryption_key: { Args: never; Returns: string }
       get_user_2fa_secret: {
         Args: { p_require_enabled?: boolean; p_user_id: string }
         Returns: string
+      }
+      has_permission: {
+        Args: { _permission_key: string; _user_id: string }
+        Returns: boolean
       }
       has_role: {
         Args: {
@@ -627,6 +1092,10 @@ export type Database = {
       }
       initialize_user_2fa_secret: {
         Args: { p_secret: string; p_user_id: string }
+        Returns: undefined
+      }
+      rotate_collection_key_atomic: {
+        Args: { p_collection_id: string; p_items: Json; p_new_keys: Json }
         Returns: undefined
       }
       rotate_totp_encryption_key: {

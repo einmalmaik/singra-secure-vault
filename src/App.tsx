@@ -31,6 +31,7 @@ import VaultHealthPage from "./pages/VaultHealthPage";
 import AuthenticatorPage from "./pages/AuthenticatorPage";
 import NotFound from "./pages/NotFound";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
+import AdminPage from "./pages/AdminPage";
 import { CookieConsent } from "./components/CookieConsent";
 import { SupportWidget } from "./components/SupportWidget";
 import Impressum from "./pages/Impressum";
@@ -60,6 +61,7 @@ const App = () => (
                     <Route path="/pricing" element={<PricingPage />} />
                     <Route path="/vault-health" element={<VaultHealthPage />} />
                     <Route path="/authenticator" element={<AuthenticatorPage />} />
+                    <Route path="/admin" element={<AdminPage />} />
                     <Route path="/vault/emergency/:id" element={<GrantorVaultPage />} />
                     <Route path="/security" element={<SecurityWhitepaper />} />
                     <Route path="/privacy" element={<PrivacyPolicy />} />

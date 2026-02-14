@@ -769,6 +769,20 @@
       "sla": {
         "priority24h": "Prioritaets-Support - in der Regel 24h",
         "standard72h": "Standard-Support - in der Regel 72h"
+      },
+      "chat": {
+        "title": "Chat",
+        "you": "Du",
+        "support": "Support",
+        "replyPlaceholder": "Nachricht schreiben...",
+        "loadError": "Chat konnte nicht geladen werden.",
+        "sendError": "Nachricht konnte nicht gesendet werden.",
+        "ticketClosed": "Dieses Ticket ist geschlossen.",
+        "closeTicket": "Ticket schliessen",
+        "closeError": "Ticket konnte nicht geschlossen werden.",
+        "closeSuccess": "Ticket wurde geschlossen.",
+        "newReplyNotification": "Neue Support-Antwort",
+        "newReplyBody": "Du hast eine neue Antwort auf dein Ticket erhalten."
       }
     },
     "profile": {
@@ -838,6 +852,97 @@
       "rotateKeyWarning": "Alle Einträge werden neu verschlüsselt. Dies kann einige Zeit dauern.",
       "rotateKeySuccess": "Schlüssel erfolgreich rotiert.",
       "rotateKeyError": "Schlüssel konnte nicht rotiert werden."
+    }
+  },
+  "admin": {
+    "title": "Admin-Bereich",
+    "brand": "Singra PW",
+    "description": "Interne Verwaltung fuer Support, Rollen und Rechte.",
+    "loadError": "Admin-Zugriff konnte nicht geladen werden.",
+    "accessDeniedTitle": "Kein Zugriff",
+    "accessDeniedDescription": "Du hast keine Berechtigung fuer den internen Admin-Bereich.",
+    "backToSettings": "Zurueck zu Einstellungen",
+    "tabs": {
+      "support": "Support",
+      "team": "Team & Rechte"
+    },
+    "support": {
+      "title": "Support-Postfach",
+      "noAccess": "Du hast keine Berechtigung zum Lesen des internen Support-Postfachs.",
+      "loadError": "Support-Tickets konnten nicht geladen werden.",
+      "ticketLoadError": "Ticketdetails konnten nicht geladen werden.",
+      "replyError": "Antwort konnte nicht gesendet werden.",
+      "replySent": "Antwort erfolgreich gesendet.",
+      "statusError": "Ticket-Status konnte nicht aktualisiert werden.",
+      "statusUpdated": "Ticket-Status aktualisiert.",
+      "metricsTitle": "Support-Metriken (30 Tage)",
+      "metricResponse": "Durchschnittliche erste Antwortzeit: {{hours}} h",
+      "metricHitRate": "SLA-Trefferquote: {{rate}}%",
+      "noMetrics": "Keine Metrikdaten verfuegbar.",
+      "inboxTitle": "Tickets",
+      "refresh": "Aktualisieren",
+      "filters": {
+        "status": "Status",
+        "allStatuses": "Alle Status",
+        "searchPlaceholder": "Betreff durchsuchen",
+        "applySearch": "Suchen"
+      },
+      "noTickets": "Keine Tickets gefunden.",
+      "priority": "Prioritaet",
+      "ticketDetails": "Ticket-Details",
+      "selectTicket": "Waehle links ein Ticket aus.",
+      "unknownRequester": "Unbekannte Anfrage-E-Mail",
+      "messages": "Nachrichten",
+      "noMessages": "Keine Nachrichten vorhanden.",
+      "author": {
+        "user": "Nutzer",
+        "support": "Support-Team",
+        "system": "System"
+      },
+      "internalBadge": "Intern",
+      "statusUpdateLabel": "Status aendern",
+      "statusUpdateAction": "Status speichern",
+      "replyLabel": "Antwort verfassen",
+      "replyPlaceholder": "Antwort fuer den Nutzer oder interne Notiz eingeben...",
+      "internalNoteToggle": "Als interne Notiz speichern",
+      "replySending": "Wird gesendet...",
+      "replyAction": "Antwort senden"
+    },
+    "team": {
+      "title": "Team & Rechte",
+      "noAccess": "Du hast keine Berechtigung fuer Rollen- oder Rechteverwaltung.",
+      "membersTitle": "Team-Mitglieder",
+      "membersDescription": "Rollen fuer interne Team-Mitglieder verwalten.",
+      "membersLoadError": "Team-Mitglieder konnten nicht geladen werden.",
+      "noMembers": "Keine Team-Mitglieder gefunden.",
+      "columns": {
+        "member": "Mitglied",
+        "roles": "Aktive Rollen",
+        "primaryRole": "Primäre Rolle"
+      },
+      "roleLabels": {
+        "user": "User",
+        "moderator": "Moderator",
+        "admin": "Admin"
+      },
+      "roleUpdateError": "Rolle konnte nicht aktualisiert werden.",
+      "roleUpdated": "Rolle erfolgreich aktualisiert.",
+      "permissionsTitle": "Rollen-Rechte",
+      "permissionsDescription": "Berechtigungen pro Rolle ohne Code-Deployment verwalten.",
+      "permissionsLoadError": "Rechte-Matrix konnte nicht geladen werden.",
+      "noPermissions": "Keine Berechtigungen gefunden.",
+      "permissionColumns": {
+        "permission": "Berechtigung",
+        "user": "User",
+        "moderator": "Moderator",
+        "admin": "Admin"
+      },
+      "categories": {
+        "support": "Support",
+        "team": "Team"
+      },
+      "permissionsUpdateError": "Berechtigung konnte nicht aktualisiert werden.",
+      "permissionsUpdated": "Berechtigung erfolgreich aktualisiert."
     }
   },
   "fileAttachments": {

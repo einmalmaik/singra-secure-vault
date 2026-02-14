@@ -41,6 +41,7 @@ import {
 } from '@/components/ui/card';
 
 import { useAuth } from '@/contexts/AuthContext';
+import { useSubscription } from '@/contexts/SubscriptionContext';
 import { useToast } from '@/hooks/use-toast';
 import {
     getSupportTicketDetail,
@@ -72,8 +73,13 @@ const POLL_INTERVAL_MS = 30_000;
  */
 export function SupportWidget() {
     const { user } = useAuth();
+    const { billingDisabled } = useSubscription();
     const { t, i18n } = useTranslation();
     const { toast } = useToast();
+
+    // Self-hosted instances don't use the managed support system
+    if (billingDisabled) return null;
+
 
     const [isOpen, setIsOpen] = useState(false);
     const [activeTab, setActiveTab] = useState<'create' | 'tickets' | 'chat'>('create');
@@ -629,11 +635,10 @@ export function SupportWidget() {
                                                         className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}
                                                     >
                                                         <div
-                                                            className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${
-                                                                isUser
-                                                                    ? 'bg-primary text-primary-foreground'
-                                                                    : 'bg-muted'
-                                                            }`}
+                                                            className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${isUser
+                                                                ? 'bg-primary text-primary-foreground'
+                                                                : 'bg-muted'
+                                                                }`}
                                                         >
                                                             <p className="whitespace-pre-wrap break-words">{msg.body}</p>
                                                             <p className={`text-[10px] mt-1 ${isUser ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>

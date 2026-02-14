@@ -17,12 +17,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AdminSupportPanel } from '@/components/admin/AdminSupportPanel';
 import { AdminTeamPermissionsPanel } from '@/components/admin/AdminTeamPermissionsPanel';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSubscription } from '@/contexts/SubscriptionContext';
 import { getTeamAccess, type TeamAccess } from '@/services/adminService';
 
 export default function AdminPage() {
     const { t } = useTranslation();
     const navigate = useNavigate();
     const { user, loading } = useAuth();
+    const { billingDisabled } = useSubscription();
 
     const [access, setAccess] = useState<TeamAccess | null>(null);
     const [isLoadingAccess, setIsLoadingAccess] = useState(true);
@@ -61,6 +63,7 @@ export default function AdminPage() {
     }, [t, user]);
 
     const canSupportTab = useMemo(() => {
+        if (billingDisabled) return false; // Self-host: no managed support
         if (!access?.is_admin) {
             return false;
         }
@@ -74,7 +77,7 @@ export default function AdminPage() {
                 'support.metrics.read',
             ].includes(permission),
         );
-    }, [access]);
+    }, [access, billingDisabled]);
 
     const canTeamTab = useMemo(() => {
         if (!access?.is_admin) {

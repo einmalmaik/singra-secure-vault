@@ -214,6 +214,7 @@ async function handleReplyTicket(
 
 async function handleCloseTicket(
   client: ReturnType<typeof createClient>,
+  adminClient: ReturnType<typeof createClient>,
   userId: string,
   ticketId: string,
   corsHeaders: Record<string, string>,
@@ -250,8 +251,9 @@ async function handleCloseTicket(
     return jsonResponse(corsHeaders, { error: updateError?.message || "Failed to close ticket" }, 500);
   }
 
-  // Add a system message noting the user closed the ticket
-  await client
+  // Add a system message noting the user closed the ticket (via service_role to
+  // prevent users from spoofing author_role via their own client).
+  await adminClient
     .from("support_messages")
     .insert({
       ticket_id: ticketId,
@@ -290,10 +292,12 @@ Deno.serve(async (req: Request) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseAnon = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const supabaseService = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
     const client = createClient(supabaseUrl, supabaseAnon, {
       global: { headers: { Authorization: authHeader } },
     });
+    const adminClient = createClient(supabaseUrl, supabaseService);
 
     const { data: { user }, error: authError } = await client.auth.getUser();
     if (authError || !user) {
@@ -323,7 +327,7 @@ Deno.serve(async (req: Request) => {
 
     if (action === "close_ticket") {
       const ticketId = typeof body.ticket_id === "string" ? body.ticket_id : "";
-      return handleCloseTicket(client, user.id, ticketId, corsHeaders);
+      return handleCloseTicket(client, adminClient, user.id, ticketId, corsHeaders);
     }
 
     return jsonResponse(corsHeaders, { error: "Unsupported action" }, 400);

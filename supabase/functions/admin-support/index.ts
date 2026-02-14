@@ -39,6 +39,15 @@ async function sendResendMail(to: string, subject: string, html: string) {
   }
 }
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 function jsonResponse(
   corsHeaders: Record<string, string>,
   body: Record<string, unknown>,
@@ -196,7 +205,8 @@ async function handleListTickets(
   }
 
   if (search.length >= 2) {
-    query = query.ilike("subject", `%${search}%`);
+    const escapedSearch = search.replace(/[%_\\]/g, '\\$&');
+    query = query.ilike("subject", `%${escapedSearch}%`);
   }
 
   const { data: tickets, error: ticketsError } = await query;
@@ -239,14 +249,30 @@ async function handleListTickets(
     }
   }
 
+  const canReadPII = await hasPermission(client, userId, "support.pii.read");
+
   return jsonResponse(
     corsHeaders,
     {
       success: true,
-      tickets: (tickets || []).map((ticket) => ({
-        ...ticket,
-        latest_message: latestMessagesByTicket.get(ticket.id) || null,
-      })),
+      tickets: (tickets || []).map((ticket) => {
+        const mapped = {
+          ...ticket,
+          latest_message: latestMessagesByTicket.get(ticket.id) || null,
+        };
+        // Mask PII for users without explicit PII read permission
+        if (!canReadPII && mapped.requester_email) {
+          const email = mapped.requester_email as string;
+          const atIdx = email.indexOf("@");
+          if (atIdx > 1) {
+            mapped.requester_email =
+              email[0] + "***" + email.substring(atIdx);
+          } else {
+            mapped.requester_email = "***";
+          }
+        }
+        return mapped;
+      }),
       permissions: {
         can_read_internal: canReadInternal,
       },
@@ -406,9 +432,9 @@ async function handleReplyTicket(
             <p>Hallo,</p>
             <p>unser Support-Team hat auf dein Ticket geantwortet:</p>
             <ul>
-              <li><strong>Betreff:</strong> ${ticket.subject || "Support-Ticket"}</li>
+              <li><strong>Betreff:</strong> ${escapeHtml(ticket.subject || "Support-Ticket")}</li>
             </ul>
-            <div style="background:#f5f5f5;border-radius:8px;padding:12px 16px;margin:16px 0;white-space:pre-wrap">${message.slice(0, 500)}${message.length > 500 ? "..." : ""}</div>
+            <div style="background:#f5f5f5;border-radius:8px;padding:12px 16px;margin:16px 0;white-space:pre-wrap">${escapeHtml(message.slice(0, 500))}${message.length > 500 ? "..." : ""}</div>
             <p>Oeffne das Support-Widget in der App, um zu antworten.</p>
             <p><a href="${siteUrl}/vault" style="display:inline-block;padding:10px 16px;background:#111;color:#fff;text-decoration:none;border-radius:8px">Zur App</a></p>
           </div>

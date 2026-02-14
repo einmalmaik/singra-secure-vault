@@ -324,6 +324,30 @@ async function handleSetMemberRole(
     return jsonResponse(corsHeaders, { error: "Invalid payload" }, 400);
   }
 
+  // Prevent admin from changing their own role
+  if (targetUserId === actorUserId) {
+    return jsonResponse(corsHeaders, { error: "Cannot change your own role" }, 403);
+  }
+
+  // Prevent removing the last admin
+  if (role !== "admin") {
+    const targetIsAdmin = await hasRole(adminClient, targetUserId, "admin");
+    if (targetIsAdmin) {
+      const { count, error: countError } = await adminClient
+        .from("user_roles")
+        .select("id", { count: "exact", head: true })
+        .eq("role", "admin");
+
+      if (countError) {
+        return jsonResponse(corsHeaders, { error: "Failed to verify admin count" }, 500);
+      }
+
+      if ((count ?? 0) <= 1) {
+        return jsonResponse(corsHeaders, { error: "Cannot remove the last admin" }, 403);
+      }
+    }
+  }
+
   const { error: deleteError } = await adminClient
     .from("user_roles")
     .delete()
@@ -377,7 +401,14 @@ async function handleSetMemberRole(
     });
 
   if (auditError) {
-    console.warn("Failed to write team access audit log", auditError);
+    console.error("Failed to write team access audit log — aborting operation", auditError);
+    // Roll back role change by deleting the newly assigned role
+    await adminClient
+      .from("user_roles")
+      .delete()
+      .eq("user_id", targetUserId)
+      .eq("role", role);
+    return jsonResponse(corsHeaders, { error: "Audit logging failed, operation aborted" }, 500);
   }
 
   return jsonResponse(

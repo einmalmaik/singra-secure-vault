@@ -72,7 +72,7 @@
       },
       "postQuantum": {
         "title": "Post-Quantum-Verschlüsselung",
-        "description": "ML-KEM-768 + RSA-4096 Hybrid-Schluesselschutz ist standardmaessig fuer neue Schluesselaustausche in Notfallzugriff und geteilten Sammlungen aktiv (NIST FIPS 203)."
+        "description": "Security Standard v1 erzwingt ML-KEM-768 + RSA-4096 Hybrid-Schluesselaustausch fuer Notfallzugriff und geteilte Sammlungen (NIST FIPS 203)."
       },
       "passkeyUnlock": {
         "title": "Passkey Tresor-Entsperrung",
@@ -1186,13 +1186,19 @@
   },
   "postQuantum": {
     "title": "Post-Quantum-Verschlüsselung",
-    "description": "Post-Quantum-Hybrid-Schluesselschutz (ML-KEM-768 + RSA-4096) ist standardmaessig fuer neue Schluesselpfade in Sharing und Notfallzugriff aktiv.",
-    "infoText": "Singra PW schuetzt neue Schluesselaustaeusche fuer Sharing und Notfallzugriff mit ML-KEM-768 + RSA-4096 (FIPS 203 orientiert), um 'Harvest now, decrypt later' Risiken zu senken.",
+    "description": "Security Standard v1 erzwingt hybriden Post-Quantum-Schluesselschutz (ML-KEM-768 + RSA-4096) fuer Sharing- und Notfall-Schluesselaustausch.",
+    "infoText": "Security Standard v1 kombiniert ML-KEM-768 und RSA-4096 in einem hybriden Schluesselpfad, um 'Harvest now, decrypt later' Risiken zu senken.",
     "status": "Status",
     "enabled": "Aktiviert",
     "disabled": "Nicht aktiviert",
+    "standardActive": "Security Standard v1 aktiv",
+    "standardPending": "Security Standard v1 ausstehend",
+    "securityStandard": "Sicherheitsstandard",
+    "enforcedAt": "Erzwungen am",
+    "legacyDisabledAt": "Legacy deaktiviert am",
+    "notSet": "Nicht gesetzt",
     "enableTitle": "Post-Quantum aktivieren",
-    "enableDescription": "Hybrid-Post-Quantum-Schutz wird automatisch eingerichtet, sobald Sharing- oder Notfall-Flow ihn benoetigt.",
+    "enableDescription": "Hybrides Schluesselmaterial wird automatisch eingerichtet, sobald Sharing- oder Notfallzugriff es benoetigt.",
     "enableButton": "Post-Quantum aktivieren",
     "enabling": "Aktiviere...",
     "enableSuccess": "Post-Quantum-Verschlüsselung wurde erfolgreich aktiviert!",

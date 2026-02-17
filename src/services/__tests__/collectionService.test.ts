@@ -142,10 +142,7 @@ describe("collectionService", () => {
         mockCryptoService.encryptWithSharedKey.mockResolvedValue("encrypted-data");
         mockCryptoService.decryptWithSharedKey.mockResolvedValue({ title: "Item" });
 
-        mockPQCryptoService.hybridWrapKey.mockResolvedValue({
-            rsaWrapped: "rsa-wrapped",
-            pqWrapped: "pq-wrapped",
-        });
+        mockPQCryptoService.hybridWrapKey.mockResolvedValue("hybrid-wrapped-key");
         mockPQCryptoService.hybridUnwrapKey.mockResolvedValue("unwrapped-pq-key");
         mockPQCryptoService.isHybridEncrypted.mockReturnValue(false);
     });
@@ -153,73 +150,10 @@ describe("collectionService", () => {
     // ============ createCollectionWithKey() ============
 
     describe("createCollectionWithKey()", () => {
-        it("creates collection and wraps key successfully", async () => {
-            const mockCollection = {
-                id: "collection-1",
-                name: "Work Passwords",
-                description: "Shared work items",
-                owner_id: "mock-user-id",
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-            };
-
-            const insertChain = mockSupabase._createChainable();
-            insertChain._setResult(mockCollection, null);
-
-            const keyChain = mockSupabase._createChainable();
-            keyChain._setResult({ collection_id: "collection-1" }, null);
-
-            mockSupabase.from
-                .mockReturnValueOnce(insertChain)
-                .mockReturnValueOnce(keyChain);
-
-            const collectionId = await createCollectionWithKey(
-                "Work Passwords",
-                "Shared work items",
-                "mock-public-key-jwk"
-            );
-
-            expect(collectionId).toBe("collection-1");
-            expect(mockCryptoService.generateSharedKey).toHaveBeenCalled();
-            expect(mockCryptoService.wrapKey).toHaveBeenCalledWith(
-                "mock-shared-key",
-                "mock-public-key-jwk"
-            );
-        });
-
-        it("throws error when user not authenticated", async () => {
-            mockSupabase.auth.getUser.mockResolvedValueOnce({
-                data: { user: null },
-                error: null,
-            });
-
+        it("blocks legacy RSA-only collection creation", async () => {
             await expect(
-                createCollectionWithKey("Test", null, "public-key")
-            ).rejects.toThrow("Not authenticated");
-        });
-
-        it("rolls back collection creation if key storage fails", async () => {
-            const mockCollection = { id: "collection-1" };
-
-            const insertChain = mockSupabase._createChainable();
-            insertChain._setResult(mockCollection, null);
-
-            const keyChain = mockSupabase._createChainable();
-            keyChain._setResult(null, { message: "Key insert failed" });
-
-            const deleteChain = mockSupabase._createChainable();
-            deleteChain._setResult({ id: "collection-1" }, null);
-
-            mockSupabase.from
-                .mockReturnValueOnce(insertChain)
-                .mockReturnValueOnce(keyChain)
-                .mockReturnValueOnce(deleteChain);
-
-            await expect(
-                createCollectionWithKey("Test", null, "public-key")
-            ).rejects.toThrow();
-
-            expect(deleteChain.delete).toHaveBeenCalled();
+                createCollectionWithKey("Work Passwords", "Shared work items", "mock-public-key-jwk")
+            ).rejects.toThrow("Security Standard v1 requires hybrid ML-KEM-768 + RSA-4096 key wrapping.");
         });
     });
 
@@ -326,57 +260,17 @@ describe("collectionService", () => {
     // ============ addMemberToCollection() ============
 
     describe("addMemberToCollection()", () => {
-        it("unwraps owner key and wraps for member", async () => {
-            const keyChain = mockSupabase._createChainable();
-            keyChain._setResult({ wrapped_key: "owner-wrapped-key" }, null);
-
-            const memberChain = mockSupabase._createChainable();
-            memberChain._setResult({ id: "member-entry-id" }, null);
-
-            const memberKeyChain = mockSupabase._createChainable();
-            memberKeyChain._setResult({ id: "key-entry-id" }, null);
-
-            mockSupabase.from
-                .mockReturnValueOnce(keyChain)
-                .mockReturnValueOnce(memberChain)
-                .mockReturnValueOnce(memberKeyChain);
-
-            await addMemberToCollection(
-                "collection-1",
-                "new-member-id",
-                "view",
-                "owner-private-key",
-                "member-public-key",
-                "master-password"
-            );
-
-            expect(mockCryptoService.unwrapKey).toHaveBeenCalledWith(
-                "owner-wrapped-key",
-                "owner-private-key",
-                "master-password"
-            );
-            expect(mockCryptoService.wrapKey).toHaveBeenCalledWith(
-                "unwrapped-shared-key",
-                "member-public-key"
-            );
-        });
-
-        it("throws error when owner key not found", async () => {
-            const keyChain = mockSupabase._createChainable();
-            keyChain._setResult(null, { message: "Key not found" });
-
-            mockSupabase.from.mockReturnValue(keyChain);
-
+        it("blocks legacy RSA-only member sharing", async () => {
             await expect(
                 addMemberToCollection(
                     "collection-1",
-                    "member-id",
+                    "new-member-id",
                     "view",
-                    "private-key",
-                    "public-key",
-                    "password"
+                    "owner-private-key",
+                    "member-public-key",
+                    "master-password"
                 )
-            ).rejects.toThrow();
+            ).rejects.toThrow("Security Standard v1 requires hybrid ML-KEM-768 + RSA-4096 key wrapping.");
         });
     });
 
@@ -453,7 +347,10 @@ describe("collectionService", () => {
     describe("addItemToCollection()", () => {
         it("unwraps key, encrypts item, and adds to collection", async () => {
             const keyChain = mockSupabase._createChainable();
-            keyChain._setResult({ wrapped_key: "collection-wrapped-key" }, null);
+            keyChain._setResult({
+                wrapped_key: "collection-wrapped-key",
+                pq_wrapped_key: "collection-pq-wrapped-key",
+            }, null);
 
             const insertChain = mockSupabase._createChainable();
             insertChain._setResult({ id: "collection-item-id" }, null);
@@ -463,23 +360,25 @@ describe("collectionService", () => {
                 .mockReturnValueOnce(insertChain);
 
             const itemData = { title: "Password", username: "user", password: "pass" };
+            mockPQCryptoService.isHybridEncrypted.mockReturnValueOnce(true);
 
             await addItemToCollection(
                 "collection-1",
                 "vault-item-id",
                 itemData,
-                "private-key",
+                "rsa-private-key",
+                "pq-secret-key",
                 "master-password"
             );
 
-            expect(mockCryptoService.unwrapKey).toHaveBeenCalledWith(
-                "collection-wrapped-key",
-                "private-key",
-                "master-password"
+            expect(mockPQCryptoService.hybridUnwrapKey).toHaveBeenCalledWith(
+                "collection-pq-wrapped-key",
+                "pq-secret-key",
+                "rsa-private-key"
             );
             expect(mockCryptoService.encryptWithSharedKey).toHaveBeenCalledWith(
                 itemData,
-                "unwrapped-shared-key"
+                "unwrapped-pq-key"
             );
         });
 
@@ -494,7 +393,8 @@ describe("collectionService", () => {
                     "collection-1",
                     "vault-item-id",
                     { title: "Test" },
-                    "private-key",
+                    "rsa-private-key",
+                    "pq-secret-key",
                     "password"
                 )
             ).rejects.toThrow();
@@ -523,7 +423,10 @@ describe("collectionService", () => {
     describe("getCollectionItems()", () => {
         it("unwraps key and decrypts all items", async () => {
             const keyChain = mockSupabase._createChainable();
-            keyChain._setResult({ wrapped_key: "collection-wrapped-key" }, null);
+            keyChain._setResult({
+                wrapped_key: "collection-wrapped-key",
+                pq_wrapped_key: "collection-pq-wrapped-key",
+            }, null);
 
             const itemsChain = mockSupabase._createChainable();
             itemsChain._setResult(
@@ -545,17 +448,23 @@ describe("collectionService", () => {
                 .mockReturnValueOnce(itemsChain);
 
             mockCryptoService.decryptWithSharedKey.mockResolvedValueOnce({ title: "Item 1" });
+            mockPQCryptoService.isHybridEncrypted.mockReturnValueOnce(true);
 
-            const items = await getCollectionItems("collection-1", "private-key", "password");
+            const items = await getCollectionItems(
+                "collection-1",
+                "rsa-private-key",
+                "pq-secret-key",
+                "password",
+            );
 
             expect(items).toHaveLength(1);
             expect(items[0].decrypted_data).toEqual({ title: "Item 1" });
-            expect(mockCryptoService.unwrapKey).toHaveBeenCalled();
+            expect(mockPQCryptoService.hybridUnwrapKey).toHaveBeenCalled();
         });
 
         it("returns empty array when no items", async () => {
             const keyChain = mockSupabase._createChainable();
-            keyChain._setResult({ wrapped_key: "key" }, null);
+            keyChain._setResult({ wrapped_key: "key", pq_wrapped_key: "pq-key" }, null);
 
             const itemsChain = mockSupabase._createChainable();
             itemsChain._setResult([], null);
@@ -564,7 +473,8 @@ describe("collectionService", () => {
                 .mockReturnValueOnce(keyChain)
                 .mockReturnValueOnce(itemsChain);
 
-            const items = await getCollectionItems("collection-1", "key", "pass");
+            mockPQCryptoService.isHybridEncrypted.mockReturnValueOnce(true);
+            const items = await getCollectionItems("collection-1", "key", "pq-secret", "pass");
             expect(items).toEqual([]);
         });
     });
@@ -602,7 +512,10 @@ describe("collectionService", () => {
     describe("rotateCollectionKey()", () => {
         it("generates new key and re-encrypts items", async () => {
             const keyChain = mockSupabase._createChainable();
-            keyChain._setResult({ wrapped_key: "old-wrapped-key" }, null);
+            keyChain._setResult({
+                wrapped_key: "old-wrapped-key",
+                pq_wrapped_key: "old-pq-wrapped-key",
+            }, null);
 
             const itemsChain = mockSupabase._createChainable();
             itemsChain._setResult(
@@ -628,21 +541,29 @@ describe("collectionService", () => {
                 null
             );
 
-            const rpcChain = mockSupabase._createChainable();
+            const pqProfilesChain = mockSupabase._createChainable();
+            pqProfilesChain._setResult(
+                [{ user_id: "owner-id", pq_public_key: "owner-pq-key" }],
+                null
+            );
+
             mockSupabase.rpc = vi.fn().mockResolvedValue({ data: null, error: null });
+            mockPQCryptoService.isHybridEncrypted.mockReturnValueOnce(true);
 
             mockSupabase.from
                 .mockReturnValueOnce(keyChain) // get old key
                 .mockReturnValueOnce(itemsChain) // get items
                 .mockReturnValueOnce(membersChain) // get members
-                .mockReturnValueOnce(publicKeysChain); // get public keys
+                .mockReturnValueOnce(publicKeysChain) // get rsa public keys
+                .mockReturnValueOnce(pqProfilesChain); // get pq public keys
 
-            await rotateCollectionKey("collection-1", "private-key", "password");
+            await rotateCollectionKey("collection-1", "rsa-private-key", "pq-secret-key", "password");
 
             expect(mockCryptoService.generateSharedKey).toHaveBeenCalled();
+            expect(mockPQCryptoService.hybridUnwrapKey).toHaveBeenCalled();
             expect(mockCryptoService.decryptWithSharedKey).toHaveBeenCalled();
             expect(mockCryptoService.encryptWithSharedKey).toHaveBeenCalled();
-            expect(mockCryptoService.wrapKey).toHaveBeenCalled();
+            expect(mockPQCryptoService.hybridWrapKey).toHaveBeenCalled();
         });
     });
 
@@ -792,23 +713,17 @@ describe("collectionService", () => {
             );
         });
 
-        it("unwraps RSA-only key when pq_wrapped_key is null", async () => {
+        it("rejects RSA-only fallback when pq_wrapped_key is missing", async () => {
             mockPQCryptoService.isHybridEncrypted.mockReturnValue(false);
-
-            const unwrappedKey = await unwrapCollectionKey(
-                "rsa-key",
-                null,
-                "rsa-private-key",
-                null,
-                "master-password"
-            );
-
-            expect(unwrappedKey).toBe("unwrapped-shared-key");
-            expect(mockCryptoService.unwrapKey).toHaveBeenCalledWith(
-                "rsa-key",
-                "rsa-private-key",
-                "master-password"
-            );
+            await expect(
+                unwrapCollectionKey(
+                    "rsa-key",
+                    null,
+                    "rsa-private-key",
+                    null,
+                    "master-password"
+                )
+            ).rejects.toThrow("Security Standard v1 requires hybrid ML-KEM-768 + RSA-4096 key wrapping.");
         });
     });
 });

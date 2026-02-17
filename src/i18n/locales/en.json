@@ -72,7 +72,7 @@
       },
       "postQuantum": {
         "title": "Post-Quantum Encryption",
-        "description": "ML-KEM-768 + RSA-4096 hybrid key protection is default for new Emergency Access and Shared Collection key exchanges (NIST FIPS 203)."
+        "description": "Security Standard v1 enforces ML-KEM-768 + RSA-4096 hybrid key exchange for Emergency Access and Shared Collections (NIST FIPS 203)."
       },
       "passkeyUnlock": {
         "title": "Passkey Vault Unlock",
@@ -1165,13 +1165,19 @@
   },
   "postQuantum": {
     "title": "Post-Quantum Encryption",
-    "description": "Post-quantum hybrid key protection (ML-KEM-768 + RSA-4096) is now the default for new Shared Collections and Emergency Access key paths.",
-    "infoText": "Singra PW protects new sharing and emergency key exchanges with a hybrid ML-KEM-768 + RSA-4096 scheme (FIPS 203 aligned) to reduce 'harvest now, decrypt later' risk.",
+    "description": "Security Standard v1 enforces hybrid post-quantum key protection (ML-KEM-768 + RSA-4096) for shared and emergency key exchange.",
+    "infoText": "Security Standard v1 combines ML-KEM-768 and RSA-4096 in one hybrid key path to reduce 'harvest now, decrypt later' risk while keeping compatibility for vault payload encryption.",
     "status": "Status",
     "enabled": "Enabled",
     "disabled": "Not enabled",
+    "standardActive": "Security Standard v1 active",
+    "standardPending": "Security Standard v1 pending",
+    "securityStandard": "Security standard",
+    "enforcedAt": "Enforced at",
+    "legacyDisabledAt": "Legacy disabled at",
+    "notSet": "Not set",
     "enableTitle": "Enable Post-Quantum",
-    "enableDescription": "Hybrid post-quantum key protection is provisioned automatically when required by sharing/emergency flows.",
+    "enableDescription": "Hybrid key material is provisioned automatically when sharing or emergency access requires it.",
     "enableButton": "Enable Post-Quantum",
     "enabling": "Enabling...",
     "enableSuccess": "Post-quantum encryption has been enabled successfully!",

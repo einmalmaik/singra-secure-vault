@@ -57,6 +57,7 @@ vi.mock("@/services/pqCryptoService", () => ({
 // Import after mocks
 // ---------------------------------------------------------------------------
 import { emergencyAccessService } from "@/services/emergencyAccessService";
+import * as pqCryptoService from "@/services/pqCryptoService";
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -151,40 +152,20 @@ describe("revokeAccess()", () => {
 });
 
 describe("acceptInvite()", () => {
-  it("updates with RSA public key and status accepted", async () => {
-    const chain = createChainable({
-      data: { id: "ea1", status: "accepted", trustee_public_key: "pub-key" },
-      error: null,
-    });
-    mockSupabase._setChains([chain]);
-
-    const result = await emergencyAccessService.acceptInvite("ea1", "pub-key-jwk");
-    expect(chain.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        status: "accepted",
-        trusted_user_id: "user-123",
-        trustee_public_key: "pub-key-jwk",
-      })
+  it("is blocked by Security Standard v1 policy", async () => {
+    await expect(emergencyAccessService.acceptInvite("ea1", "key")).rejects.toThrow(
+      "Security Standard v1 requires hybrid ML-KEM-768 + RSA-4096 emergency access flows."
     );
-    expect(result.status).toBe("accepted");
-  });
-
-  it("throws when not authenticated", async () => {
-    mockSupabase.auth.getUser.mockResolvedValueOnce({ data: { user: null } });
-    await expect(emergencyAccessService.acceptInvite("ea1", "key")).rejects.toThrow("Not authenticated");
   });
 });
 
 describe("setEncryptedMasterKey()", () => {
-  it("stores encrypted master key", async () => {
-    const chain = createChainable({ data: null, error: null });
-    mockSupabase._setChains([chain]);
-
-    await emergencyAccessService.setEncryptedMasterKey("ea1", "encrypted-key");
-    expect(chain.update).toHaveBeenCalledWith(
-      expect.objectContaining({ encrypted_master_key: "encrypted-key" })
+  it("is blocked by Security Standard v1 policy", async () => {
+    await expect(
+      emergencyAccessService.setEncryptedMasterKey("ea1", "encrypted-key")
+    ).rejects.toThrow(
+      "Security Standard v1 requires hybrid ML-KEM-768 + RSA-4096 emergency access flows."
     );
-    expect(chain.eq).toHaveBeenCalledWith("id", "ea1");
   });
 });
 
@@ -283,6 +264,8 @@ describe("decryptHybridMasterKey()", () => {
 
 describe("hasPQEncryption()", () => {
   it("returns true when both PQ fields are present", () => {
+    vi.mocked(pqCryptoService.isHybridEncrypted).mockReturnValueOnce(true);
+
     const access = {
       id: "ea1", grantor_id: "g1", trusted_email: "t@e.com", trusted_user_id: null,
       status: "accepted" as const, wait_days: 7, requested_at: null, granted_at: null,

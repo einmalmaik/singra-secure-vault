@@ -73,11 +73,7 @@ import {
     generateRSAKeyPair,
     exportPublicKey,
     exportPrivateKey,
-    importPublicKey,
-    encryptRSA,
-    deriveRawKey,
-    importPrivateKey,
-    decryptRSA
+    deriveRawKey
 } from '@/services/cryptoService';
 import { generatePQKeyPair } from '@/services/pqCryptoService';
 import {
@@ -140,11 +136,11 @@ export default function EmergencyAccessSettings() {
     };
 
     const handleAccessVault = async (accessRecord: EmergencyAccess) => {
-        if (!accessRecord.encrypted_master_key && !accessRecord.pq_encrypted_master_key) {
+        if (!accessRecord.pq_encrypted_master_key) {
             toast({
                 variant: 'destructive',
                 title: t('common.error'),
-                description: t('emergency.noKey', 'No master key found. Setup not complete.')
+                description: t('emergency.noKey', 'No hybrid emergency key found. Setup not complete.')
             });
             return;
         }
@@ -198,20 +194,15 @@ export default function EmergencyAccessSettings() {
             }
 
             // 2. Decrypt the Grantor's Master Key
-            const privateKey = await importPrivateKey(foundPrivateKeyJwk);
-            let rawMasterKeyJson: string;
-
-            if (accessRecord.pq_encrypted_master_key && foundPqSecretKey) {
-                rawMasterKeyJson = await emergencyAccessService.decryptHybridMasterKey(
-                    accessRecord.pq_encrypted_master_key,
-                    foundPqSecretKey,
-                    JSON.stringify(foundPrivateKeyJwk)
-                );
-            } else if (accessRecord.encrypted_master_key) {
-                rawMasterKeyJson = await decryptRSA(accessRecord.encrypted_master_key, privateKey);
-            } else {
-                throw new Error('No decryptable emergency access key found.');
+            if (!accessRecord.pq_encrypted_master_key || !foundPqSecretKey) {
+                throw new Error('Security Standard v1 requires hybrid key material for emergency access.');
             }
+
+            const rawMasterKeyJson = await emergencyAccessService.decryptHybridMasterKey(
+                accessRecord.pq_encrypted_master_key,
+                foundPqSecretKey,
+                JSON.stringify(foundPrivateKeyJwk)
+            );
 
             // 3. Navigate to Grantor Vault View
             // Pass the raw key and grantor details
@@ -349,6 +340,8 @@ export default function EmergencyAccessSettings() {
                     pq_public_key: pqKeys.publicKey,
                     pq_key_version: 1,
                     pq_enforced_at: new Date().toISOString(),
+                    security_standard_version: 1,
+                    legacy_crypto_disabled_at: new Date().toISOString(),
                 } as Record<string, unknown>)
                 .eq('user_id', user.id);
 
@@ -386,8 +379,8 @@ export default function EmergencyAccessSettings() {
             const accessRecord = trustees.find(t => t.id === selectedGrantorId); // Wait, selectedGrantorId is actually access ID? No, logic below uses it as Access ID mostly.
             // The button call was: handleSetupAccess(trustee.id). 'trustee' in map is the EmergencyAccess record.
 
-            if (!accessRecord?.trustee_public_key) {
-                throw new Error('Trustee public key not found');
+            if (!accessRecord?.trustee_public_key || !accessRecord.trustee_pq_public_key) {
+                throw new Error('Security Standard v1 requires trustee PQ + RSA public keys.');
             }
 
             // 2. Derive the RAW master key bytes (re-derivation required as it's not kept in memory)
@@ -422,21 +415,13 @@ export default function EmergencyAccessSettings() {
             try {
                 const rawKeyString = JSON.stringify(Array.from(rawKeyBytes)); // Serialize bytes for encryption
 
-                // 4. Encrypt and store using hybrid scheme when PQ key is present
-                if (accessRecord.trustee_pq_public_key) {
-                    await emergencyAccessService.setHybridEncryptedMasterKey(
-                        accessRecord.id,
-                        rawKeyString,
-                        accessRecord.trustee_pq_public_key,
-                        accessRecord.trustee_public_key
-                    );
-                } else {
-                    // Legacy fallback for old invites that predate PQ key support
-                    const trusteeKeyJwk = JSON.parse(accessRecord.trustee_public_key);
-                    const trusteePublicKey = await importPublicKey(trusteeKeyJwk);
-                    const encryptedMasterKey = await encryptRSA(rawKeyString, trusteePublicKey);
-                    await emergencyAccessService.setEncryptedMasterKey(accessRecord.id, encryptedMasterKey);
-                }
+                // 4. Encrypt and store using hybrid scheme (mandatory in Security Standard v1)
+                await emergencyAccessService.setHybridEncryptedMasterKey(
+                    accessRecord.id,
+                    rawKeyString,
+                    accessRecord.trustee_pq_public_key,
+                    accessRecord.trustee_public_key
+                );
             } finally {
                 rawKeyBytes.fill(0);
             }
@@ -527,7 +512,7 @@ export default function EmergencyAccessSettings() {
                                             <TableCell>{getStatusBadge(item.status)}</TableCell>
                                             <TableCell>{item.wait_days} {t('common.days', 'days')}</TableCell>
                                             <TableCell className="text-right">
-                                                {item.status === 'accepted' && !item.encrypted_master_key && !item.pq_encrypted_master_key && (
+                                                {item.status === 'accepted' && !item.pq_encrypted_master_key && (
                                                     <Button size="sm" onClick={() => handleSetupAccess(item.id)}>
                                                         <Key className="w-4 h-4 mr-2" />
                                                         {t('emergency.setup', 'Setup Access')}
@@ -589,13 +574,13 @@ export default function EmergencyAccessSettings() {
                                                     </Button>
                                                 )}
                                                 {/* Logic for Requesting Access */}
-                                                {item.status === 'accepted' && (item.encrypted_master_key || item.pq_encrypted_master_key) && (
+                                                {item.status === 'accepted' && item.pq_encrypted_master_key && (
                                                     <Button size="sm" variant="secondary" onClick={() => emergencyAccessService.requestAccess(item.id).then(fetchData)}>
                                                         {t('emergency.requestAccess', 'Request Access')}
                                                     </Button>
                                                 )}
                                                 {/* Logic for Accessing Vault (Granted) */}
-                                                {item.status === 'granted' && (item.encrypted_master_key || item.pq_encrypted_master_key) && (
+                                                {item.status === 'granted' && item.pq_encrypted_master_key && (
                                                     <Button size="sm" onClick={() => handleAccessVault(item)}>
                                                         <Unlock className="w-4 h-4 mr-2" />
                                                         {t('emergency.accessVault', 'Access Vault')}

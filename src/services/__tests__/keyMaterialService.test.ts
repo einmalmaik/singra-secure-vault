@@ -107,6 +107,8 @@ describe("ensureUserPqKeyMaterial()", () => {
         pq_encrypted_private_key: "salt:ciphertext",
         pq_key_version: 1,
         pq_enforced_at: "2026-02-17T18:00:00.000Z",
+        security_standard_version: 1,
+        legacy_crypto_disabled_at: "2026-02-17T18:00:00.000Z",
       },
       error: null,
     });
@@ -118,6 +120,7 @@ describe("ensureUserPqKeyMaterial()", () => {
       publicKey: "existing-pq-public",
       created: false,
       enforcedAtSet: false,
+      securityStandardApplied: false,
     });
     expect(mockPqService.generatePQKeyPair).not.toHaveBeenCalled();
   });
@@ -133,6 +136,8 @@ describe("ensureHybridKeyMaterial()", () => {
         pq_encrypted_private_key: null,
         pq_key_version: null,
         pq_enforced_at: null,
+        security_standard_version: null,
+        legacy_crypto_disabled_at: null,
       },
       error: null,
     });
@@ -159,6 +164,7 @@ describe("ensureHybridKeyMaterial()", () => {
       pq_public_key: "pq-public",
       pq_encrypted_private_key: "pq-salt:pq-private-encrypted",
       pq_key_version: 1,
+      security_standard_version: 1,
     }));
   });
 

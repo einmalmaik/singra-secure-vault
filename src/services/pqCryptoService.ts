@@ -1,19 +1,21 @@
 // Copyright (c) 2025-2026 Maunting Studios
 // Licensed under the Business Source License 1.1 — see LICENSE
 /**
- * @fileoverview Post-Quantum Cryptography Service for Singra PW
- * 
+ * @fileoverview Post-Quantum Cryptography Service for Singra PW.
+ *
  * Implements hybrid encryption combining:
  * - ML-KEM-768 (FIPS 203) for post-quantum key encapsulation
- * - RSA-4096-OAEP for classical encryption (backward compatibility)
- * 
+ * - RSA-4096-OAEP for classical encryption
+ *
  * This protects against "harvest now, decrypt later" attacks where
  * adversaries collect encrypted data today to decrypt with future
  * quantum computers.
- * 
- * SECURITY: Both encryption layers must succeed for decryption.
- * If either layer is compromised, the other still protects the data.
- * 
+ *
+ * SECURITY STANDARD V1:
+ * - New ciphertexts are written with version byte 0x03.
+ * - Runtime decrypt paths accept only v1 ciphertexts.
+ * - Legacy migration helpers can still convert old formats.
+ *
  * @see https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.203.pdf
  */
 
@@ -21,14 +23,20 @@ import { ml_kem768 } from '@noble/post-quantum/ml-kem.js';
 
 // ============ Constants ============
 
-/** Current hybrid encryption version */
-export const HYBRID_VERSION = 2;
+/** Product security standard version */
+export const SECURITY_STANDARD_VERSION = 1;
+
+/** Current hybrid ciphertext version for Security Standard v1 */
+export const HYBRID_VERSION = 3;
 
 /** Version byte for legacy RSA-only encryption */
 const VERSION_RSA_ONLY = 0x01;
 
-/** Version byte for hybrid ML-KEM + RSA encryption */
-const VERSION_HYBRID = 0x02;
+/** Version byte for legacy hybrid ML-KEM + RSA encryption */
+const VERSION_HYBRID_LEGACY = 0x02;
+
+/** Version byte for Security Standard v1 hybrid ML-KEM + RSA encryption */
+const VERSION_HYBRID_STANDARD_V1 = 0x03;
 
 /** ML-KEM-768 ciphertext size in bytes */
 const ML_KEM_768_CIPHERTEXT_SIZE = 1088;
@@ -177,7 +185,7 @@ export async function hybridEncrypt(
     const combined = new Uint8Array(totalLength);
     
     let offset = 0;
-    combined[offset++] = VERSION_HYBRID;
+    combined[offset++] = VERSION_HYBRID_STANDARD_V1;
     combined.set(pqCiphertext, offset);
     offset += pqCiphertext.length;
     combined.set(rsaCiphertextBytes, offset);
@@ -203,80 +211,7 @@ export async function hybridDecrypt(
     pqSecretKey: string,
     rsaPrivateKey: string
 ): Promise<string> {
-    const combined = base64ToUint8Array(ciphertextBase64);
-    
-    // 1. Parse version
-    const version = combined[0];
-    
-    if (version === VERSION_RSA_ONLY) {
-        // Legacy RSA-only decryption (for backward compatibility)
-        return legacyRsaDecrypt(combined.slice(1), rsaPrivateKey);
-    }
-    
-    if (version !== VERSION_HYBRID) {
-        throw new Error(`Unsupported encryption version: ${version}`);
-    }
-    
-    // 2. Parse hybrid ciphertext components
-    let offset = 1;
-    
-    const pqCiphertext = combined.slice(offset, offset + ML_KEM_768_CIPHERTEXT_SIZE);
-    offset += ML_KEM_768_CIPHERTEXT_SIZE;
-    
-    const rsaCiphertext = combined.slice(offset, offset + 512); // RSA-4096 = 512 bytes
-    offset += 512;
-    
-    const iv = combined.slice(offset, offset + 12);
-    offset += 12;
-    
-    const aesCiphertext = combined.slice(offset);
-    
-    // 3. Decapsulate ML-KEM-768 shared secret
-    const pqSecretKeyBytes = base64ToUint8Array(pqSecretKey);
-    const pqSharedSecret = ml_kem768.decapsulate(pqCiphertext, pqSecretKeyBytes);
-    
-    // 4. Decrypt AES key with RSA-OAEP
-    const rsaPrivKeyJwk = JSON.parse(rsaPrivateKey);
-    const rsaPrivKey = await crypto.subtle.importKey(
-        'jwk',
-        rsaPrivKeyJwk,
-        { name: 'RSA-OAEP', hash: 'SHA-256' },
-        false,
-        ['decrypt']
-    );
-    
-    const aesKeyBytes = new Uint8Array(await crypto.subtle.decrypt(
-        { name: 'RSA-OAEP' },
-        rsaPrivKey,
-        rsaCiphertext
-    ));
-    
-    // 5. Derive combined key: XOR AES key with PQ shared secret
-    const combinedKey = new Uint8Array(32);
-    for (let i = 0; i < 32; i++) {
-        combinedKey[i] = aesKeyBytes[i] ^ pqSharedSecret[i];
-    }
-    
-    // 6. Decrypt plaintext with combined AES key
-    const aesKey = await crypto.subtle.importKey(
-        'raw',
-        combinedKey,
-        { name: 'AES-GCM', length: 256 },
-        false,
-        ['decrypt']
-    );
-    
-    const plaintextBytes = await crypto.subtle.decrypt(
-        { name: 'AES-GCM', iv, tagLength: 128 },
-        aesKey,
-        aesCiphertext
-    );
-    
-    // 7. Zero sensitive data
-    aesKeyBytes.fill(0);
-    combinedKey.fill(0);
-    
-    return new TextDecoder().decode(plaintextBytes);
+    return decryptHybridCiphertext(ciphertextBase64, pqSecretKey, rsaPrivateKey, false);
 }
 
 /**
@@ -351,7 +286,7 @@ export async function hybridUnwrapKey(
 export function isHybridEncrypted(ciphertextBase64: string): boolean {
     try {
         const combined = base64ToUint8Array(ciphertextBase64);
-        return combined[0] === VERSION_HYBRID;
+        return combined[0] === VERSION_HYBRID_STANDARD_V1;
     } catch {
         return false;
     }
@@ -370,25 +305,36 @@ export function isHybridEncrypted(ciphertextBase64: string): boolean {
 export async function migrateToHybrid(
     legacyCiphertext: string,
     rsaPrivateKey: string,
+    pqSecretKey: string | null,
     pqPublicKey: string,
     rsaPublicKey: string
 ): Promise<string> {
-    // Decrypt with legacy RSA
     const combined = base64ToUint8Array(legacyCiphertext);
     const version = combined[0];
-    
+
+    if (version === VERSION_HYBRID_STANDARD_V1) {
+        return legacyCiphertext;
+    }
+
     let plaintext: string;
     if (version === VERSION_RSA_ONLY) {
         plaintext = await legacyRsaDecrypt(combined.slice(1), rsaPrivateKey);
-    } else if (version === VERSION_HYBRID) {
-        // Already hybrid, return as-is
-        return legacyCiphertext;
+    } else if (version === VERSION_HYBRID_LEGACY) {
+        if (!pqSecretKey) {
+            throw new Error('PQ secret key is required to migrate legacy hybrid ciphertext.');
+        }
+
+        plaintext = await decryptHybridCiphertext(
+            legacyCiphertext,
+            pqSecretKey,
+            rsaPrivateKey,
+            true,
+        );
     } else {
         // Very old format without version byte - assume raw RSA ciphertext
         plaintext = await legacyRsaDecrypt(combined, rsaPrivateKey);
     }
-    
-    // Re-encrypt with hybrid
+
     return hybridEncrypt(plaintext, pqPublicKey, rsaPublicKey);
 }
 
@@ -409,6 +355,97 @@ function base64ToUint8Array(base64: string): Uint8Array {
         bytes[i] = binary.charCodeAt(i);
     }
     return bytes;
+}
+
+async function decryptHybridCiphertext(
+    ciphertextBase64: string,
+    pqSecretKey: string,
+    rsaPrivateKey: string,
+    allowLegacyFormats: boolean,
+): Promise<string> {
+    const combined = base64ToUint8Array(ciphertextBase64);
+    const version = combined[0];
+
+    if (!allowLegacyFormats && version !== VERSION_HYBRID_STANDARD_V1) {
+        throw new Error('Security Standard v1 requires hybrid ciphertext version 3.');
+    }
+
+    if (version === VERSION_RSA_ONLY) {
+        if (!allowLegacyFormats) {
+            throw new Error('RSA-only ciphertext is blocked by Security Standard v1.');
+        }
+
+        return legacyRsaDecrypt(combined.slice(1), rsaPrivateKey);
+    }
+
+    if (version !== VERSION_HYBRID_STANDARD_V1 && version !== VERSION_HYBRID_LEGACY) {
+        throw new Error(`Unsupported encryption version: ${version}`);
+    }
+
+    const { pqCiphertext, rsaCiphertext, iv, aesCiphertext } = parseHybridCiphertext(combined);
+
+    // Decapsulate ML-KEM-768 shared secret.
+    const pqSecretKeyBytes = base64ToUint8Array(pqSecretKey);
+    const pqSharedSecret = ml_kem768.decapsulate(pqCiphertext, pqSecretKeyBytes);
+
+    // Decrypt AES key with RSA-OAEP.
+    const rsaPrivKeyJwk = JSON.parse(rsaPrivateKey);
+    const rsaPrivKey = await crypto.subtle.importKey(
+        'jwk',
+        rsaPrivKeyJwk,
+        { name: 'RSA-OAEP', hash: 'SHA-256' },
+        false,
+        ['decrypt']
+    );
+
+    const aesKeyBytes = new Uint8Array(await crypto.subtle.decrypt(
+        { name: 'RSA-OAEP' },
+        rsaPrivKey,
+        rsaCiphertext
+    ));
+
+    // Derive combined key: XOR AES key with PQ shared secret.
+    const combinedKey = new Uint8Array(32);
+    for (let i = 0; i < 32; i++) {
+        combinedKey[i] = aesKeyBytes[i] ^ pqSharedSecret[i];
+    }
+
+    // Decrypt plaintext with combined AES key.
+    const aesKey = await crypto.subtle.importKey(
+        'raw',
+        combinedKey,
+        { name: 'AES-GCM', length: 256 },
+        false,
+        ['decrypt']
+    );
+
+    const plaintextBytes = await crypto.subtle.decrypt(
+        { name: 'AES-GCM', iv, tagLength: 128 },
+        aesKey,
+        aesCiphertext
+    );
+
+    aesKeyBytes.fill(0);
+    combinedKey.fill(0);
+
+    return new TextDecoder().decode(plaintextBytes);
+}
+
+function parseHybridCiphertext(combined: Uint8Array): ParsedHybridCiphertext {
+    let offset = 1;
+
+    const pqCiphertext = combined.slice(offset, offset + ML_KEM_768_CIPHERTEXT_SIZE);
+    offset += ML_KEM_768_CIPHERTEXT_SIZE;
+
+    const rsaCiphertext = combined.slice(offset, offset + 512);
+    offset += 512;
+
+    const iv = combined.slice(offset, offset + 12);
+    offset += 12;
+
+    const aesCiphertext = combined.slice(offset);
+
+    return { pqCiphertext, rsaCiphertext, iv, aesCiphertext };
 }
 
 // ============ Type Definitions ============
@@ -435,4 +472,11 @@ export interface HybridKeyPair {
     rsaPublicKey: string;
     /** JWK string of RSA-4096 private key */
     rsaPrivateKey: string;
+}
+
+interface ParsedHybridCiphertext {
+    pqCiphertext: Uint8Array;
+    rsaCiphertext: Uint8Array;
+    iv: Uint8Array;
+    aesCiphertext: Uint8Array;
 }

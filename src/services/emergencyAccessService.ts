@@ -2,12 +2,13 @@
 // Licensed under the Business Source License 1.1 — see LICENSE
 import { supabase } from "@/integrations/supabase/client";
 import { 
-    generatePQKeyPair, 
     hybridEncrypt, 
     hybridDecrypt,
-    isHybridEncrypted,
-    PQKeyPair 
+    isHybridEncrypted
 } from './pqCryptoService';
+
+const SECURITY_STANDARD_V1_ERROR =
+    'Security Standard v1 requires hybrid ML-KEM-768 + RSA-4096 emergency access flows.';
 
 interface ProfileRow {
     user_id: string;
@@ -146,36 +147,13 @@ export const emergencyAccessService = {
     },
 
     // Accept an invitation (as trustee)
-    async acceptInvite(accessId: string, publicKeyJwk: string) {
-        const { data: userData } = await supabase.auth.getUser();
-        if (!userData.user) throw new Error("Not authenticated");
-
-        const { data, error } = await supabase
-            .from('emergency_access')
-            .update({
-                status: 'accepted',
-                trusted_user_id: userData.user.id,
-                trustee_public_key: publicKeyJwk
-            })
-            .eq('id', accessId)
-            .select()
-            .single();
-
-        if (error) throw error;
-        return data as unknown as EmergencyAccess;
+    async acceptInvite(_accessId: string, _publicKeyJwk: string) {
+        throw new Error(SECURITY_STANDARD_V1_ERROR);
     },
 
     // Update encrypted master key (as grantor, after trustee accepts)
-    async setEncryptedMasterKey(accessId: string, encryptedKey: string) {
-        const { error } = await supabase
-            .from('emergency_access')
-            .update({
-                encrypted_master_key: encryptedKey,
-                updated_at: new Date().toISOString()
-            })
-            .eq('id', accessId);
-
-        if (error) throw error;
+    async setEncryptedMasterKey(_accessId: string, _encryptedKey: string) {
+        throw new Error(SECURITY_STANDARD_V1_ERROR);
     },
 
     // Request access (as trustee) - starts the timer
@@ -286,6 +264,7 @@ export const emergencyAccessService = {
         const { error } = await supabase
             .from('emergency_access')
             .update({
+                encrypted_master_key: null,
                 pq_encrypted_master_key: hybridCiphertext,
                 updated_at: new Date().toISOString()
             } as Record<string, unknown>)
@@ -322,7 +301,11 @@ export const emergencyAccessService = {
      * @returns true if PQ encryption is enabled
      */
     hasPQEncryption(access: EmergencyAccess): boolean {
-        return !!(access.trustee_pq_public_key && access.pq_encrypted_master_key);
+        return !!(
+            access.trustee_pq_public_key &&
+            access.pq_encrypted_master_key &&
+            isHybridEncrypted(access.pq_encrypted_master_key)
+        );
     },
 
     /**

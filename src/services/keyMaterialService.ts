@@ -23,6 +23,7 @@ import { generatePQKeyPair } from '@/services/pqCryptoService';
 // ============ Constants ============
 
 export const KEY_MATERIAL_ERROR_MASTER_PASSWORD_REQUIRED = 'MASTER_PASSWORD_REQUIRED';
+export const SECURITY_STANDARD_VERSION = 1;
 
 // ============ Public API ============
 
@@ -102,7 +103,7 @@ export async function ensureUserPqKeyMaterial(
 
     const { data: profileRow, error: fetchError } = await supabase
         .from('profiles')
-        .select('pq_public_key, pq_encrypted_private_key, pq_key_version, pq_enforced_at')
+        .select('pq_public_key, pq_encrypted_private_key, pq_key_version, pq_enforced_at, security_standard_version, legacy_crypto_disabled_at')
         .eq('user_id', userId)
         .maybeSingle();
 
@@ -115,12 +116,42 @@ export async function ensureUserPqKeyMaterial(
         profileRow?.pq_encrypted_private_key &&
         profileRow?.pq_key_version
     );
+    const nowIso = new Date().toISOString();
+    const needsSecurityStandardMetadata = (
+        profileRow?.security_standard_version !== SECURITY_STANDARD_VERSION ||
+        !profileRow?.legacy_crypto_disabled_at ||
+        !profileRow?.pq_enforced_at
+    );
 
-    if (hasPqKeyMaterial) {
+    if (hasPqKeyMaterial && !needsSecurityStandardMetadata) {
         return {
             publicKey: profileRow.pq_public_key as string,
             created: false,
             enforcedAtSet: false,
+            securityStandardApplied: false,
+        };
+    }
+
+    if (hasPqKeyMaterial && needsSecurityStandardMetadata) {
+        const { error: updateMetadataError } = await supabase
+            .from('profiles')
+            .update({
+                security_standard_version: SECURITY_STANDARD_VERSION,
+                pq_enforced_at: profileRow?.pq_enforced_at ?? nowIso,
+                legacy_crypto_disabled_at: profileRow?.legacy_crypto_disabled_at ?? nowIso,
+                updated_at: nowIso,
+            } as Record<string, unknown>)
+            .eq('user_id', userId);
+
+        if (updateMetadataError) {
+            throw updateMetadataError;
+        }
+
+        return {
+            publicKey: profileRow.pq_public_key as string,
+            created: false,
+            enforcedAtSet: !profileRow?.pq_enforced_at,
+            securityStandardApplied: true,
         };
     }
 
@@ -135,7 +166,6 @@ export async function ensureUserPqKeyMaterial(
     const salt = generateSalt();
     const key = await deriveKey(masterPassword, salt);
     const encryptedPrivateKey = await encrypt(pqKeys.secretKey, key);
-    const nowIso = new Date().toISOString();
     const needsEnforcedAt = !profileRow?.pq_enforced_at;
 
     const profilePayload = {
@@ -143,7 +173,9 @@ export async function ensureUserPqKeyMaterial(
         pq_public_key: pqKeys.publicKey,
         pq_encrypted_private_key: `${salt}:${encryptedPrivateKey}`,
         pq_key_version: 1,
+        security_standard_version: SECURITY_STANDARD_VERSION,
         pq_enforced_at: profileRow?.pq_enforced_at ?? nowIso,
+        legacy_crypto_disabled_at: profileRow?.legacy_crypto_disabled_at ?? nowIso,
         updated_at: nowIso,
     };
 
@@ -164,6 +196,7 @@ export async function ensureUserPqKeyMaterial(
         publicKey: pqKeys.publicKey,
         created: true,
         enforcedAtSet: needsEnforcedAt,
+        securityStandardApplied: true,
     };
 }
 
@@ -239,6 +272,7 @@ export interface EnsurePqKeyMaterialResult {
     publicKey: string;
     created: boolean;
     enforcedAtSet: boolean;
+    securityStandardApplied: boolean;
 }
 
 export interface EnsureHybridKeyMaterialParams {

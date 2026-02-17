@@ -46,3 +46,11 @@ Validated with:
    - `collectionService`
    - `emergencyAccessService`
 3. Production build (`npm run build`)
+
+## Security Standard v1
+
+Follow-up hardening is documented in `docs/security-standard-v1.md`:
+
+1. Hybrid ciphertext version v3 enforcement
+2. Legacy RSA-only flow blocking
+3. Profile metadata for rollout and auditability

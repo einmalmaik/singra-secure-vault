@@ -23,6 +23,9 @@ export function PostQuantumSettings() {
 
     const [pqEnabled, setPqEnabled] = useState<boolean | null>(null);
     const [pqKeyVersion, setPqKeyVersion] = useState<number | null>(null);
+    const [securityStandardVersion, setSecurityStandardVersion] = useState<number | null>(null);
+    const [pqEnforcedAt, setPqEnforcedAt] = useState<string | null>(null);
+    const [legacyCryptoDisabledAt, setLegacyCryptoDisabledAt] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
     // Load PQ status on mount
@@ -33,7 +36,7 @@ export function PostQuantumSettings() {
             try {
                 const { data, error } = await supabase
                     .from('profiles')
-                    .select('pq_public_key, pq_key_version')
+                    .select('pq_public_key, pq_key_version, pq_enforced_at, security_standard_version, legacy_crypto_disabled_at')
                     .eq('user_id', user.id)
                     .single();
 
@@ -42,6 +45,9 @@ export function PostQuantumSettings() {
                 const profile = data as unknown as Record<string, unknown>;
                 setPqEnabled(!!profile?.pq_public_key);
                 setPqKeyVersion((profile?.pq_key_version as number) || null);
+                setSecurityStandardVersion((profile?.security_standard_version as number) || null);
+                setPqEnforcedAt((profile?.pq_enforced_at as string) || null);
+                setLegacyCryptoDisabledAt((profile?.legacy_crypto_disabled_at as string) || null);
             } catch (err) {
                 console.error('Failed to load PQ status:', err);
             } finally {
@@ -67,6 +73,12 @@ export function PostQuantumSettings() {
             </Card>
         );
     }
+
+    const securityStandardActive = !!(
+        pqEnabled &&
+        securityStandardVersion === 1 &&
+        legacyCryptoDisabledAt
+    );
 
     return (
         <Card>
@@ -95,8 +107,8 @@ export function PostQuantumSettings() {
                 {/* Status */}
                 <div className="flex items-center justify-between py-2">
                     <span className="text-sm font-medium">{t('postQuantum.status')}</span>
-                    <Badge variant={pqEnabled ? 'default' : 'secondary'}>
-                        {pqEnabled ? t('postQuantum.enabled') : t('postQuantum.disabled')}
+                    <Badge variant={securityStandardActive ? 'default' : 'secondary'}>
+                        {securityStandardActive ? t('postQuantum.standardActive') : t('postQuantum.standardPending')}
                     </Badge>
                 </div>
 
@@ -110,6 +122,24 @@ export function PostQuantumSettings() {
                         <div className="flex justify-between">
                             <span className="text-muted-foreground">{t('postQuantum.keyVersion')}</span>
                             <span className="font-mono">v{pqKeyVersion}</span>
+                        </div>
+                        <div className="flex justify-between">
+                            <span className="text-muted-foreground">{t('postQuantum.securityStandard')}</span>
+                            <span className="font-mono">
+                                {securityStandardVersion ? `v${securityStandardVersion}` : t('postQuantum.notSet')}
+                            </span>
+                        </div>
+                        <div className="flex justify-between">
+                            <span className="text-muted-foreground">{t('postQuantum.enforcedAt')}</span>
+                            <span>
+                                {pqEnforcedAt ? new Date(pqEnforcedAt).toLocaleString() : t('postQuantum.notSet')}
+                            </span>
+                        </div>
+                        <div className="flex justify-between">
+                            <span className="text-muted-foreground">{t('postQuantum.legacyDisabledAt')}</span>
+                            <span>
+                                {legacyCryptoDisabledAt ? new Date(legacyCryptoDisabledAt).toLocaleString() : t('postQuantum.notSet')}
+                            </span>
                         </div>
                         <div className="flex justify-between">
                             <span className="text-muted-foreground">{t('postQuantum.securityLevel')}</span>

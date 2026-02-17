@@ -24,7 +24,6 @@ import { Separator } from '@/components/ui/separator';
 
 import { TwoFactorSettings } from './TwoFactorSettings';
 import { PasskeySettings } from './PasskeySettings';
-import { PostQuantumSettings } from './PostQuantumSettings';
 import { DuressSettings } from './DuressSettings';
 import { useVault } from '@/contexts/VaultContext';
 import { useToast } from '@/hooks/use-toast';
@@ -134,10 +133,6 @@ export function SecuritySettings() {
             {/* Passkey Authentication */}
             <Separator className="my-6" />
             <PasskeySettings />
-
-            {/* Post-Quantum Encryption */}
-            <Separator className="my-6" />
-            <PostQuantumSettings />
 
             {/* Panic/Duress Password */}
             <Separator className="my-6" />

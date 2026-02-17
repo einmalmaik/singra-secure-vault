@@ -118,7 +118,21 @@ export const emergencyAccessService = {
         });
 
         if (error) throw error;
-        return { id: '', grantor_id: '', trusted_email: email, trusted_user_id: null, status: 'invited', wait_days: waitDays, requested_at: null, granted_at: null, created_at: new Date().toISOString(), trustee_public_key: null, encrypted_master_key: null } as EmergencyAccess;
+        return {
+            id: '',
+            grantor_id: '',
+            trusted_email: email,
+            trusted_user_id: null,
+            status: 'invited',
+            wait_days: waitDays,
+            requested_at: null,
+            granted_at: null,
+            created_at: new Date().toISOString(),
+            trustee_public_key: null,
+            encrypted_master_key: null,
+            trustee_pq_public_key: null,
+            pq_encrypted_master_key: null,
+        } as EmergencyAccess;
     },
 
     // Revoke access (delete invite or remove trustee)

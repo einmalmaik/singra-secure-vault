@@ -133,4 +133,18 @@ describe("PasswordGenerator", () => {
     expect(screen.getByText("Password")).toBeInTheDocument();
     expect(screen.getByText("Passphrase")).toBeInTheDocument();
   });
+
+  it("should use non-submit button types to avoid parent form submit", () => {
+    render(<PasswordGenerator onSelect={vi.fn()} />);
+
+    const generateButton = screen.getByRole("button", { name: "Generate" });
+    const copyButton = screen.getAllByRole("button").find(
+      (button) => !button.textContent?.includes("Generate") && !button.textContent?.includes("Use")
+    );
+    const useButton = screen.getByRole("button", { name: "Use" });
+
+    expect(generateButton).toHaveAttribute("type", "button");
+    expect(copyButton).toHaveAttribute("type", "button");
+    expect(useButton).toHaveAttribute("type", "button");
+  });
 });

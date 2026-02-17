@@ -72,7 +72,7 @@
       },
       "postQuantum": {
         "title": "Post-Quantum Encryption",
-        "description": "ML-KEM-768 + RSA-4096 hybrid encryption protects against future quantum computer attacks (NIST FIPS 203)."
+        "description": "ML-KEM-768 + RSA-4096 hybrid key protection for Emergency Access and Shared Collections (NIST FIPS 203)."
       },
       "passkeyUnlock": {
         "title": "Passkey Vault Unlock",
@@ -133,7 +133,7 @@
         "zeroKnowledge": "Zero-Knowledge",
         "free": "Free Tier Available",
         "kdf": "Key Derivation (KDF)",
-        "postQuantum": "Post-Quantum Encryption",
+        "postQuantum": "Post-Quantum Key Protection (Sharing/Emergency)",
         "passkeyUnlock": "Passkey Vault Unlock",
         "duressPassword": "Panic / Duress Password",
         "vaultIntegrity": "Vault Integrity Check",
@@ -1078,7 +1078,7 @@
       "core_features": "All Core Features",
       "argon2id_encryption": "Argon2id 128 MiB Encryption",
       "clipboard_auto_clear": "Clipboard Auto-Clear (30s)",
-      "post_quantum": "Post-Quantum Encryption (ML-KEM-768)",
+      "post_quantum": "Post-Quantum Key Protection (ML-KEM-768, sharing/emergency)",
       "duress_password": "Panic / Duress Password",
       "file_attachments": "1 GB File Attachments",
       "builtin_authenticator": "Built-in Authenticator",
@@ -1161,13 +1161,13 @@
   },
   "postQuantum": {
     "title": "Post-Quantum Encryption",
-    "description": "Protect your data against future quantum computers with ML-KEM-768 + RSA-4096 hybrid encryption.",
-    "infoText": "Post-quantum encryption combines classical RSA cryptography with the ML-KEM-768 algorithm (FIPS 203). This protects against 'harvest now, decrypt later' attacks, where adversaries collect encrypted data today to decrypt later with quantum computers.",
+    "description": "Protect Emergency Access and Shared Collections against future quantum computers with ML-KEM-768 + RSA-4096 hybrid key protection.",
+    "infoText": "Post-quantum protection combines classical RSA cryptography with ML-KEM-768 (FIPS 203). It secures key paths for Emergency Access and Shared Collections against 'harvest now, decrypt later' attacks.",
     "status": "Status",
     "enabled": "Enabled",
     "disabled": "Not enabled",
     "enableTitle": "Enable Post-Quantum",
-    "enableDescription": "Generates ML-KEM-768 key pair and upgrades encryption for Emergency Access and Shared Collections.",
+    "enableDescription": "Generates ML-KEM-768 key material and enables hybrid key protection for Emergency Access and Shared Collections.",
     "enableButton": "Enable Post-Quantum",
     "enabling": "Enabling...",
     "enableSuccess": "Post-quantum encryption has been enabled successfully!",

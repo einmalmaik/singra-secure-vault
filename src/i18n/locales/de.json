@@ -72,7 +72,7 @@
       },
       "postQuantum": {
         "title": "Post-Quantum-Verschlüsselung",
-        "description": "ML-KEM-768 + RSA-4096 Hybrid-Verschlüsselung schützt gegen zukünftige Quantencomputer-Angriffe (NIST FIPS 203)."
+        "description": "ML-KEM-768 + RSA-4096 Hybrid-Schlüsselschutz für Notfallzugriff und geteilte Sammlungen (NIST FIPS 203)."
       },
       "passkeyUnlock": {
         "title": "Passkey Tresor-Entsperrung",
@@ -133,7 +133,7 @@
         "zeroKnowledge": "Zero-Knowledge",
         "free": "Kostenloser Plan verfügbar",
         "kdf": "Schlüsselableitung (KDF)",
-        "postQuantum": "Post-Quantum-Verschlüsselung",
+        "postQuantum": "Post-Quantum-Schlüsselschutz (Sharing/Notfall)",
         "passkeyUnlock": "Passkey Tresor-Entsperrung",
         "duressPassword": "Panik-/Zwangspasswort",
         "vaultIntegrity": "Tresor-Integritätsprüfung",
@@ -1099,7 +1099,7 @@
       "core_features": "Alle Grundfunktionen",
       "argon2id_encryption": "Argon2id 128 MiB Verschlüsselung",
       "clipboard_auto_clear": "Zwischenablage Auto-Löschen (30s)",
-      "post_quantum": "Post-Quantum-Verschlüsselung (ML-KEM-768)",
+      "post_quantum": "Post-Quantum-Schlüsselschutz (ML-KEM-768, Sharing/Notfall)",
       "duress_password": "Panik-/Zwangspasswort",
       "file_attachments": "1 GB Datei-Anhänge",
       "builtin_authenticator": "Integrierter Authenticator",
@@ -1182,13 +1182,13 @@
   },
   "postQuantum": {
     "title": "Post-Quantum-Verschlüsselung",
-    "description": "Schütze deine Daten gegen zukünftige Quantencomputer mit ML-KEM-768 + RSA-4096 Hybrid-Verschlüsselung.",
-    "infoText": "Post-Quantum-Verschlüsselung kombiniert klassische RSA-Kryptographie mit dem ML-KEM-768 Algorithmus (FIPS 203). Dies schützt gegen 'Harvest now, decrypt later'-Angriffe, bei denen Angreifer verschlüsselte Daten heute sammeln, um sie später mit Quantencomputern zu entschlüsseln.",
+    "description": "Schütze Notfallzugriff und geteilte Sammlungen gegen zukünftige Quantencomputer mit ML-KEM-768 + RSA-4096 Hybrid-Schlüsselschutz.",
+    "infoText": "Post-Quantum-Schutz kombiniert klassische RSA-Kryptographie mit ML-KEM-768 (FIPS 203). Abgesichert werden Schlüsselpfade für Notfallzugriff und geteilte Sammlungen gegen 'Harvest now, decrypt later'-Angriffe.",
     "status": "Status",
     "enabled": "Aktiviert",
     "disabled": "Nicht aktiviert",
     "enableTitle": "Post-Quantum aktivieren",
-    "enableDescription": "Generiert ML-KEM-768 Schlüsselpaar und aktualisiert die Verschlüsselung für Emergency Access und geteilte Sammlungen.",
+    "enableDescription": "Generiert ML-KEM-768 Schlüsselmaterial und aktiviert Hybrid-Schlüsselschutz für Notfallzugriff und geteilte Sammlungen.",
     "enableButton": "Post-Quantum aktivieren",
     "enabling": "Aktiviere...",
     "enableSuccess": "Post-Quantum-Verschlüsselung wurde erfolgreich aktiviert!",

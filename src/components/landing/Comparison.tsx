@@ -51,7 +51,7 @@ const competitors: Competitor[] = [
         },
         details: {
             kdf: 'Argon2id 128 MiB',
-            postQuantum: 'ML-KEM-768 + RSA-4096',
+            postQuantum: 'ML-KEM-768 + RSA-4096 (sharing/emergency)',
             clipboardClear: '30s',
             pricing: '€0 / €1,65/mo',
         },
@@ -234,3 +234,4 @@ export function Comparison() {
         </section>
     );
 }
+

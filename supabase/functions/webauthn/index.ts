@@ -29,7 +29,7 @@ import type {
     AuthenticationResponseJSON,
 } from "jsr:@simplewebauthn/server";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-import { corsHeaders } from "../_shared/cors.ts";
+import { getCorsHeaders } from "../_shared/cors.ts";
 
 // ============ Configuration ============
 
@@ -51,20 +51,22 @@ function getRpConfig(req: Request): { rpName: string; rpID: string; origin: stri
 // ============ Main Handler ============
 
 Deno.serve(async (req: Request) => {
+    const corsHeaders = getCorsHeaders(req);
+
     // Handle CORS preflight
     if (req.method === "OPTIONS") {
         return new Response(null, { status: 204, headers: corsHeaders });
     }
 
     if (req.method !== "POST") {
-        return jsonResponse({ error: "Method not allowed" }, 405);
+        return jsonResponse({ error: "Method not allowed" }, 405, corsHeaders);
     }
 
     try {
         // 1. Authenticate user via Supabase JWT
         const authHeader = req.headers.get("Authorization");
         if (!authHeader) {
-            return jsonResponse({ error: "Missing authorization header" }, 401);
+            return jsonResponse({ error: "Missing authorization header" }, 401, corsHeaders);
         }
 
         const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -77,7 +79,7 @@ Deno.serve(async (req: Request) => {
 
         const { data: { user }, error: authError } = await supabaseUser.auth.getUser();
         if (authError || !user) {
-            return jsonResponse({ error: "Unauthorized" }, 401);
+            return jsonResponse({ error: "Unauthorized" }, 401, corsHeaders);
         }
 
         // Admin client (bypasses RLS for challenge management)
@@ -91,29 +93,29 @@ Deno.serve(async (req: Request) => {
 
         switch (action) {
             case "generate-registration-options":
-                return await handleGenerateRegistrationOptions(user, rp, supabaseAdmin, body);
+                return await handleGenerateRegistrationOptions(user, rp, supabaseAdmin, body, corsHeaders);
 
             case "verify-registration":
-                return await handleVerifyRegistration(user, rp, supabaseAdmin, body);
+                return await handleVerifyRegistration(user, rp, supabaseAdmin, body, corsHeaders);
 
             case "generate-authentication-options":
-                return await handleGenerateAuthenticationOptions(user, rp, supabaseAdmin);
+                return await handleGenerateAuthenticationOptions(user, rp, supabaseAdmin, corsHeaders);
 
             case "verify-authentication":
-                return await handleVerifyAuthentication(user, rp, supabaseAdmin, body);
+                return await handleVerifyAuthentication(user, rp, supabaseAdmin, body, corsHeaders);
 
             case "list-credentials":
-                return await handleListCredentials(user, supabaseUser);
+                return await handleListCredentials(user, supabaseUser, corsHeaders);
 
             case "delete-credential":
-                return await handleDeleteCredential(user, supabaseUser, body);
+                return await handleDeleteCredential(user, supabaseUser, body, corsHeaders);
 
             default:
-                return jsonResponse({ error: `Unknown action: ${action}` }, 400);
+                return jsonResponse({ error: `Unknown action: ${action}` }, 400, corsHeaders);
         }
     } catch (err) {
         console.error("WebAuthn edge function error:", err);
-        return jsonResponse({ error: "Internal server error" }, 500);
+        return jsonResponse({ error: "Internal server error" }, 500, corsHeaders);
     }
 });
 
@@ -124,6 +126,7 @@ async function handleGenerateRegistrationOptions(
     rp: { rpName: string; rpID: string },
     supabase: ReturnType<typeof createClient>,
     body: Record<string, unknown>,
+    corsHeaders: Record<string, string>,
 ) {
     // Fetch existing credentials to exclude (prevent re-registration)
     const { data: existingCreds } = await supabase
@@ -170,7 +173,7 @@ async function handleGenerateRegistrationOptions(
     return jsonResponse({
         options,
         prfSalt,
-    });
+    }, 200, corsHeaders);
 }
 
 async function handleVerifyRegistration(
@@ -178,6 +181,7 @@ async function handleVerifyRegistration(
     rp: { rpName: string; rpID: string; origin: string },
     supabase: ReturnType<typeof createClient>,
     body: Record<string, unknown>,
+    corsHeaders: Record<string, string>,
 ) {
     const { credential, deviceName, prfSalt, wrappedMasterKey, prfEnabled } = body as {
         credential: unknown;
@@ -188,7 +192,7 @@ async function handleVerifyRegistration(
     };
 
     if (!credential) {
-        return jsonResponse({ error: "Missing credential response" }, 400);
+        return jsonResponse({ error: "Missing credential response" }, 400, corsHeaders);
     }
 
     // Retrieve the stored challenge
@@ -201,7 +205,7 @@ async function handleVerifyRegistration(
         .limit(1);
 
     if (!challenges || challenges.length === 0) {
-        return jsonResponse({ error: "No pending registration challenge" }, 400);
+        return jsonResponse({ error: "No pending registration challenge" }, 400, corsHeaders);
     }
 
     const storedChallenge = challenges[0];
@@ -209,7 +213,7 @@ async function handleVerifyRegistration(
     // Check expiry
     if (new Date(storedChallenge.expires_at) < new Date()) {
         await supabase.from("webauthn_challenges").delete().eq("id", storedChallenge.id);
-        return jsonResponse({ error: "Challenge expired" }, 400);
+        return jsonResponse({ error: "Challenge expired" }, 400, corsHeaders);
     }
 
     try {
@@ -222,7 +226,7 @@ async function handleVerifyRegistration(
         });
 
         if (!verification.verified || !verification.registrationInfo) {
-            return jsonResponse({ error: "Registration verification failed" }, 400);
+            return jsonResponse({ error: "Registration verification failed" }, 400, corsHeaders);
         }
 
         const { credential: regCredential } = verification.registrationInfo;
@@ -244,7 +248,7 @@ async function handleVerifyRegistration(
 
         if (insertError) {
             console.error("Failed to store credential:", insertError);
-            return jsonResponse({ error: "Failed to store credential" }, 500);
+            return jsonResponse({ error: "Failed to store credential" }, 500, corsHeaders);
         }
 
         // Clean up the used challenge
@@ -253,10 +257,10 @@ async function handleVerifyRegistration(
         return jsonResponse({
             verified: true,
             credentialId: regCredential.id,
-        });
+        }, 200, corsHeaders);
     } catch (err) {
         console.error("Registration verification error:", err);
-        return jsonResponse({ error: "Verification failed" }, 400);
+        return jsonResponse({ error: "Verification failed" }, 400, corsHeaders);
     }
 }
 
@@ -266,6 +270,7 @@ async function handleGenerateAuthenticationOptions(
     user: { id: string },
     rp: { rpID: string },
     supabase: ReturnType<typeof createClient>,
+    corsHeaders: Record<string, string>,
 ) {
     // Fetch user's registered credentials
     const { data: credentials } = await supabase
@@ -274,7 +279,7 @@ async function handleGenerateAuthenticationOptions(
         .eq("user_id", user.id);
 
     if (!credentials || credentials.length === 0) {
-        return jsonResponse({ error: "No passkeys registered" }, 404);
+        return jsonResponse({ error: "No passkeys registered" }, 404, corsHeaders);
     }
 
     const allowCredentials = credentials.map((c: { credential_id: string; transports?: string[]; prf_salt?: string; prf_enabled?: boolean }) => ({
@@ -309,7 +314,7 @@ async function handleGenerateAuthenticationOptions(
     return jsonResponse({
         options,
         prfSalts,
-    });
+    }, 200, corsHeaders);
 }
 
 async function handleVerifyAuthentication(
@@ -317,11 +322,12 @@ async function handleVerifyAuthentication(
     rp: { rpID: string; origin: string },
     supabase: ReturnType<typeof createClient>,
     body: Record<string, unknown>,
+    corsHeaders: Record<string, string>,
 ) {
     const { credential } = body as { credential: unknown };
 
     if (!credential) {
-        return jsonResponse({ error: "Missing credential response" }, 400);
+        return jsonResponse({ error: "Missing credential response" }, 400, corsHeaders);
     }
 
     // Extract credential ID from the response to find the matching DB record
@@ -337,7 +343,7 @@ async function handleVerifyAuthentication(
         .limit(1);
 
     if (!challenges || challenges.length === 0) {
-        return jsonResponse({ error: "No pending authentication challenge" }, 400);
+        return jsonResponse({ error: "No pending authentication challenge" }, 400, corsHeaders);
     }
 
     const storedChallenge = challenges[0];
@@ -345,7 +351,7 @@ async function handleVerifyAuthentication(
     // Check expiry
     if (new Date(storedChallenge.expires_at) < new Date()) {
         await supabase.from("webauthn_challenges").delete().eq("id", storedChallenge.id);
-        return jsonResponse({ error: "Challenge expired" }, 400);
+        return jsonResponse({ error: "Challenge expired" }, 400, corsHeaders);
     }
 
     // Find the matching credential in DB
@@ -356,7 +362,7 @@ async function handleVerifyAuthentication(
         .eq("credential_id", credentialResponse.id);
 
     if (!dbCredentials || dbCredentials.length === 0) {
-        return jsonResponse({ error: "Credential not found" }, 400);
+        return jsonResponse({ error: "Credential not found" }, 400, corsHeaders);
     }
 
     const dbCredential = dbCredentials[0] as {
@@ -384,7 +390,7 @@ async function handleVerifyAuthentication(
         });
 
         if (!verification.verified) {
-            return jsonResponse({ error: "Authentication verification failed" }, 400);
+            return jsonResponse({ error: "Authentication verification failed" }, 400, corsHeaders);
         }
 
         // Update the counter (clone detection)
@@ -404,10 +410,10 @@ async function handleVerifyAuthentication(
             credentialId: dbCredential.credential_id,
             wrappedMasterKey: dbCredential.wrapped_master_key,
             prfEnabled: dbCredential.prf_enabled,
-        });
+        }, 200, corsHeaders);
     } catch (err) {
         console.error("Authentication verification error:", err);
-        return jsonResponse({ error: "Verification failed" }, 400);
+        return jsonResponse({ error: "Verification failed" }, 400, corsHeaders);
     }
 }
 
@@ -416,6 +422,7 @@ async function handleVerifyAuthentication(
 async function handleListCredentials(
     user: { id: string },
     supabase: ReturnType<typeof createClient>,
+    corsHeaders: Record<string, string>,
 ) {
     const { data: credentials, error } = await supabase
         .from("passkey_credentials")
@@ -424,21 +431,22 @@ async function handleListCredentials(
         .order("created_at", { ascending: false });
 
     if (error) {
-        return jsonResponse({ error: "Failed to list credentials" }, 500);
+        return jsonResponse({ error: "Failed to list credentials" }, 500, corsHeaders);
     }
 
-    return jsonResponse({ credentials: credentials || [] });
+    return jsonResponse({ credentials: credentials || [] }, 200, corsHeaders);
 }
 
 async function handleDeleteCredential(
     user: { id: string },
     supabase: ReturnType<typeof createClient>,
     body: Record<string, unknown>,
+    corsHeaders: Record<string, string>,
 ) {
     const { credentialId } = body as { credentialId: string };
 
     if (!credentialId) {
-        return jsonResponse({ error: "Missing credentialId" }, 400);
+        return jsonResponse({ error: "Missing credentialId" }, 400, corsHeaders);
     }
 
     const { error } = await supabase
@@ -448,15 +456,15 @@ async function handleDeleteCredential(
         .eq("id", credentialId);
 
     if (error) {
-        return jsonResponse({ error: "Failed to delete credential" }, 500);
+        return jsonResponse({ error: "Failed to delete credential" }, 500, corsHeaders);
     }
 
-    return jsonResponse({ deleted: true });
+    return jsonResponse({ deleted: true }, 200, corsHeaders);
 }
 
 // ============ Helpers ============
 
-function jsonResponse(data: unknown, status = 200): Response {
+function jsonResponse(data: unknown, status = 200, corsHeaders: Record<string, string> = {}): Response {
     return new Response(JSON.stringify(data), {
         status,
         headers: { ...corsHeaders, "Content-Type": "application/json" },

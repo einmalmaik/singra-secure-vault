@@ -12,10 +12,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { FeatureGate } from '@/components/Subscription/FeatureGate';
 import {
   getSharedCollections,
-  createSharedCollection,
   deleteSharedCollection,
   type SharedCollection,
 } from '@/services/familyService';
+import { createCollectionWithHybridKey, createCollectionWithKey } from '@/services/collectionService';
+import { supabase } from '@/integrations/supabase/client';
+import { generatePQKeyPair } from '@/services/pqCryptoService';
+import { deriveKey, encrypt, generateSalt } from '@/services/cryptoService';
 
 export function SharedCollectionsSettings() {
   const { t } = useTranslation();
@@ -49,7 +52,70 @@ export function SharedCollectionsSettings() {
     if (!user || !name.trim()) return;
     setSaving(true);
     try {
-      await createSharedCollection(user.id, name.trim());
+      const { data: userKeyRow, error: userKeyError } = await supabase
+        .from('user_keys')
+        .select('public_key')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (userKeyError || !userKeyRow?.public_key) {
+        throw new Error(t('settings.sharedCollections.missingRsaKey', { defaultValue: 'RSA key setup missing. Configure Emergency Access first.' }));
+      }
+
+      const { data: profileRow, error: profileError } = await supabase
+        .from('profiles')
+        .select('pq_public_key, pq_key_version')
+        .eq('user_id', user.id)
+        .single();
+
+      if (profileError) throw profileError;
+
+      let pqPublicKey = profileRow?.pq_public_key || null;
+      let pqVersion = profileRow?.pq_key_version || null;
+
+      if (!pqPublicKey) {
+        const masterPassword = window.prompt(t('passkey.confirmPassword'));
+        if (!masterPassword) {
+          setSaving(false);
+          return;
+        }
+
+        const pqKeys = generatePQKeyPair();
+        const salt = generateSalt();
+        const key = await deriveKey(masterPassword, salt);
+        const encryptedPrivateKey = await encrypt(pqKeys.secretKey, key);
+
+        const { error: enablePqError } = await supabase
+          .from('profiles')
+          .update({
+            pq_public_key: pqKeys.publicKey,
+            pq_encrypted_private_key: `${salt}:${encryptedPrivateKey}`,
+            pq_key_version: 1,
+            pq_enforced_at: new Date().toISOString(),
+          } as Record<string, unknown>)
+          .eq('user_id', user.id);
+
+        if (enablePqError) throw enablePqError;
+
+        pqPublicKey = pqKeys.publicKey;
+        pqVersion = 1;
+      }
+
+      if (pqPublicKey && pqVersion) {
+        await createCollectionWithHybridKey(
+          name.trim(),
+          null,
+          userKeyRow.public_key,
+          pqPublicKey
+        );
+      } else {
+        await createCollectionWithKey(
+          name.trim(),
+          null,
+          userKeyRow.public_key
+        );
+      }
+
       setName('');
       await load();
       toast({ title: t('common.success'), description: t('settings.sharedCollections.created', { defaultValue: 'Collection created.' }) });

@@ -2,6 +2,40 @@
 
 Singra PW — a zero-knowledge password manager built with React, TypeScript, Vite, and Supabase.
 
+## (VERPFLICHTEND)
+
+Du bist ein autonomer Coding-Agent, der im SINGRA-Repository arbeitet (React 18 + TypeScript + Vite + Tailwind + shadcn/ui; Supabase Postgres/Auth/Storage/Edge Functions mit Deno). Folge diesem Dokument als verbindlicher Policy.
+
+## Primäre Direktiven (Nicht verhandelbar)
+- Bewahre die bestehende Architektur und Konventionen. Führe keine neuen Frameworks, Patterns oder Dependencies ein, außer es ist ausdrücklich gewünscht und begründet.
+- Bevorzuge Korrektheit und Sicherheit vor Geschwindigkeit. Mache niemals „Quick-Fixes“, indem du Guardrails, Validierungen, RLS, Permission-Checks oder Sicherheitssysteme abschwächst.
+- Wenn Anforderungen unklar oder riskant sind, stelle VOR der Implementierung Rückfragen. Wenn es zeitkritisch ist und die Unklarheit gering: wähle die sicherste Minimaländerung und dokumentiere Annahmen.
+
+## Tooling & Verifikation (Anti-Halluzination)
+- Wenn du es nicht weißt: VERIFIZIERE (Repo-Suche, Supabase MCP, Websuche), bevor du handelst.
+- Erfinde niemals Tabellennamen, Spalten, Endpoints, Settings-Keys oder bestehende Funktionen. Finde sie zuerst (oder lege sie via Migration/Settings inkl. Dokumentation korrekt an).
+- Wenn eine Aussage von externen Fakten abhängt (APIs, Libraries, CVEs, Preise, Limits): nutze Websuche und füge die Quellenlinks in PR/Zusammenfassung hinzu.
+
+## Autonomer Arbeitsablauf (Immer)
+1) Verstehe die Anfrage: Ziel + Akzeptanzkriterien + Constraints in eigenen Worten wiedergeben.
+2) Architektur-Scan (verpflichtend): betroffene Layer identifizieren (UI, Hooks, Lib, Edge Functions, DB, RLS, Settings, Permissions).
+3) Call-Site-Analyse (verpflichtend):
+   - Wenn du Funktion/Modul A änderst, finde, wo es aufgerufen/genutzt wird.
+   - Prüfe Downstream-Effekte, Contracts, Types und Error-Handling.
+4) Plan: minimale Schritte, kleinster sicherer Diff. Identifiziere nötige Settings/Flags (im Admin Panel konfigurierbar).
+5) Implementieren: kleine Commits, ein Thema pro Commit.
+6) Tests + Verifikation (verpflichtend): relevante Commands ausführen, Tests hinzufügen, wenn Logik geändert wird.
+7) Selbstkritik (verpflichtend): Edge-Cases, Security/Privacy-Risiken, Rollback-Plan und was du verifiziert hast auflisten.
+8) Ausliefern: klare Change-Zusammenfassung + worauf man achten soll + wie man testet.
+
+## Git- & Delivery-Regeln
+- Arbeite NUR auf dem aktuellen Feature-Branch (oder erstelle einen, wenn keiner existiert, z.B. `feature/<topic>`).
+- Pushe NIEMALS direkt auf `main`, `master` oder irgendeinen persönlichen/Default-Branch.
+- Nach jedem abgeschlossenen Änderungspaket: erstelle einen Commit mit klarer Message (keine lang laufenden uncommitteten Arbeiten).
+- Halte Commits fokussiert: ein Thema pro Commit, keine Vermischung unzusammenhängender Änderungen.
+- Vor finaler Übergabe: stelle sicher, dass das Repo clean ist, keine Debug-Logs enthalten sind und Tests/Lint/Scan grün sind.
+
+
 ## Key Principles
 
 - **i18n**: All user-facing strings must go through `useTranslation()` / `t('key')`. Translation files live in `src/i18n/locales/` (de.json, en.json). German is the default/fallback. New features must include translations for both languages.

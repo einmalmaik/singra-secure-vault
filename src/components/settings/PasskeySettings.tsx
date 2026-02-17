@@ -29,6 +29,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useVault } from '@/contexts/VaultContext';
 import {
     registerPasskey,
+    activatePasskeyPrf,
     listPasskeys,
     deletePasskey,
     isWebAuthnAvailable,
@@ -105,21 +106,37 @@ export function PasskeySettings() {
 
             if (!result.success) {
                 if (result.error === 'CANCELLED') {
-                    // User cancelled — no error toast
-                    setRegistering(false);
                     return;
                 }
+
                 toast({
                     variant: 'destructive',
                     title: t('common.error'),
                     description: result.error || t('passkey.registerFailed', 'Passkey registration failed.'),
                 });
-                setRegistering(false);
                 return;
             }
 
-            // 3. Show result
-            if (result.prfEnabled) {
+            // 3. Some authenticators expose PRF only after an additional assertion ceremony.
+            let hasVaultUnlock = !!result.prfEnabled && !result.needsPrfActivation;
+            if (result.needsPrfActivation) {
+                const activationResult = await activatePasskeyPrf(rawKeyBytes);
+                hasVaultUnlock = activationResult.success;
+
+                if (!activationResult.success) {
+                    toast({
+                        variant: 'destructive',
+                        title: t('common.error'),
+                        description: activationResult.error || t(
+                            'passkey.registeredWithoutPrf',
+                            'Passkey registered for authentication, but this device does not support vault unlock (no PRF). You will still need your master password.',
+                        ),
+                    });
+                }
+            }
+
+            // 4. Show result
+            if (hasVaultUnlock) {
                 toast({
                     title: t('common.success'),
                     description: t('passkey.registeredWithPrf', 'Passkey registered! You can now unlock your vault with this passkey.'),
@@ -131,7 +148,7 @@ export function PasskeySettings() {
                 });
             }
 
-            // 4. Reset form and reload
+            // 5. Reset form and reload
             setShowRegisterForm(false);
             setDeviceName('');
             setMasterPassword('');
@@ -369,3 +386,4 @@ export function PasskeySettings() {
         </Card>
     );
 }
+

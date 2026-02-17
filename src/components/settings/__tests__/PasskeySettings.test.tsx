@@ -20,10 +20,12 @@ vi.mock("@/hooks/use-toast", () => ({
 }));
 
 const mockGetRawKeyForPasskey = vi.fn();
+const mockRefreshPasskeyUnlockStatus = vi.fn().mockResolvedValue(undefined);
 vi.mock("@/contexts/VaultContext", () => ({
   useVault: () => ({
     webAuthnAvailable: true,
     getRawKeyForPasskey: (...args: unknown[]) => mockGetRawKeyForPasskey(...args),
+    refreshPasskeyUnlockStatus: () => mockRefreshPasskeyUnlockStatus(),
   }),
 }));
 
@@ -47,6 +49,7 @@ describe("PasskeySettings", () => {
     mockListPasskeys.mockResolvedValue([]);
     mockDeletePasskey.mockResolvedValue({ success: true });
     mockGetRawKeyForPasskey.mockResolvedValue(new Uint8Array(32));
+    mockRefreshPasskeyUnlockStatus.mockResolvedValue(undefined);
   });
 
   it("activates PRF when registration requires a second ceremony", async () => {
@@ -76,6 +79,26 @@ describe("PasskeySettings", () => {
       expect(mockRegisterPasskey).toHaveBeenCalledTimes(1);
       expect(mockActivatePasskeyPrf).toHaveBeenCalledTimes(1);
       expect(mockActivatePasskeyPrf.mock.calls[0][1]).toBe("cred-1");
+    });
+  });
+
+  it("shows a session error when passkey listing returns 401", async () => {
+    const authError = Object.assign(new Error("Authentication required"), {
+      name: "EdgeFunctionServiceError",
+      status: 401,
+      code: "AUTH_REQUIRED",
+    });
+    mockListPasskeys.mockRejectedValueOnce(authError);
+
+    render(<PasskeySettings />);
+
+    await waitFor(() => {
+      expect(mockToast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          variant: "destructive",
+          description: "Your session has expired. Please sign in again.",
+        }),
+      );
     });
   });
 });

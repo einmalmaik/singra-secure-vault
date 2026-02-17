@@ -243,7 +243,7 @@ async function handleVerifyRegistration(
                 device_name: deviceName || "Passkey",
                 prf_salt: prfSalt || null,
                 wrapped_master_key: wrappedMasterKey || null,
-                prf_enabled: prfEnabled ?? false,
+                prf_enabled: !!prfEnabled && !!wrappedMasterKey,
             });
 
         if (insertError) {

@@ -87,6 +87,8 @@ interface VaultContextType {
     webAuthnAvailable: boolean;
     /** Whether the user has registered passkeys with PRF */
     hasPasskeyUnlock: boolean;
+    /** Refreshes whether at least one vault-unlock-capable passkey is available */
+    refreshPasskeyUnlockStatus: () => Promise<void>;
     /**
      * Derives raw AES-256 key bytes from the master password (for passkey registration).
      * Must be called while vault is unlocked. Returns null if vault is locked.
@@ -197,10 +199,32 @@ export function VaultProvider({ children }: VaultProviderProps) {
 
     const [lastActivity, setLastActivity] = useState(Date.now());
 
+    const refreshPasskeyUnlockStatus = useCallback(async (): Promise<void> => {
+        if (!user || !webAuthnAvailable) {
+            setHasPasskeyUnlock(false);
+            return;
+        }
+
+        try {
+            const { data: passkeys } = await supabase
+                .from('passkey_credentials')
+                .select('id')
+                .eq('user_id', user.id)
+                .eq('prf_enabled', true)
+                .limit(1);
+
+            setHasPasskeyUnlock((passkeys?.length || 0) > 0);
+        } catch {
+            // Non-fatal: passkey status check can fail silently
+            setHasPasskeyUnlock(false);
+        }
+    }, [user, webAuthnAvailable]);
+
     // Check if master password is set up
     useEffect(() => {
         async function checkSetup() {
             if (!user) {
+                setHasPasskeyUnlock(false);
                 setIsLoading(false);
                 return;
             }
@@ -242,21 +266,7 @@ export function VaultProvider({ children }: VaultProviderProps) {
                         (profile.master_password_verifier as string) || null
                     );
 
-                    // Check if user has passkeys with PRF for vault unlock
-                    if (webAuthnAvailable) {
-                        try {
-                            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- passkey_credentials not in generated Supabase types
-                            const { data: passkeys } = await (supabase as any)
-                                .from('passkey_credentials')
-                                .select('id')
-                                .eq('user_id', user.id)
-                                .eq('prf_enabled', true)
-                                .limit(1) as { data: Record<string, unknown>[] | null };
-                            setHasPasskeyUnlock(passkeys && passkeys.length > 0);
-                        } catch {
-                            // Non-fatal: passkey check can fail silently
-                        }
-                    }
+                    await refreshPasskeyUnlockStatus();
 
                     // Load duress (panic password) configuration
                     try {
@@ -286,7 +296,7 @@ export function VaultProvider({ children }: VaultProviderProps) {
         }
 
         checkSetup();
-    }, [user, webAuthnAvailable]);
+    }, [user, webAuthnAvailable, refreshPasskeyUnlockStatus]);
 
     // Auto-lock on inactivity
     useEffect(() => {
@@ -883,6 +893,15 @@ export function VaultProvider({ children }: VaultProviderProps) {
             return { error: new Error('No user logged in') };
         }
 
+        const cooldown = getUnlockCooldown();
+        if (cooldown !== null) {
+            const seconds = Math.ceil(cooldown / 1000);
+            return { error: new Error(`Too many attempts. Try again in ${seconds}s.`) };
+        }
+
+        const legacyHash = localStorage.getItem(`singra_verify_${user.id}`);
+        const verifier = verificationHash || legacyHash;
+
         try {
             const result = await authenticatePasskey();
 
@@ -893,20 +912,20 @@ export function VaultProvider({ children }: VaultProviderProps) {
                 if (result.error === 'NO_PRF') {
                     return { error: new Error('This passkey does not support vault unlock (no PRF)') };
                 }
+                recordFailedAttempt();
                 return { error: new Error(result.error || 'Passkey authentication failed') };
             }
 
             if (!result.encryptionKey) {
+                recordFailedAttempt();
                 return { error: new Error('Passkey authenticated but no encryption key derived') };
             }
 
             // Verify the key works by checking the verification hash
-            const legacyHash = localStorage.getItem(`singra_verify_${user.id}`);
-            const verifier = verificationHash || legacyHash;
-
             if (verifier) {
                 const isValid = await verifyKey(verifier, result.encryptionKey);
                 if (!isValid) {
+                    recordFailedAttempt();
                     return { error: new Error('Passkey-derived key does not match vault — key may be outdated') };
                 }
             }
@@ -933,6 +952,7 @@ export function VaultProvider({ children }: VaultProviderProps) {
             return { error: null };
         } catch (err) {
             console.error('Passkey unlock error:', err);
+            recordFailedAttempt();
             return { error: new Error('Passkey unlock failed') };
         }
     }, [user, verificationHash]);
@@ -949,13 +969,32 @@ export function VaultProvider({ children }: VaultProviderProps) {
     ): Promise<Uint8Array | null> => {
         if (!user || !salt || isLocked) return null;
 
+        let rawKeyBytes: Uint8Array | null = null;
         try {
-            return await deriveRawKey(masterPassword, salt, kdfVersion);
+            rawKeyBytes = await deriveRawKey(masterPassword, salt, kdfVersion);
+
+            const legacyHash = localStorage.getItem(`singra_verify_${user.id}`);
+            const verifier = verificationHash || legacyHash;
+            if (!verifier) {
+                return rawKeyBytes;
+            }
+
+            const derivedKey = await importMasterKey(rawKeyBytes);
+            const isValid = await verifyKey(verifier, derivedKey);
+            if (!isValid) {
+                rawKeyBytes.fill(0);
+                return null;
+            }
+
+            return rawKeyBytes;
         } catch (err) {
+            if (rawKeyBytes) {
+                rawKeyBytes.fill(0);
+            }
             console.error('Failed to derive raw key for passkey:', err);
             return null;
         }
-    }, [user, salt, kdfVersion, isLocked]);
+    }, [user, salt, kdfVersion, isLocked, verificationHash]);
 
     /**
      * Locks the vault and clears encryption key from memory
@@ -1074,6 +1113,7 @@ export function VaultProvider({ children }: VaultProviderProps) {
                 lock,
                 webAuthnAvailable,
                 hasPasskeyUnlock,
+                refreshPasskeyUnlockStatus,
                 getRawKeyForPasskey,
                 encryptData,
                 decryptData,

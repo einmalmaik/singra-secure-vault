@@ -72,7 +72,7 @@
       },
       "postQuantum": {
         "title": "Post-Quantum-Verschlüsselung",
-        "description": "ML-KEM-768 + RSA-4096 Hybrid-Schlüsselschutz für Notfallzugriff und geteilte Sammlungen (NIST FIPS 203)."
+        "description": "ML-KEM-768 + RSA-4096 Hybrid-Schluesselschutz ist standardmaessig fuer neue Schluesselaustausche in Notfallzugriff und geteilten Sammlungen aktiv (NIST FIPS 203)."
       },
       "passkeyUnlock": {
         "title": "Passkey Tresor-Entsperrung",
@@ -823,6 +823,10 @@
       "title": "Geteilte Sammlungen",
       "description": "Erstelle Sammlungen, um Tresor-Einträge mit Familienmitgliedern zu teilen.",
       "namePlaceholder": "Name der Sammlung",
+      "masterPasswordTitle": "Master-Passwort bestaetigen",
+      "masterPasswordDescription": "Fuer die erste geteilte Sammlung wird hybrides Schluesselmaterial fuer dein Konto eingerichtet.",
+      "masterPasswordPlaceholder": "Master-Passwort eingeben",
+      "masterPasswordRequired": "Master-Passwort ist erforderlich, um Schluesselmaterial einzurichten.",
       "empty": "Noch keine geteilten Sammlungen vorhanden.",
       "noDescription": "Keine Beschreibung",
       "created": "Sammlung erstellt.",
@@ -1182,13 +1186,13 @@
   },
   "postQuantum": {
     "title": "Post-Quantum-Verschlüsselung",
-    "description": "Schütze Notfallzugriff und geteilte Sammlungen gegen zukünftige Quantencomputer mit ML-KEM-768 + RSA-4096 Hybrid-Schlüsselschutz.",
-    "infoText": "Post-Quantum-Schutz kombiniert klassische RSA-Kryptographie mit ML-KEM-768 (FIPS 203). Abgesichert werden Schlüsselpfade für Notfallzugriff und geteilte Sammlungen gegen 'Harvest now, decrypt later'-Angriffe.",
+    "description": "Post-Quantum-Hybrid-Schluesselschutz (ML-KEM-768 + RSA-4096) ist standardmaessig fuer neue Schluesselpfade in Sharing und Notfallzugriff aktiv.",
+    "infoText": "Singra PW schuetzt neue Schluesselaustaeusche fuer Sharing und Notfallzugriff mit ML-KEM-768 + RSA-4096 (FIPS 203 orientiert), um 'Harvest now, decrypt later' Risiken zu senken.",
     "status": "Status",
     "enabled": "Aktiviert",
     "disabled": "Nicht aktiviert",
     "enableTitle": "Post-Quantum aktivieren",
-    "enableDescription": "Generiert ML-KEM-768 Schlüsselmaterial und aktiviert Hybrid-Schlüsselschutz für Notfallzugriff und geteilte Sammlungen.",
+    "enableDescription": "Hybrid-Post-Quantum-Schutz wird automatisch eingerichtet, sobald Sharing- oder Notfall-Flow ihn benoetigt.",
     "enableButton": "Post-Quantum aktivieren",
     "enabling": "Aktiviere...",
     "enableSuccess": "Post-Quantum-Verschlüsselung wurde erfolgreich aktiviert!",

@@ -351,6 +351,7 @@ export type Database = {
           kdf_version: number
           master_password_verifier: string | null
           pq_encrypted_private_key: string | null
+          pq_enforced_at: string | null
           pq_key_version: number | null
           pq_public_key: string | null
           preferred_language: string | null
@@ -371,6 +372,7 @@ export type Database = {
           kdf_version?: number
           master_password_verifier?: string | null
           pq_encrypted_private_key?: string | null
+          pq_enforced_at?: string | null
           pq_key_version?: number | null
           pq_public_key?: string | null
           preferred_language?: string | null
@@ -391,6 +393,7 @@ export type Database = {
           kdf_version?: number
           master_password_verifier?: string | null
           pq_encrypted_private_key?: string | null
+          pq_enforced_at?: string | null
           pq_key_version?: number | null
           pq_public_key?: string | null
           preferred_language?: string | null

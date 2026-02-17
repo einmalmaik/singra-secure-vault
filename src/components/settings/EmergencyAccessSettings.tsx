@@ -86,6 +86,7 @@ import {
     buildVaultItemRowFromInsert,
     resolveDefaultVaultId
 } from '@/services/offlineVaultService';
+import { ensureHybridKeyMaterial } from '@/services/keyMaterialService';
 import { supabase } from '@/integrations/supabase/client';
 
 export default function EmergencyAccessSettings() {
@@ -342,7 +343,7 @@ export default function EmergencyAccessSettings() {
                 pqKeys.publicKey
             );
 
-            await supabase
+            const { error: profileUpdateError } = await supabase
                 .from('profiles')
                 .update({
                     pq_public_key: pqKeys.publicKey,
@@ -350,6 +351,10 @@ export default function EmergencyAccessSettings() {
                     pq_enforced_at: new Date().toISOString(),
                 } as Record<string, unknown>)
                 .eq('user_id', user.id);
+
+            if (profileUpdateError) {
+                throw profileUpdateError;
+            }
 
             toast({
                 title: t('common.success'),
@@ -396,6 +401,11 @@ export default function EmergencyAccessSettings() {
             // We can fetch user profile to get the salt.
             const { data: { user: currentUser } } = await supabase.auth.getUser();
             if (!currentUser) throw new Error('No user');
+
+            await ensureHybridKeyMaterial({
+                userId: currentUser.id,
+                masterPassword,
+            });
 
             // Fetch profile for salt
             const { data: profile } = await supabase

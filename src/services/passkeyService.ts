@@ -256,18 +256,27 @@ export async function registerPasskey(
  * Some authenticators only return PRF during get(), not create().
  *
  * @param rawKeyBytes - The raw 32-byte AES key (from deriveRawKey)
+ * @param expectedCredentialId - The credential ID that should be activated
  * @returns Success status and the credential ID that was activated
  */
 export async function activatePasskeyPrf(
     rawKeyBytes: Uint8Array,
+    expectedCredentialId: string,
 ): Promise<{ success: boolean; error?: string; credentialId?: string }> {
+    if (!expectedCredentialId) {
+        return { success: false, error: 'Missing target credential ID' };
+    }
+
     // 1. Get authentication options
     const { data: serverData, error: serverError } = await supabase.functions.invoke('webauthn', {
-        body: { action: 'generate-authentication-options' },
+        body: {
+            action: 'generate-authentication-options',
+            credentialId: expectedCredentialId,
+        },
     });
 
     if (serverError || !serverData?.options) {
-        return { success: false, error: 'Failed to get authentication options' };
+        return { success: false, error: serverError?.message || 'Failed to get authentication options' };
     }
 
     const options: PublicKeyCredentialRequestOptionsJSON = serverData.options;
@@ -298,11 +307,19 @@ export async function activatePasskeyPrf(
 
     // 3. Verify on server
     const { data: verifyData, error: verifyError } = await supabase.functions.invoke('webauthn', {
-        body: { action: 'verify-authentication', credential: authResponse },
+        body: {
+            action: 'verify-authentication',
+            credential: authResponse,
+            expectedCredentialId,
+        },
     });
 
     if (verifyError || !verifyData?.verified) {
-        return { success: false, error: 'Verification failed' };
+        return { success: false, error: verifyError?.message || 'Verification failed' };
+    }
+
+    if (verifyData.credentialId !== expectedCredentialId) {
+        return { success: false, error: 'Verification returned an unexpected credential' };
     }
 
     // 4. Extract PRF output and wrap the key

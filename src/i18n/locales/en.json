@@ -72,7 +72,7 @@
       },
       "postQuantum": {
         "title": "Post-Quantum Encryption",
-        "description": "ML-KEM-768 + RSA-4096 hybrid key protection for Emergency Access and Shared Collections (NIST FIPS 203)."
+        "description": "ML-KEM-768 + RSA-4096 hybrid key protection is default for new Emergency Access and Shared Collection key exchanges (NIST FIPS 203)."
       },
       "passkeyUnlock": {
         "title": "Passkey Vault Unlock",
@@ -800,6 +800,10 @@
       "title": "Shared Collections",
       "description": "Create collections for sharing vault items with family members.",
       "namePlaceholder": "Collection name",
+      "masterPasswordTitle": "Confirm master password",
+      "masterPasswordDescription": "To create your first shared collection, we need to provision hybrid key material for your account.",
+      "masterPasswordPlaceholder": "Enter your master password",
+      "masterPasswordRequired": "Master password is required to provision key material.",
       "empty": "No shared collections yet.",
       "noDescription": "No description",
       "created": "Collection created.",
@@ -1161,13 +1165,13 @@
   },
   "postQuantum": {
     "title": "Post-Quantum Encryption",
-    "description": "Protect Emergency Access and Shared Collections against future quantum computers with ML-KEM-768 + RSA-4096 hybrid key protection.",
-    "infoText": "Post-quantum protection combines classical RSA cryptography with ML-KEM-768 (FIPS 203). It secures key paths for Emergency Access and Shared Collections against 'harvest now, decrypt later' attacks.",
+    "description": "Post-quantum hybrid key protection (ML-KEM-768 + RSA-4096) is now the default for new Shared Collections and Emergency Access key paths.",
+    "infoText": "Singra PW protects new sharing and emergency key exchanges with a hybrid ML-KEM-768 + RSA-4096 scheme (FIPS 203 aligned) to reduce 'harvest now, decrypt later' risk.",
     "status": "Status",
     "enabled": "Enabled",
     "disabled": "Not enabled",
     "enableTitle": "Enable Post-Quantum",
-    "enableDescription": "Generates ML-KEM-768 key material and enables hybrid key protection for Emergency Access and Shared Collections.",
+    "enableDescription": "Hybrid post-quantum key protection is provisioned automatically when required by sharing/emergency flows.",
     "enableButton": "Enable Post-Quantum",
     "enabling": "Enabling...",
     "enableSuccess": "Post-quantum encryption has been enabled successfully!",

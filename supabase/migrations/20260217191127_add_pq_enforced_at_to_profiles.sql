@@ -1,4 +1,4 @@
-﻿-- Add enforcement timestamp for post-quantum rollout state
+-- Add enforcement timestamp for post-quantum rollout state
 ALTER TABLE public.profiles
 ADD COLUMN IF NOT EXISTS pq_enforced_at TIMESTAMPTZ NULL;
 

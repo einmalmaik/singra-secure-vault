@@ -99,7 +99,7 @@ Deno.serve(async (req: Request) => {
                 return await handleVerifyRegistration(user, rp, supabaseAdmin, body, corsHeaders);
 
             case "generate-authentication-options":
-                return await handleGenerateAuthenticationOptions(user, rp, supabaseAdmin, corsHeaders);
+                return await handleGenerateAuthenticationOptions(user, rp, supabaseAdmin, body, corsHeaders);
 
             case "verify-authentication":
                 return await handleVerifyAuthentication(user, rp, supabaseAdmin, body, corsHeaders);
@@ -270,8 +270,11 @@ async function handleGenerateAuthenticationOptions(
     user: { id: string },
     rp: { rpID: string },
     supabase: ReturnType<typeof createClient>,
+    body: Record<string, unknown>,
     corsHeaders: Record<string, string>,
 ) {
+    const { credentialId } = body as { credentialId?: string };
+
     // Fetch user's registered credentials
     const { data: credentials } = await supabase
         .from("passkey_credentials")
@@ -282,7 +285,15 @@ async function handleGenerateAuthenticationOptions(
         return jsonResponse({ error: "No passkeys registered" }, 404, corsHeaders);
     }
 
-    const allowCredentials = credentials.map((c: { credential_id: string; transports?: string[]; prf_salt?: string; prf_enabled?: boolean }) => ({
+    const scopedCredentials = credentialId
+        ? credentials.filter((credential: { credential_id: string }) => credential.credential_id === credentialId)
+        : credentials;
+
+    if (scopedCredentials.length === 0) {
+        return jsonResponse({ error: "Requested passkey credential not found" }, 404, corsHeaders);
+    }
+
+    const allowCredentials = scopedCredentials.map((c: { credential_id: string; transports?: string[]; prf_salt?: string; prf_enabled?: boolean }) => ({
         id: c.credential_id,
         transports: c.transports || undefined,
     }));
@@ -305,7 +316,7 @@ async function handleGenerateAuthenticationOptions(
 
     // Build a map of credential_id -> prfSalt for PRF-enabled credentials
     const prfSalts: Record<string, string> = {};
-    for (const cred of credentials) {
+    for (const cred of scopedCredentials) {
         if (cred.prf_enabled && cred.prf_salt) {
             prfSalts[cred.credential_id] = cred.prf_salt;
         }
@@ -324,7 +335,10 @@ async function handleVerifyAuthentication(
     body: Record<string, unknown>,
     corsHeaders: Record<string, string>,
 ) {
-    const { credential } = body as { credential: unknown };
+    const { credential, expectedCredentialId } = body as {
+        credential: unknown;
+        expectedCredentialId?: string;
+    };
 
     if (!credential) {
         return jsonResponse({ error: "Missing credential response" }, 400, corsHeaders);
@@ -332,6 +346,10 @@ async function handleVerifyAuthentication(
 
     // Extract credential ID from the response to find the matching DB record
     const credentialResponse = credential as { id: string };
+
+    if (expectedCredentialId && credentialResponse.id !== expectedCredentialId) {
+        return jsonResponse({ error: "Unexpected passkey credential used" }, 400, corsHeaders);
+    }
 
     // Retrieve the stored challenge
     const { data: challenges } = await supabase

@@ -1,0 +1,254 @@
+// Copyright (c) 2025-2026 Maunting Studios
+// Licensed under the Business Source License 1.1 - see LICENSE
+/**
+ * @fileoverview Key material provisioning service for hybrid (PQ + RSA) flows.
+ *
+ * Ensures that user-scoped key material exists before writing encrypted
+ * collection/emergency keys:
+ * - RSA-4096 public/private key pair in `user_keys`
+ * - ML-KEM-768 key pair in `profiles` (`pq_*` columns)
+ *
+ * The service is idempotent and only creates missing material.
+ */
+
+import { supabase } from '@/integrations/supabase/client';
+import {
+    deriveKey,
+    encrypt,
+    generateSalt,
+    generateUserKeyPair,
+} from '@/services/cryptoService';
+import { generatePQKeyPair } from '@/services/pqCryptoService';
+
+// ============ Constants ============
+
+export const KEY_MATERIAL_ERROR_MASTER_PASSWORD_REQUIRED = 'MASTER_PASSWORD_REQUIRED';
+
+// ============ Public API ============
+
+/**
+ * Ensures a user has RSA key material in `user_keys`.
+ *
+ * @param params - Provisioning parameters
+ * @param params.userId - Auth user ID
+ * @param params.masterPassword - Master password (required only when keys are missing)
+ * @returns Existing or newly created RSA public key
+ * @throws Error when database operations fail
+ */
+export async function ensureUserRsaKeyMaterial(
+    params: EnsureRsaKeyMaterialParams,
+): Promise<EnsureRsaKeyMaterialResult> {
+    const { userId, masterPassword } = params;
+
+    const { data: keyRow, error: fetchError } = await supabase
+        .from('user_keys')
+        .select('public_key')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+    if (fetchError) {
+        throw fetchError;
+    }
+
+    if (keyRow?.public_key) {
+        return {
+            publicKey: keyRow.public_key,
+            created: false,
+        };
+    }
+
+    if (!masterPassword) {
+        throw createKeyMaterialError(
+            KEY_MATERIAL_ERROR_MASTER_PASSWORD_REQUIRED,
+            'Master password is required to provision RSA key material.',
+        );
+    }
+
+    const userKeyPair = await generateUserKeyPair(masterPassword);
+    const { error: upsertError } = await supabase
+        .from('user_keys')
+        .upsert({
+            user_id: userId,
+            public_key: userKeyPair.publicKey,
+            encrypted_private_key: userKeyPair.encryptedPrivateKey,
+            updated_at: new Date().toISOString(),
+        }, {
+            onConflict: 'user_id',
+        });
+
+    if (upsertError) {
+        throw upsertError;
+    }
+
+    return {
+        publicKey: userKeyPair.publicKey,
+        created: true,
+    };
+}
+
+/**
+ * Ensures a user has post-quantum key material in `profiles`.
+ *
+ * @param params - Provisioning parameters
+ * @param params.userId - Auth user ID
+ * @param params.masterPassword - Master password (required only when keys are missing)
+ * @returns Existing or newly created PQ public key
+ * @throws Error when database operations fail
+ */
+export async function ensureUserPqKeyMaterial(
+    params: EnsurePqKeyMaterialParams,
+): Promise<EnsurePqKeyMaterialResult> {
+    const { userId, masterPassword } = params;
+
+    const { data: profileRow, error: fetchError } = await supabase
+        .from('profiles')
+        .select('pq_public_key, pq_encrypted_private_key, pq_key_version, pq_enforced_at')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+    if (fetchError) {
+        throw fetchError;
+    }
+
+    const hasPqKeyMaterial = !!(
+        profileRow?.pq_public_key &&
+        profileRow?.pq_encrypted_private_key &&
+        profileRow?.pq_key_version
+    );
+
+    if (hasPqKeyMaterial) {
+        return {
+            publicKey: profileRow.pq_public_key as string,
+            created: false,
+            enforcedAtSet: false,
+        };
+    }
+
+    if (!masterPassword) {
+        throw createKeyMaterialError(
+            KEY_MATERIAL_ERROR_MASTER_PASSWORD_REQUIRED,
+            'Master password is required to provision post-quantum key material.',
+        );
+    }
+
+    const pqKeys = generatePQKeyPair();
+    const salt = generateSalt();
+    const key = await deriveKey(masterPassword, salt);
+    const encryptedPrivateKey = await encrypt(pqKeys.secretKey, key);
+    const nowIso = new Date().toISOString();
+    const needsEnforcedAt = !profileRow?.pq_enforced_at;
+
+    const profilePayload = {
+        user_id: userId,
+        pq_public_key: pqKeys.publicKey,
+        pq_encrypted_private_key: `${salt}:${encryptedPrivateKey}`,
+        pq_key_version: 1,
+        pq_enforced_at: profileRow?.pq_enforced_at ?? nowIso,
+        updated_at: nowIso,
+    };
+
+    const { error: writeError } = profileRow
+        ? await supabase
+            .from('profiles')
+            .update(profilePayload as Record<string, unknown>)
+            .eq('user_id', userId)
+        : await supabase
+            .from('profiles')
+            .upsert(profilePayload as Record<string, unknown>, { onConflict: 'user_id' });
+
+    if (writeError) {
+        throw writeError;
+    }
+
+    return {
+        publicKey: pqKeys.publicKey,
+        created: true,
+        enforcedAtSet: needsEnforcedAt,
+    };
+}
+
+/**
+ * Ensures hybrid key material (RSA + PQ) exists for a user.
+ *
+ * @param params - Provisioning parameters
+ * @param params.userId - Auth user ID
+ * @param params.masterPassword - Master password (required only when any key material is missing)
+ * @returns Existing or newly created RSA and PQ public keys
+ */
+export async function ensureHybridKeyMaterial(
+    params: EnsureHybridKeyMaterialParams,
+): Promise<EnsureHybridKeyMaterialResult> {
+    const rsa = await ensureUserRsaKeyMaterial(params);
+    const pq = await ensureUserPqKeyMaterial(params);
+
+    return {
+        rsaPublicKey: rsa.publicKey,
+        pqPublicKey: pq.publicKey,
+        createdRsa: rsa.created,
+        createdPq: pq.created,
+    };
+}
+
+/**
+ * Checks whether an error indicates that a master password prompt is required.
+ *
+ * @param error - Unknown thrown value
+ * @returns true when the error requires master password input
+ */
+export function isMasterPasswordRequiredError(error: unknown): boolean {
+    if (!error || typeof error !== 'object') {
+        return false;
+    }
+
+    return (
+        'code' in error &&
+        (error as { code?: string }).code === KEY_MATERIAL_ERROR_MASTER_PASSWORD_REQUIRED
+    );
+}
+
+// ============ Internal Helpers ============
+
+function createKeyMaterialError(code: string, message: string): KeyMaterialError {
+    const error = new Error(message) as KeyMaterialError;
+    error.code = code;
+    return error;
+}
+
+// ============ Type Definitions ============
+
+interface KeyMaterialError extends Error {
+    code?: string;
+}
+
+export interface EnsureRsaKeyMaterialParams {
+    userId: string;
+    masterPassword?: string;
+}
+
+export interface EnsureRsaKeyMaterialResult {
+    publicKey: string;
+    created: boolean;
+}
+
+export interface EnsurePqKeyMaterialParams {
+    userId: string;
+    masterPassword?: string;
+}
+
+export interface EnsurePqKeyMaterialResult {
+    publicKey: string;
+    created: boolean;
+    enforcedAtSet: boolean;
+}
+
+export interface EnsureHybridKeyMaterialParams {
+    userId: string;
+    masterPassword?: string;
+}
+
+export interface EnsureHybridKeyMaterialResult {
+    rsaPublicKey: string;
+    pqPublicKey: string;
+    createdRsa: boolean;
+    createdPq: boolean;
+}

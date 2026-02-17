@@ -120,7 +120,9 @@ export function PasskeySettings() {
             // 3. Some authenticators expose PRF only after an additional assertion ceremony.
             let hasVaultUnlock = !!result.prfEnabled && !result.needsPrfActivation;
             if (result.needsPrfActivation) {
-                const activationResult = await activatePasskeyPrf(rawKeyBytes);
+                const activationResult = result.credentialId
+                    ? await activatePasskeyPrf(rawKeyBytes, result.credentialId)
+                    : { success: false, error: 'Missing credential ID for PRF activation' };
                 hasVaultUnlock = activationResult.success;
 
                 if (!activationResult.success) {

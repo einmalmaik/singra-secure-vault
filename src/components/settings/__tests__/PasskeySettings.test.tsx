@@ -52,6 +52,7 @@ describe("PasskeySettings", () => {
   it("activates PRF when registration requires a second ceremony", async () => {
     mockRegisterPasskey.mockResolvedValue({
       success: true,
+      credentialId: "cred-1",
       prfEnabled: true,
       needsPrfActivation: true,
     });
@@ -74,6 +75,7 @@ describe("PasskeySettings", () => {
     await waitFor(() => {
       expect(mockRegisterPasskey).toHaveBeenCalledTimes(1);
       expect(mockActivatePasskeyPrf).toHaveBeenCalledTimes(1);
+      expect(mockActivatePasskeyPrf.mock.calls[0][1]).toBe("cred-1");
     });
   });
 });

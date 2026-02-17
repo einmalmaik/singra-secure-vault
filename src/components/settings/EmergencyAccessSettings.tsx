@@ -83,6 +83,7 @@ import {
     resolveDefaultVaultId
 } from '@/services/offlineVaultService';
 import { ensureHybridKeyMaterial } from '@/services/keyMaterialService';
+import { isEdgeFunctionServiceError } from '@/services/edgeFunctionService';
 import { supabase } from '@/integrations/supabase/client';
 
 export default function EmergencyAccessSettings() {
@@ -106,6 +107,24 @@ export default function EmergencyAccessSettings() {
     const [selectedGrantorId, setSelectedGrantorId] = useState<string | null>(null);
     const [masterPassword, setMasterPassword] = useState('');
     const [setupLoading, setSetupLoading] = useState(false);
+
+    const resolveErrorMessage = (error: unknown, fallbackMessage: string) => {
+        if (isEdgeFunctionServiceError(error)) {
+            if (error.status === 401) {
+                return t('common.authRequired');
+            }
+
+            if (error.status === 403) {
+                return t('common.forbidden');
+            }
+
+            if (error.status && error.status >= 500) {
+                return t('common.serviceUnavailable');
+            }
+        }
+
+        return error instanceof Error ? error.message : fallbackMessage;
+    };
 
     useEffect(() => {
         if (user && !isLocked) {
@@ -233,7 +252,7 @@ export default function EmergencyAccessSettings() {
             await emergencyAccessService.inviteTrustee(inviteEmail, parseInt(inviteWaitDays));
             toast({
                 title: t('common.success'),
-                description: t('emergency.inviteSent', 'Invitation sent successfully.')
+                description: t('emergency.inviteSent')
             });
             setInviteDialogOpen(false);
             setInviteEmail('');
@@ -243,7 +262,7 @@ export default function EmergencyAccessSettings() {
             toast({
                 variant: 'destructive',
                 title: t('common.error'),
-                description: t('emergency.inviteError', 'Failed to send invitation.')
+                description: resolveErrorMessage(error, t('emergency.inviteError'))
             });
         }
     };

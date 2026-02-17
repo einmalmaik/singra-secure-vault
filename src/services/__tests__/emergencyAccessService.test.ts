@@ -35,6 +35,10 @@ const mockSupabase = vi.hoisted(() => {
       getUser: vi.fn().mockResolvedValue({
         data: { user: { id: "user-123", email: "test@example.com" } },
       }),
+      getSession: vi.fn().mockResolvedValue({
+        data: { session: { access_token: "test-token" } },
+        error: null,
+      }),
     },
     functions: { invoke: vi.fn() },
     storage: { from: vi.fn() },
@@ -126,6 +130,7 @@ describe("inviteTrustee()", () => {
     const result = await emergencyAccessService.inviteTrustee("trustee@e.com", 7);
     expect(mockSupabase.functions.invoke).toHaveBeenCalledWith("invite-emergency-access", {
       body: { email: "trustee@e.com", wait_days: 7 },
+      headers: { Authorization: "Bearer test-token" },
     });
     expect(result.trusted_email).toBe("trustee@e.com");
     expect(result.wait_days).toBe(7);
@@ -135,7 +140,15 @@ describe("inviteTrustee()", () => {
   it("throws on edge function error", async () => {
     mockSupabase.functions.invoke.mockResolvedValue({ data: null, error: { message: "Failed" } });
 
-    await expect(emergencyAccessService.inviteTrustee("bad@e.com", 3)).rejects.toEqual({ message: "Failed" });
+    await expect(emergencyAccessService.inviteTrustee("bad@e.com", 3)).rejects.toMatchObject({ message: "Failed" });
+  });
+
+  it("throws when session token is missing", async () => {
+    mockSupabase.auth.getSession.mockResolvedValueOnce({ data: { session: null }, error: null });
+
+    await expect(emergencyAccessService.inviteTrustee("trustee@e.com", 3)).rejects.toMatchObject({
+      message: "Authentication required",
+    });
   });
 });
 

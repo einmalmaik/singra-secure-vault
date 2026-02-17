@@ -1,6 +1,7 @@
 // Copyright (c) 2025-2026 Maunting Studios
 // Licensed under the Business Source License 1.1 — see LICENSE
 import { supabase } from '@/integrations/supabase/client';
+import { invokeAuthedFunction } from '@/services/edgeFunctionService';
 
 export interface FamilyMember {
   id: string;
@@ -34,10 +35,7 @@ export async function getFamilyMembers(ownerId: string): Promise<FamilyMember[]>
 }
 
 export async function inviteFamilyMember(_ownerId: string, email: string): Promise<void> {
-  const { error } = await supabase.functions.invoke('invite-family-member', {
-    body: { email },
-  });
-  if (error) throw error;
+  await invokeAuthedFunction('invite-family-member', { email });
 }
 
 export async function removeFamilyMember(id: string): Promise<void> {

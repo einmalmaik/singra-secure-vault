@@ -35,6 +35,10 @@ const mockSupabase = vi.hoisted(() => {
     rpc: vi.fn(),
     auth: {
       getUser: vi.fn().mockResolvedValue({ data: { user: { id: "user-123", email: "test@example.com" } } }),
+      getSession: vi.fn().mockResolvedValue({
+        data: { session: { access_token: "test-token" } },
+        error: null,
+      }),
     },
     functions: { invoke: vi.fn() },
     storage: { from: vi.fn() },
@@ -106,13 +110,22 @@ describe("inviteFamilyMember()", () => {
     await inviteFamilyMember("user-1", "invite@example.com");
     expect(mockSupabase.functions.invoke).toHaveBeenCalledWith("invite-family-member", {
       body: { email: "invite@example.com" },
+      headers: { Authorization: "Bearer test-token" },
     });
   });
 
   it("throws on edge function error", async () => {
     mockSupabase.functions.invoke.mockResolvedValue({ data: null, error: { message: "Invalid email" } });
 
-    await expect(inviteFamilyMember("user-1", "bad")).rejects.toEqual({ message: "Invalid email" });
+    await expect(inviteFamilyMember("user-1", "bad")).rejects.toMatchObject({ message: "Invalid email" });
+  });
+
+  it("throws when session token is missing", async () => {
+    mockSupabase.auth.getSession.mockResolvedValueOnce({ data: { session: null }, error: null });
+
+    await expect(inviteFamilyMember("user-1", "invite@example.com")).rejects.toMatchObject({
+      message: "Authentication required",
+    });
   });
 });
 

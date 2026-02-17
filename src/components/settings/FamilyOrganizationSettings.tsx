@@ -12,6 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { FeatureGate } from '@/components/Subscription/FeatureGate';
 import { PendingInvitationsAlert } from '@/components/settings/PendingInvitationsAlert';
+import { isEdgeFunctionServiceError } from '@/services/edgeFunctionService';
 import { getFamilyMembers, inviteFamilyMember, removeFamilyMember, type FamilyMember } from '@/services/familyService';
 
 export function FamilyOrganizationSettings() {
@@ -23,6 +24,24 @@ export function FamilyOrganizationSettings() {
   const [members, setMembers] = useState<FamilyMember[]>([]);
   const [email, setEmail] = useState('');
   const [saving, setSaving] = useState(false);
+
+  const resolveErrorMessage = (error: unknown, fallbackMessage: string) => {
+    if (isEdgeFunctionServiceError(error)) {
+      if (error.status === 401) {
+        return t('common.authRequired');
+      }
+
+      if (error.status === 403) {
+        return t('common.forbidden');
+      }
+
+      if (error.status && error.status >= 500) {
+        return t('common.serviceUnavailable');
+      }
+    }
+
+    return error instanceof Error ? error.message : fallbackMessage;
+  };
 
   const load = async () => {
     if (!user) return;
@@ -48,10 +67,10 @@ export function FamilyOrganizationSettings() {
     try {
       await inviteFamilyMember(user.id, email.trim().toLowerCase());
       setEmail('');
-      toast({ title: t('common.success'), description: t('settings.family.inviteSent', { defaultValue: 'Invitation sent.' }) });
+      toast({ title: t('common.success'), description: t('settings.family.inviteSent') });
       await load();
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : t('settings.family.inviteError', { defaultValue: 'Failed to invite family member.' });
+      const msg = resolveErrorMessage(e, t('settings.family.inviteError'));
       toast({ variant: 'destructive', title: t('common.error'), description: msg });
     } finally {
       setSaving(false);

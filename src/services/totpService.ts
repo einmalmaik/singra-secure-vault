@@ -10,6 +10,18 @@
 import * as OTPAuth from 'otpauth';
 
 /**
+ * Normalizes user-provided TOTP secret input.
+ *
+ * Removes all whitespace and converts to uppercase.
+ *
+ * @param secret - Raw secret input from user or scanner
+ * @returns Normalized base32-like secret string
+ */
+export function normalizeTOTPSecretInput(secret: string): string {
+    return secret.replace(/\s/g, '').toUpperCase();
+}
+
+/**
  * Generates a TOTP code from a secret
  * 
  * @param secret - Base32 encoded TOTP secret
@@ -22,7 +34,7 @@ export function generateTOTP(secret: string): string {
             algorithm: 'SHA1',
             digits: 6,
             period: 30,
-            secret: OTPAuth.Secret.fromBase32(secret.replace(/\s/g, '').toUpperCase()),
+            secret: OTPAuth.Secret.fromBase32(normalizeTOTPSecretInput(secret)),
         });
 
         return totp.generate();
@@ -49,8 +61,7 @@ export function getTimeRemaining(): number {
  * @returns true if the secret is valid Base32
  */
 export function isValidTOTPSecret(secret: string): boolean {
-    // Remove spaces and convert to uppercase
-    const cleanSecret = secret.replace(/\s/g, '').toUpperCase();
+    const cleanSecret = normalizeTOTPSecretInput(secret);
 
     // Check if it's valid Base32 (A-Z and 2-7)
     const base32Regex = /^[A-Z2-7]+=*$/;
@@ -70,8 +81,7 @@ export function isValidTOTPSecret(secret: string): boolean {
  * @returns Validation result with error message if invalid
  */
 export function validateTOTPSecret(secret: string): { valid: boolean; error?: string } {
-    // Remove spaces and convert to uppercase
-    const cleaned = secret.replace(/\s/g, '').toUpperCase();
+    const cleaned = normalizeTOTPSecretInput(secret);
 
     // Check length
     if (cleaned.length < 16) {

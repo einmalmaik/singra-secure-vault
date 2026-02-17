@@ -223,6 +223,7 @@ import {
   generateTOTP,
   getTimeRemaining,
   isValidTOTPSecret,
+  normalizeTOTPSecretInput,
   validateTOTPSecret,
   parseOTPAuthUri,
   formatTOTPCode,
@@ -280,6 +281,20 @@ describe("Integration: TOTP Service — Code Generation & Validation", () => {
 
     it("should reject non-base32 characters", () => {
       expect(isValidTOTPSecret("ABCDEFGH01890000")).toBe(false); // 0,1,8,9 not in base32
+    });
+  });
+
+  describe("normalizeTOTPSecretInput", () => {
+    it("should remove spaces and normalize to uppercase", () => {
+      const input = "fdzert tretrefgd erttredfgfg terdfggfdt";
+      const normalized = normalizeTOTPSecretInput(input);
+      expect(normalized).toBe("FDZERTTRETREFGDERTTREDFGFGTERDFGGFDT");
+    });
+
+    it("should remove mixed whitespace characters", () => {
+      const input = "ab cd\tef\ngh";
+      const normalized = normalizeTOTPSecretInput(input);
+      expect(normalized).toBe("ABCDEFGH");
     });
   });
 

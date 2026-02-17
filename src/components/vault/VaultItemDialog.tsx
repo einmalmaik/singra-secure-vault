@@ -27,7 +27,7 @@ import {
     Plus,
     QrCode
 } from 'lucide-react';
-import { isValidTOTPSecret, parseTOTPUri } from '@/services/totpService';
+import { isValidTOTPSecret, normalizeTOTPSecretInput, parseTOTPUri } from '@/services/totpService';
 
 import {
     Dialog,
@@ -290,7 +290,7 @@ export function VaultItemDialog({ open, onOpenChange, itemId, onSave, initialTyp
                     username: decrypted.username || '',
                     password: decrypted.password || '',
                     notes: decrypted.notes || '',
-                    totpSecret: decrypted.totpSecret || '',
+                    totpSecret: normalizeTOTPSecretInput(decrypted.totpSecret || ''),
                     isFavorite: resolvedFavorite,
                 });
 
@@ -357,7 +357,7 @@ export function VaultItemDialog({ open, onOpenChange, itemId, onSave, initialTyp
                 username: data.username,
                 password: data.password,
                 notes: data.notes,
-                totpSecret: data.totpSecret,
+                totpSecret: normalizeTOTPSecretInput(data.totpSecret || ''),
             };
 
             // If in duress mode, mark as decoy item (internal marker inside encrypted data)
@@ -655,6 +655,9 @@ export function VaultItemDialog({ open, onOpenChange, itemId, onSave, initialTyp
                                                         placeholder="JBSWY3DPEHPK3PXP"
                                                         className="font-mono"
                                                         {...field}
+                                                        onChange={(event) => {
+                                                            field.onChange(normalizeTOTPSecretInput(event.target.value));
+                                                        }}
                                                     />
                                                 </FormControl>
                                                 <Button
@@ -807,12 +810,15 @@ export function VaultItemDialog({ open, onOpenChange, itemId, onSave, initialTyp
                             onScan={(code) => {
                                 const uri = parseTOTPUri(code);
                                 if (uri) {
-                                    form.setValue('totpSecret', uri.secret);
+                                    form.setValue('totpSecret', normalizeTOTPSecretInput(uri.secret));
                                     if (uri.issuer && !form.getValues('title')) {
                                         form.setValue('title', `${uri.issuer} (${uri.label})`);
                                     }
-                                } else if (isValidTOTPSecret(code)) {
-                                    form.setValue('totpSecret', code);
+                                } else {
+                                    const normalizedCode = normalizeTOTPSecretInput(code);
+                                    if (isValidTOTPSecret(normalizedCode)) {
+                                        form.setValue('totpSecret', normalizedCode);
+                                    }
                                 }
                                 setShowScanner(false);
                             }}

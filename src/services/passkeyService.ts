@@ -39,6 +39,7 @@ import type {
     AuthenticationResponseJSON,
 } from '@simplewebauthn/browser';
 import { supabase } from '@/integrations/supabase/client';
+import { invokeAuthedFunction } from '@/services/edgeFunctionService';
 import { importMasterKey } from '@/services/cryptoService';
 
 // ============ WebAuthn PRF Extension Types ============
@@ -116,6 +117,21 @@ const HKDF_SALT = new TextEncoder().encode('SingraPW-HKDF-Salt-v1');
 /** AES-GCM IV length in bytes */
 const IV_LENGTH = 12;
 
+async function invokeWebauthn<TResponse>(
+    body: Record<string, unknown>,
+): Promise<{ data: TResponse | null; error: Error | null }> {
+    try {
+        const data = await invokeAuthedFunction<TResponse>('webauthn', body);
+        return { data, error: null };
+    } catch (error) {
+        if (error instanceof Error) {
+            return { data: null, error };
+        }
+
+        return { data: null, error: new Error('Edge function request failed') };
+    }
+}
+
 // ============ Feature Detection ============
 
 /**
@@ -164,8 +180,12 @@ export async function registerPasskey(
     deviceName: string = 'Passkey',
 ): Promise<PasskeyRegistrationResult> {
     // 1. Get registration options from server
-    const { data: serverData, error: serverError } = await supabase.functions.invoke('webauthn', {
-        body: { action: 'generate-registration-options', displayName: deviceName },
+    const { data: serverData, error: serverError } = await invokeWebauthn<{
+        options: PublicKeyCredentialCreationOptionsJSON;
+        prfSalt: string;
+    }>({
+        action: 'generate-registration-options',
+        displayName: deviceName,
     });
 
     if (serverError || !serverData?.options) {
@@ -226,15 +246,16 @@ export async function registerPasskey(
     }
 
     // 5. Verify registration on the server and store credential
-    const { data: verifyData, error: verifyError } = await supabase.functions.invoke('webauthn', {
-        body: {
-            action: 'verify-registration',
-            credential: regResponse,
-            deviceName,
-            prfSalt,
-            wrappedMasterKey,
-            prfEnabled,
-        },
+    const { data: verifyData, error: verifyError } = await invokeWebauthn<{
+        verified: boolean;
+        credentialId: string;
+    }>({
+        action: 'verify-registration',
+        credential: regResponse as unknown as Record<string, unknown>,
+        deviceName,
+        prfSalt,
+        wrappedMasterKey,
+        prfEnabled,
     });
 
     if (verifyError || !verifyData?.verified) {
@@ -268,11 +289,12 @@ export async function activatePasskeyPrf(
     }
 
     // 1. Get authentication options
-    const { data: serverData, error: serverError } = await supabase.functions.invoke('webauthn', {
-        body: {
-            action: 'generate-authentication-options',
-            credentialId: expectedCredentialId,
-        },
+    const { data: serverData, error: serverError } = await invokeWebauthn<{
+        options: PublicKeyCredentialRequestOptionsJSON;
+        prfSalts: Record<string, string>;
+    }>({
+        action: 'generate-authentication-options',
+        credentialId: expectedCredentialId,
     });
 
     if (serverError || !serverData?.options) {
@@ -306,12 +328,13 @@ export async function activatePasskeyPrf(
     }
 
     // 3. Verify on server
-    const { data: verifyData, error: verifyError } = await supabase.functions.invoke('webauthn', {
-        body: {
-            action: 'verify-authentication',
-            credential: authResponse,
-            expectedCredentialId,
-        },
+    const { data: verifyData, error: verifyError } = await invokeWebauthn<{
+        verified: boolean;
+        credentialId: string;
+    }>({
+        action: 'verify-authentication',
+        credential: authResponse as unknown as Record<string, unknown>,
+        expectedCredentialId,
     });
 
     if (verifyError || !verifyData?.verified) {
@@ -334,11 +357,10 @@ export async function activatePasskeyPrf(
     try {
         const wrappedKey = await encryptRawKeyBytes(rawKeyBytes, prfOutput);
 
-        // 5. Update the credential with the wrapped key
-        // passkey_credentials is not in generated Supabase types yet
-        const { error: updateError } = await (supabase as unknown as { from(table: string): { update(values: Record<string, unknown>): { eq(column: string, value: string): PromiseLike<{ error: Error | null }> } } })
+        // 5. Update the credential with the wrapped key and mark unlock capability
+        const { error: updateError } = await supabase
             .from('passkey_credentials')
-            .update({ wrapped_master_key: wrappedKey })
+            .update({ wrapped_master_key: wrappedKey, prf_enabled: true })
             .eq('credential_id', verifyData.credentialId);
 
         if (updateError) {
@@ -361,8 +383,11 @@ export async function activatePasskeyPrf(
  */
 export async function authenticatePasskey(): Promise<PasskeyAuthenticationResult> {
     // 1. Get authentication options from server
-    const { data: serverData, error: serverError } = await supabase.functions.invoke('webauthn', {
-        body: { action: 'generate-authentication-options' },
+    const { data: serverData, error: serverError } = await invokeWebauthn<{
+        options: PublicKeyCredentialRequestOptionsJSON;
+        prfSalts: Record<string, string>;
+    }>({
+        action: 'generate-authentication-options',
     });
 
     if (serverError || !serverData?.options) {
@@ -396,11 +421,13 @@ export async function authenticatePasskey(): Promise<PasskeyAuthenticationResult
     }
 
     // 4. Verify authentication on the server
-    const { data: verifyData, error: verifyError } = await supabase.functions.invoke('webauthn', {
-        body: {
-            action: 'verify-authentication',
-            credential: authResponse,
-        },
+    const { data: verifyData, error: verifyError } = await invokeWebauthn<{
+        verified: boolean;
+        credentialId: string;
+        wrappedMasterKey?: string;
+    }>({
+        action: 'verify-authentication',
+        credential: authResponse as unknown as Record<string, unknown>,
     });
 
     if (verifyError || !verifyData?.verified) {
@@ -414,7 +441,7 @@ export async function authenticatePasskey(): Promise<PasskeyAuthenticationResult
     if (!prfResults?.first || !verifyData.wrappedMasterKey) {
         // Authentication succeeded but no PRF available.
         return {
-            success: true,
+            success: false,
             prfEnabled: false,
             error: 'NO_PRF',
         };
@@ -456,13 +483,17 @@ export async function authenticatePasskey(): Promise<PasskeyAuthenticationResult
  * @returns Array of credential summaries
  */
 export async function listPasskeys(): Promise<PasskeyCredential[]> {
-    const { data, error } = await supabase.functions.invoke('webauthn', {
-        body: { action: 'list-credentials' },
+    const { data, error } = await invokeWebauthn<{ credentials: PasskeyCredential[] }>({
+        action: 'list-credentials',
     });
 
-    if (error || !data?.credentials) {
+    if (error) {
         console.error('Failed to list passkeys:', error);
-        return [];
+        throw error;
+    }
+
+    if (!data?.credentials) {
+        throw new Error('Failed to list passkeys');
     }
 
     return data.credentials;
@@ -477,8 +508,9 @@ export async function listPasskeys(): Promise<PasskeyCredential[]> {
 export async function deletePasskey(
     credentialId: string,
 ): Promise<{ success: boolean; error?: string }> {
-    const { data, error } = await supabase.functions.invoke('webauthn', {
-        body: { action: 'delete-credential', credentialId },
+    const { data, error } = await invokeWebauthn<{ deleted: boolean }>({
+        action: 'delete-credential',
+        credentialId,
     });
 
     if (error || !data?.deleted) {

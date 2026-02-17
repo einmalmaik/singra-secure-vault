@@ -1,6 +1,7 @@
 // Copyright (c) 2025-2026 Maunting Studios
 // Licensed under the Business Source License 1.1 — see LICENSE
 import { supabase } from "@/integrations/supabase/client";
+import { invokeAuthedFunction } from '@/services/edgeFunctionService';
 import { 
     hybridEncrypt, 
     hybridDecrypt,
@@ -111,11 +112,10 @@ export const emergencyAccessService = {
 
     // Invite someone to be my trustee
     async inviteTrustee(email: string, waitDays: number) {
-        const { error } = await supabase.functions.invoke('invite-emergency-access', {
-            body: { email, wait_days: waitDays },
+        await invokeAuthedFunction('invite-emergency-access', {
+            email,
+            wait_days: waitDays,
         });
-
-        if (error) throw error;
         return {
             id: '',
             grantor_id: '',

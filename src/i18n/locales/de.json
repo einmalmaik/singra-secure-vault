@@ -30,7 +30,10 @@
     "noResults": "Keine Ergebnisse",
     "confirmAction": "Bist du sicher?",
     "errorOccurred": "Ein unerwarteter Fehler ist aufgetreten.",
-    "or": "oder"
+    "or": "oder",
+    "authRequired": "Deine Sitzung ist abgelaufen. Bitte melde dich erneut an.",
+    "forbidden": "Du hast keine Berechtigung für diese Aktion.",
+    "serviceUnavailable": "Der Dienst ist momentan nicht verfügbar. Bitte versuche es erneut."
   },
   "nav": {
     "home": "Startseite",
@@ -806,7 +809,7 @@
       "description": "Lade bis zu 6 Premium-Familienmitglieder ein und verwalte sie.",
       "emailPlaceholder": "familie@beispiel.de",
       "empty": "Noch keine Familienmitglieder vorhanden.",
-      "inviteSent": "Einladung gesendet.",
+      "inviteSent": "Einladung gesendet. Falls die E-Mail noch nicht registriert ist, kann die Person sich zuerst registrieren und danach annehmen.",
       "inviteError": "Familienmitglied konnte nicht eingeladen werden.",
       "removed": "Familienmitglied entfernt.",
       "removeError": "Familienmitglied konnte nicht entfernt werden.",
@@ -1053,7 +1056,7 @@
     "invite": "Vertrauensperson einladen",
     "inviteTitle": "Vertrauensperson einladen",
     "inviteDesc": "Gib die E-Mail-Adresse der Person ein, die im Notfall Zugriff erhalten soll.",
-    "inviteSent": "Einladung erfolgreich versendet.",
+    "inviteSent": "Einladung gesendet. Falls die E-Mail noch nicht registriert ist, kann die Person sich zuerst registrieren und danach annehmen.",
     "inviteError": "Einladung konnte nicht versendet werden.",
     "inviteAccepted": "Einladung angenommen. Schlüsselpaar wurde erstellt und gespeichert.",
     "acceptError": "Einladung konnte nicht angenommen werden.",
@@ -1173,6 +1176,7 @@
     "registeredWithPrf": "Passkey registriert! Du kannst deinen Tresor jetzt mit diesem Passkey entsperren.",
     "registeredWithoutPrf": "Passkey für Authentifizierung registriert, aber dieses Gerät unterstützt kein Tresor-Entsperren (kein PRF). Du benötigst weiterhin dein Master-Passwort.",
     "registerFailed": "Passkey-Registrierung fehlgeschlagen.",
+    "loadFailed": "Passkeys konnten nicht geladen werden.",
     "created": "Erstellt",
     "lastUsed": "Zuletzt verwendet",
     "prfEnabled": "Tresor-Entsperrung aktiviert",

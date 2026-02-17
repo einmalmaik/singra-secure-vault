@@ -32,15 +32,15 @@ import {
     activatePasskeyPrf,
     listPasskeys,
     deletePasskey,
-    isWebAuthnAvailable,
     isPlatformAuthenticatorAvailable,
     PasskeyCredential,
 } from '@/services/passkeyService';
+import { isEdgeFunctionServiceError } from '@/services/edgeFunctionService';
 
 export function PasskeySettings() {
     const { t } = useTranslation();
     const { toast } = useToast();
-    const { webAuthnAvailable, getRawKeyForPasskey } = useVault();
+    const { webAuthnAvailable, getRawKeyForPasskey, refreshPasskeyUnlockStatus } = useVault();
 
     const [passkeys, setPasskeys] = useState<PasskeyCredential[]>([]);
     const [loading, setLoading] = useState(false);
@@ -56,12 +56,41 @@ export function PasskeySettings() {
     const [deleteTarget, setDeleteTarget] = useState<PasskeyCredential | null>(null);
     const [deleting, setDeleting] = useState(false);
 
+    const resolveErrorMessage = useCallback((error: unknown, fallbackMessage: string) => {
+        if (isEdgeFunctionServiceError(error)) {
+            if (error.status === 401) {
+                return t('common.authRequired', 'Your session has expired. Please sign in again.');
+            }
+
+            if (error.status === 403) {
+                return t('common.forbidden', 'You do not have permission to perform this action.');
+            }
+
+            if (error.status && error.status >= 500) {
+                return t('common.serviceUnavailable', 'Service temporarily unavailable. Please try again.');
+            }
+        }
+
+        return error instanceof Error ? error.message : fallbackMessage;
+    }, [t]);
+
     const loadPasskeys = useCallback(async () => {
         setLoading(true);
-        const creds = await listPasskeys();
-        setPasskeys(creds);
-        setLoading(false);
-    }, []);
+        try {
+            const creds = await listPasskeys();
+            setPasskeys(creds);
+            await refreshPasskeyUnlockStatus();
+        } catch (error) {
+            toast({
+                variant: 'destructive',
+                title: t('common.error'),
+                description: resolveErrorMessage(error, t('passkey.loadFailed', 'Failed to load passkeys.')),
+            });
+            setPasskeys([]);
+        } finally {
+            setLoading(false);
+        }
+    }, [refreshPasskeyUnlockStatus, resolveErrorMessage, t, toast]);
 
     useEffect(() => {
         if (webAuthnAvailable) {

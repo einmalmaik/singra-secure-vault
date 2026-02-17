@@ -30,7 +30,10 @@
     "noResults": "No results",
     "confirmAction": "Are you sure?",
     "errorOccurred": "An unexpected error occurred.",
-    "or": "or"
+    "or": "or",
+    "authRequired": "Your session has expired. Please sign in again.",
+    "forbidden": "You do not have permission to perform this action.",
+    "serviceUnavailable": "Service temporarily unavailable. Please try again."
   },
   "nav": {
     "home": "Home",
@@ -783,7 +786,7 @@
       "description": "Invite and manage up to 6 premium family members.",
       "emailPlaceholder": "family@example.com",
       "empty": "No family members yet.",
-      "inviteSent": "Invitation sent.",
+      "inviteSent": "Invitation sent. If this email is not registered yet, they can sign up first and then accept it.",
       "inviteError": "Failed to invite family member.",
       "removed": "Family member removed.",
       "removeError": "Failed to remove family member.",
@@ -1032,7 +1035,7 @@
     "invite": "Invite trustee",
     "inviteTitle": "Invite trusted contact",
     "inviteDesc": "Enter the email of the person you want to trust with emergency access.",
-    "inviteSent": "Invitation sent successfully.",
+    "inviteSent": "Invitation sent. If this email is not registered yet, they can sign up first and then accept it.",
     "inviteError": "Failed to send invitation.",
     "inviteAccepted": "Invitation accepted. Key pair generated and stored.",
     "acceptError": "Failed to accept invitation.",
@@ -1152,6 +1155,7 @@
     "registeredWithPrf": "Passkey registered! You can now unlock your vault with this passkey.",
     "registeredWithoutPrf": "Passkey registered for authentication, but this device does not support vault unlock (no PRF). You will still need your master password.",
     "registerFailed": "Passkey registration failed.",
+    "loadFailed": "Failed to load passkeys.",
     "created": "Created",
     "lastUsed": "Last used",
     "prfEnabled": "Vault unlock enabled",

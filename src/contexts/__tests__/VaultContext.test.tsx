@@ -37,6 +37,8 @@ vi.mock("@/integrations/supabase/client", () => ({
 
 // Mock crypto service
 const mockDeriveKey = vi.fn();
+const mockDeriveRawKey = vi.fn();
+const mockImportMasterKey = vi.fn();
 const mockGenerateSalt = vi.fn();
 const mockCreateVerificationHash = vi.fn();
 const mockVerifyKey = vi.fn();
@@ -48,11 +50,11 @@ const mockAttemptKdfUpgrade = vi.fn();
 
 vi.mock("@/services/cryptoService", () => ({
   deriveKey: (...args: unknown[]) => mockDeriveKey(...args),
-  deriveRawKey: vi.fn(() => Promise.resolve(new Uint8Array(32))),
+  deriveRawKey: (...args: unknown[]) => mockDeriveRawKey(...args),
   generateSalt: () => mockGenerateSalt(),
   encrypt: (...args: unknown[]) => mockEncrypt(...args),
   decrypt: (...args: unknown[]) => mockDecrypt(...args),
-  importMasterKey: vi.fn(),
+  importMasterKey: (...args: unknown[]) => mockImportMasterKey(...args),
   createVerificationHash: (...args: unknown[]) => mockCreateVerificationHash(...args),
   verifyKey: (...args: unknown[]) => mockVerifyKey(...args),
   encryptVaultItem: (...args: unknown[]) => mockEncryptVaultItem(...args),
@@ -70,8 +72,9 @@ vi.mock("@/services/offlineVaultService", () => ({
 }));
 
 // Mock passkey service
+const mockAuthenticatePasskey = vi.fn();
 vi.mock("@/services/passkeyService", () => ({
-  authenticatePasskey: vi.fn(),
+  authenticatePasskey: () => mockAuthenticatePasskey(),
   isWebAuthnAvailable: vi.fn(() => false),
 }));
 
@@ -83,10 +86,13 @@ vi.mock("@/services/duressService", () => ({
 }));
 
 // Mock rate limiter service
+const mockGetUnlockCooldown = vi.fn(() => null);
+const mockRecordFailedAttempt = vi.fn();
+const mockResetUnlockAttempts = vi.fn();
 vi.mock("@/services/rateLimiterService", () => ({
-  getUnlockCooldown: vi.fn(() => null),
-  recordFailedAttempt: vi.fn(),
-  resetUnlockAttempts: vi.fn(),
+  getUnlockCooldown: () => mockGetUnlockCooldown(),
+  recordFailedAttempt: () => mockRecordFailedAttempt(),
+  resetUnlockAttempts: () => mockResetUnlockAttempts(),
 }));
 
 // Mock vault integrity service
@@ -115,6 +121,10 @@ describe("VaultContext", () => {
 
     // Default auth mock
     mockUseAuth.mockReturnValue({ user: mockUser });
+    mockDeriveRawKey.mockResolvedValue(new Uint8Array(32));
+    mockImportMasterKey.mockResolvedValue({} as CryptoKey);
+    mockAuthenticatePasskey.mockResolvedValue({ success: true, encryptionKey: {} as CryptoKey });
+    mockGetUnlockCooldown.mockReturnValue(null);
 
     // Default Supabase profile response - no vault setup yet
     // Support chained .eq() calls with proper mock structure
@@ -319,6 +329,112 @@ describe("VaultContext", () => {
       expect(unlockResult?.error).toBeInstanceOf(Error);
       expect(unlockResult?.error?.message).toBe("Invalid master password");
       expect(result.current.isLocked).toBe(true);
+    });
+  });
+
+  describe("unlockWithPasskey", () => {
+    it("should return explicit NO_PRF error for non-unlock-capable passkeys", async () => {
+      mockAuthenticatePasskey.mockResolvedValue({ success: false, error: "NO_PRF" });
+
+      const { result } = renderHook(() => useVault(), { wrapper: createWrapper() });
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      let unlockResult: { error: Error | null } | undefined;
+      await act(async () => {
+        unlockResult = await result.current.unlockWithPasskey();
+      });
+
+      expect(unlockResult?.error?.message).toContain("does not support vault unlock");
+    });
+
+    it("should respect cooldown before passkey authentication", async () => {
+      mockGetUnlockCooldown.mockReturnValue(5000);
+
+      const { result } = renderHook(() => useVault(), { wrapper: createWrapper() });
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      let unlockResult: { error: Error | null } | undefined;
+      await act(async () => {
+        unlockResult = await result.current.unlockWithPasskey();
+      });
+
+      expect(unlockResult?.error?.message).toContain("Too many attempts");
+      expect(mockAuthenticatePasskey).not.toHaveBeenCalled();
+    });
+
+    it("should record failed attempts for passkey verification errors", async () => {
+      mockAuthenticatePasskey.mockResolvedValue({ success: false, error: "Server verification failed" });
+
+      const { result } = renderHook(() => useVault(), { wrapper: createWrapper() });
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      await act(async () => {
+        await result.current.unlockWithPasskey();
+      });
+
+      expect(mockRecordFailedAttempt).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("getRawKeyForPasskey", () => {
+    it("should reject wrong master password and wipe derived raw key bytes", async () => {
+      const rawBytes = new Uint8Array(32).fill(7);
+      mockDeriveRawKey.mockResolvedValue(rawBytes);
+      mockDeriveKey.mockResolvedValue({} as CryptoKey);
+      mockAttemptKdfUpgrade.mockResolvedValue({ upgraded: false });
+      mockVerifyKey
+        .mockResolvedValueOnce(true)  // unlock()
+        .mockResolvedValueOnce(false); // getRawKeyForPasskey()
+
+      // Mock existing profile with vault setup
+      mockSupabase.from.mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({
+              data: {
+                encryption_salt: "existing-salt",
+                master_password_verifier: "existing-verifier",
+                kdf_version: 2,
+              },
+              error: null,
+            }),
+            limit: vi.fn().mockResolvedValue({
+              data: [],
+              error: null,
+            }),
+          }),
+        }),
+        update: vi.fn().mockReturnValue({
+          eq: vi.fn().mockResolvedValue({ data: null, error: null }),
+        }),
+      });
+
+      const { result } = renderHook(() => useVault(), { wrapper: createWrapper() });
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      await act(async () => {
+        await result.current.unlock("CorrectPassword!");
+      });
+
+      let rawKey: Uint8Array | null = null;
+      await act(async () => {
+        rawKey = await result.current.getRawKeyForPasskey("WrongPassword!");
+      });
+
+      expect(rawKey).toBeNull();
+      expect(Array.from(rawBytes).every((value) => value === 0)).toBe(true);
     });
   });
 

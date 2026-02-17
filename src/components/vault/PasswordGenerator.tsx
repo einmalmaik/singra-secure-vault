@@ -113,11 +113,12 @@ export function PasswordGenerator({ onSelect, className }: PasswordGeneratorProp
                     )}
                 </div>
                 <div className="flex gap-1 mt-2">
-                    <Button size="sm" onClick={generate} className="flex-1">
+                    <Button type="button" size="sm" onClick={generate} className="flex-1">
                         <RefreshCw className="w-4 h-4 mr-2" />
                         {t('generator.generate')}
                     </Button>
                     <Button
+                        type="button"
                         size="sm"
                         variant="outline"
                         onClick={copyToClipboard}
@@ -127,6 +128,7 @@ export function PasswordGenerator({ onSelect, className }: PasswordGeneratorProp
                     </Button>
                     {onSelect && (
                         <Button
+                            type="button"
                             size="sm"
                             variant="secondary"
                             onClick={handleSelect}

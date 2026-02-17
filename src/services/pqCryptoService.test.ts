@@ -14,6 +14,7 @@ import {
     hybridUnwrapKey,
     isHybridEncrypted,
     migrateToHybrid,
+    SECURITY_STANDARD_VERSION,
     HYBRID_VERSION,
 } from './pqCryptoService';
 
@@ -198,6 +199,16 @@ describe('pqCryptoService', () => {
                 wrongKeys.rsaPrivateKey // Wrong RSA key
             )).rejects.toThrow();
         });
+
+        it('should block legacy hybrid ciphertext versions in runtime decrypt path', async () => {
+            const legacyHybrid = btoa(String.fromCharCode(0x02) + 'legacy');
+
+            await expect(hybridDecrypt(
+                legacyHybrid,
+                hybridKeys.pqSecretKey,
+                hybridKeys.rsaPrivateKey
+            )).rejects.toThrow('Security Standard v1 requires hybrid ciphertext version 3.');
+        });
     });
 
     describe('hybridWrapKey / hybridUnwrapKey', () => {
@@ -266,6 +277,7 @@ describe('pqCryptoService', () => {
             const migrated = await migrateToHybrid(
                 ciphertext,
                 hybridKeys.rsaPrivateKey,
+                hybridKeys.pqSecretKey,
                 hybridKeys.pqPublicKey,
                 hybridKeys.rsaPublicKey
             );
@@ -276,8 +288,14 @@ describe('pqCryptoService', () => {
     });
 
     describe('HYBRID_VERSION constant', () => {
-        it('should be version 2', () => {
-            expect(HYBRID_VERSION).toBe(2);
+        it('should be version 3', () => {
+            expect(HYBRID_VERSION).toBe(3);
+        });
+    });
+
+    describe('SECURITY_STANDARD_VERSION constant', () => {
+        it('should be version 1', () => {
+            expect(SECURITY_STANDARD_VERSION).toBe(1);
         });
     });
 });

@@ -2,11 +2,9 @@
 // Licensed under the Business Source License 1.1 — see LICENSE
 import { supabase } from "@/integrations/supabase/client";
 import { 
-    generatePQKeyPair, 
     hybridEncrypt, 
     hybridDecrypt,
-    isHybridEncrypted,
-    PQKeyPair 
+    isHybridEncrypted
 } from './pqCryptoService';
 
 interface ProfileRow {
@@ -20,7 +18,7 @@ export interface EmergencyAccess {
     grantor_id: string;
     trusted_email: string;
     trusted_user_id: string | null;
-    status: 'invited' | 'accepted' | 'pending' | 'granted' | 'rejected' | 'expired' | 'revoked';
+    status: 'invited' | 'accepted' | 'pending' | 'granted' | 'rejected' | 'expired';
     wait_days: number;
     requested_at: string | null;
     granted_at: string | null;
@@ -118,7 +116,21 @@ export const emergencyAccessService = {
         });
 
         if (error) throw error;
-        return { id: '', grantor_id: '', trusted_email: email, trusted_user_id: null, status: 'invited', wait_days: waitDays, requested_at: null, granted_at: null, created_at: new Date().toISOString(), trustee_public_key: null, encrypted_master_key: null } as EmergencyAccess;
+        return {
+            id: '',
+            grantor_id: '',
+            trusted_email: email,
+            trusted_user_id: null,
+            status: 'invited',
+            wait_days: waitDays,
+            requested_at: null,
+            granted_at: null,
+            created_at: new Date().toISOString(),
+            trustee_public_key: null,
+            encrypted_master_key: null,
+            trustee_pq_public_key: null,
+            pq_encrypted_master_key: null,
+        } as EmergencyAccess;
     },
 
     // Revoke access (delete invite or remove trustee)
@@ -127,39 +139,6 @@ export const emergencyAccessService = {
             .from('emergency_access')
             .delete()
             .eq('id', id);
-
-        if (error) throw error;
-    },
-
-    // Accept an invitation (as trustee)
-    async acceptInvite(accessId: string, publicKeyJwk: string) {
-        const { data: userData } = await supabase.auth.getUser();
-        if (!userData.user) throw new Error("Not authenticated");
-
-        const { data, error } = await supabase
-            .from('emergency_access')
-            .update({
-                status: 'accepted',
-                trusted_user_id: userData.user.id,
-                trustee_public_key: publicKeyJwk
-            })
-            .eq('id', accessId)
-            .select()
-            .single();
-
-        if (error) throw error;
-        return data as unknown as EmergencyAccess;
-    },
-
-    // Update encrypted master key (as grantor, after trustee accepts)
-    async setEncryptedMasterKey(accessId: string, encryptedKey: string) {
-        const { error } = await supabase
-            .from('emergency_access')
-            .update({
-                encrypted_master_key: encryptedKey,
-                updated_at: new Date().toISOString()
-            })
-            .eq('id', accessId);
 
         if (error) throw error;
     },
@@ -272,6 +251,7 @@ export const emergencyAccessService = {
         const { error } = await supabase
             .from('emergency_access')
             .update({
+                encrypted_master_key: null,
                 pq_encrypted_master_key: hybridCiphertext,
                 updated_at: new Date().toISOString()
             } as Record<string, unknown>)
@@ -308,7 +288,11 @@ export const emergencyAccessService = {
      * @returns true if PQ encryption is enabled
      */
     hasPQEncryption(access: EmergencyAccess): boolean {
-        return !!(access.trustee_pq_public_key && access.pq_encrypted_master_key);
+        return !!(
+            access.trustee_pq_public_key &&
+            access.pq_encrypted_master_key &&
+            isHybridEncrypted(access.pq_encrypted_master_key)
+        );
     },
 
     /**

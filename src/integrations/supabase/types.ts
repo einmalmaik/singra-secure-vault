@@ -349,11 +349,14 @@ export type Database = {
           hide_community_ads: boolean | null
           id: string
           kdf_version: number
+          legacy_crypto_disabled_at: string | null
           master_password_verifier: string | null
           pq_encrypted_private_key: string | null
+          pq_enforced_at: string | null
           pq_key_version: number | null
           pq_public_key: string | null
           preferred_language: string | null
+          security_standard_version: number | null
           theme: string | null
           updated_at: string
           user_id: string
@@ -369,11 +372,14 @@ export type Database = {
           hide_community_ads?: boolean | null
           id?: string
           kdf_version?: number
+          legacy_crypto_disabled_at?: string | null
           master_password_verifier?: string | null
           pq_encrypted_private_key?: string | null
+          pq_enforced_at?: string | null
           pq_key_version?: number | null
           pq_public_key?: string | null
           preferred_language?: string | null
+          security_standard_version?: number | null
           theme?: string | null
           updated_at?: string
           user_id: string
@@ -389,11 +395,14 @@ export type Database = {
           hide_community_ads?: boolean | null
           id?: string
           kdf_version?: number
+          legacy_crypto_disabled_at?: string | null
           master_password_verifier?: string | null
           pq_encrypted_private_key?: string | null
+          pq_enforced_at?: string | null
           pq_key_version?: number | null
           pq_public_key?: string | null
           preferred_language?: string | null
+          security_standard_version?: number | null
           theme?: string | null
           updated_at?: string
           user_id?: string

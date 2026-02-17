@@ -3,41 +3,30 @@
 /**
  * @fileoverview Post-Quantum Encryption Settings Component
  * 
- * Allows users to enable and manage post-quantum encryption
+ * Displays post-quantum protection status and security details
  * for Emergency Access and Shared Collections.
- * 
- * Feature-gated: Premium and Families tiers only.
  */
 
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
 import { Shield, ShieldCheck, ShieldAlert, ExternalLink, Loader2 } from 'lucide-react';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { useSubscription } from '@/contexts/SubscriptionContext';
-import { useFeatureGate } from '@/hooks/useFeatureGate';
 import { supabase } from '@/integrations/supabase/client';
-import { generatePQKeyPair } from '@/services/pqCryptoService';
-import { encrypt, generateSalt, deriveKey } from '@/services/cryptoService';
 
 export function PostQuantumSettings() {
     const { t } = useTranslation();
-    const { toast } = useToast();
-    const navigate = useNavigate();
     const { user } = useAuth();
-    const { tier } = useSubscription();
-    const { allowed: hasAccess, requiredTier } = useFeatureGate('post_quantum_encryption');
 
     const [pqEnabled, setPqEnabled] = useState<boolean | null>(null);
     const [pqKeyVersion, setPqKeyVersion] = useState<number | null>(null);
+    const [securityStandardVersion, setSecurityStandardVersion] = useState<number | null>(null);
+    const [pqEnforcedAt, setPqEnforcedAt] = useState<string | null>(null);
+    const [legacyCryptoDisabledAt, setLegacyCryptoDisabledAt] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
-    const [isEnabling, setIsEnabling] = useState(false);
 
     // Load PQ status on mount
     useEffect(() => {
@@ -47,7 +36,7 @@ export function PostQuantumSettings() {
             try {
                 const { data, error } = await supabase
                     .from('profiles')
-                    .select('pq_public_key, pq_key_version')
+                    .select('pq_public_key, pq_key_version, pq_enforced_at, security_standard_version, legacy_crypto_disabled_at')
                     .eq('user_id', user.id)
                     .single();
 
@@ -56,6 +45,9 @@ export function PostQuantumSettings() {
                 const profile = data as unknown as Record<string, unknown>;
                 setPqEnabled(!!profile?.pq_public_key);
                 setPqKeyVersion((profile?.pq_key_version as number) || null);
+                setSecurityStandardVersion((profile?.security_standard_version as number) || null);
+                setPqEnforcedAt((profile?.pq_enforced_at as string) || null);
+                setLegacyCryptoDisabledAt((profile?.legacy_crypto_disabled_at as string) || null);
             } catch (err) {
                 console.error('Failed to load PQ status:', err);
             } finally {
@@ -65,67 +57,6 @@ export function PostQuantumSettings() {
 
         loadPQStatus();
     }, [user?.id]);
-
-    /**
-     * Enables post-quantum encryption by generating ML-KEM-768 keys
-     * and storing them encrypted with the user's master password.
-     */
-    async function enablePostQuantum() {
-        if (!user?.id || !hasAccess) {
-            navigate('/settings?tab=subscription');
-            return;
-        }
-
-        setIsEnabling(true);
-
-        try {
-            // 1. Generate ML-KEM-768 key pair
-            const pqKeys = generatePQKeyPair();
-
-            // 2. Encrypt private key with a new salt
-            // We need the user's master password for this
-            // For now, we'll use a prompt (in a real app, this would be cached from unlock)
-            const masterPassword = window.prompt(t('passkey.confirmPassword'));
-            if (!masterPassword) {
-                setIsEnabling(false);
-                return;
-            }
-
-            const salt = generateSalt();
-            const key = await deriveKey(masterPassword, salt);
-            const encryptedPrivateKey = await encrypt(pqKeys.secretKey, key);
-            const encryptedPrivateKeyWithSalt = `${salt}:${encryptedPrivateKey}`;
-
-            // 3. Store keys in profile
-            const { error } = await supabase
-                .from('profiles')
-                .update({
-                    pq_public_key: pqKeys.publicKey,
-                    pq_encrypted_private_key: encryptedPrivateKeyWithSalt,
-                    pq_key_version: 1,
-                } as Record<string, unknown>)
-                .eq('user_id', user.id);
-
-            if (error) throw error;
-
-            setPqEnabled(true);
-            setPqKeyVersion(1);
-
-            toast({
-                title: t('postQuantum.enableSuccess'),
-                description: t('postQuantum.algorithmValue'),
-            });
-        } catch (err) {
-            console.error('Failed to enable PQ:', err);
-            toast({
-                variant: 'destructive',
-                title: t('common.error'),
-                description: t('postQuantum.enableFailed'),
-            });
-        } finally {
-            setIsEnabling(false);
-        }
-    }
 
     if (isLoading) {
         return (
@@ -142,6 +73,12 @@ export function PostQuantumSettings() {
             </Card>
         );
     }
+
+    const securityStandardActive = !!(
+        pqEnabled &&
+        securityStandardVersion === 1 &&
+        legacyCryptoDisabledAt
+    );
 
     return (
         <Card>
@@ -170,8 +107,8 @@ export function PostQuantumSettings() {
                 {/* Status */}
                 <div className="flex items-center justify-between py-2">
                     <span className="text-sm font-medium">{t('postQuantum.status')}</span>
-                    <Badge variant={pqEnabled ? 'default' : 'secondary'}>
-                        {pqEnabled ? t('postQuantum.enabled') : t('postQuantum.disabled')}
+                    <Badge variant={securityStandardActive ? 'default' : 'secondary'}>
+                        {securityStandardActive ? t('postQuantum.standardActive') : t('postQuantum.standardPending')}
                     </Badge>
                 </div>
 
@@ -187,6 +124,24 @@ export function PostQuantumSettings() {
                             <span className="font-mono">v{pqKeyVersion}</span>
                         </div>
                         <div className="flex justify-between">
+                            <span className="text-muted-foreground">{t('postQuantum.securityStandard')}</span>
+                            <span className="font-mono">
+                                {securityStandardVersion ? `v${securityStandardVersion}` : t('postQuantum.notSet')}
+                            </span>
+                        </div>
+                        <div className="flex justify-between">
+                            <span className="text-muted-foreground">{t('postQuantum.enforcedAt')}</span>
+                            <span>
+                                {pqEnforcedAt ? new Date(pqEnforcedAt).toLocaleString() : t('postQuantum.notSet')}
+                            </span>
+                        </div>
+                        <div className="flex justify-between">
+                            <span className="text-muted-foreground">{t('postQuantum.legacyDisabledAt')}</span>
+                            <span>
+                                {legacyCryptoDisabledAt ? new Date(legacyCryptoDisabledAt).toLocaleString() : t('postQuantum.notSet')}
+                            </span>
+                        </div>
+                        <div className="flex justify-between">
                             <span className="text-muted-foreground">{t('postQuantum.securityLevel')}</span>
                             <span>{t('postQuantum.securityLevelValue')}</span>
                         </div>
@@ -197,47 +152,10 @@ export function PostQuantumSettings() {
                             </Badge>
                         </div>
                     </div>
-                ) : hasAccess ? (
-                    /* Enable button when not enabled but has access */
-                    <div className="space-y-3">
-                        <p className="text-sm text-muted-foreground">
-                            {t('postQuantum.enableDescription')}
-                        </p>
-                        <Button
-                            onClick={enablePostQuantum}
-                            disabled={isEnabling}
-                            className="w-full"
-                        >
-                            {isEnabling ? (
-                                <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    {t('postQuantum.enabling')}
-                                </>
-                            ) : (
-                                <>
-                                    <ShieldCheck className="mr-2 h-4 w-4" />
-                                    {t('postQuantum.enableButton')}
-                                </>
-                            )}
-                        </Button>
-                    </div>
                 ) : (
-                    /* Upgrade prompt when no access */
-                    <div className="space-y-3">
-                        <Alert variant="default">
-                            <ShieldAlert className="h-4 w-4" />
-                            <AlertDescription>
-                                {t('postQuantum.premiumRequired')}
-                            </AlertDescription>
-                        </Alert>
-                        <Button
-                            variant="outline"
-                            onClick={() => navigate('/settings?tab=subscription')}
-                            className="w-full"
-                        >
-                            {t('postQuantum.upgradeNow')}
-                        </Button>
-                    </div>
+                    <p className="text-sm text-muted-foreground">
+                        {t('postQuantum.enableDescription')}
+                    </p>
                 )}
 
                 {/* Learn more link */}

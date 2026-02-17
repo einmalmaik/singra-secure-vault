@@ -491,8 +491,11 @@ export function VaultItemDialog({ open, onOpenChange, itemId, onSave, initialTyp
     };
 
     const handleGeneratedPassword = (password: string) => {
-        form.setValue('password', password);
-        setShowGenerator(false);
+        form.setValue('password', password, {
+            shouldDirty: true,
+            shouldTouch: true,
+            shouldValidate: true,
+        });
     };
 
     return (

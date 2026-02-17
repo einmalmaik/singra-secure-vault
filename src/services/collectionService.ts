@@ -2,18 +2,15 @@
 // Licensed under the Business Source License 1.1 — see LICENSE
 /**
  * @fileoverview Collection Service for Shared Collections
- * 
+ *
  * Implements secure sharing of vault items using hybrid encryption:
- * - ML-KEM-768 + RSA-4096 for post-quantum key wrapping (Premium/Families)
- * - RSA-4096 for classical key wrapping (fallback)
+ * - ML-KEM-768 + RSA-4096 for post-quantum key wrapping
  * - AES-256-GCM for item encryption
  */
 
 import { supabase } from '@/integrations/supabase/client';
-import { 
-    generateSharedKey, 
-    wrapKey, 
-    unwrapKey,
+import {
+    generateSharedKey,
     encryptWithSharedKey,
     decryptWithSharedKey,
     VaultItemData
@@ -23,6 +20,11 @@ import {
     hybridUnwrapKey,
     isHybridEncrypted
 } from './pqCryptoService';
+
+// ============ Constants ============
+
+const SECURITY_STANDARD_V1_ERROR =
+    'Security Standard v1 requires hybrid ML-KEM-768 + RSA-4096 key wrapping.';
 
 // ============ Type Definitions ============
 
@@ -66,60 +68,6 @@ export interface AuditLogEntry {
 }
 
 // ============ Collection Management ============
-
-/**
- * Creates a new collection with a shared encryption key
- * 
- * @param name - Collection name
- * @param description - Optional description
- * @param publicKey - Owner's public key (JWK string)
- * @returns Collection ID
- */
-export async function createCollectionWithKey(
-    name: string,
-    description: string | null,
-    publicKey: string
-): Promise<string> {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated');
-    
-    // 1. Create Collection
-    const { data: collection, error: collectionError } = await supabase
-        .from('shared_collections')
-        .insert({ name, description, owner_id: user.id })
-        .select()
-        .single();
-    
-    if (collectionError) throw collectionError;
-    
-    try {
-        // 2. Generate Shared Key
-        const sharedKey = await generateSharedKey();
-        
-        // 3. Wrap Shared Key with Owner's Public Key
-        const wrappedKey = await wrapKey(sharedKey, publicKey);
-        
-        // 4. Store wrapped Key
-        const { error: keyError } = await supabase
-            .from('collection_keys')
-            .insert({
-                collection_id: collection.id,
-                user_id: user.id,
-                wrapped_key: wrappedKey,
-            });
-        
-        if (keyError) throw keyError;
-        
-        return collection.id;
-    } catch (error) {
-        // Rollback: Delete collection if key creation failed
-        await supabase
-            .from('shared_collections')
-            .delete()
-            .eq('id', collection.id);
-        throw error;
-    }
-}
 
 /**
  * Gets all collections (owned + member)
@@ -181,74 +129,6 @@ export async function deleteCollection(collectionId: string): Promise<void> {
 }
 
 // ============ Member Management ============
-
-/**
- * Adds a member to a collection
- * 
- * @param collectionId - Collection ID
- * @param userId - User ID to add
- * @param permission - 'view' or 'edit'
- * @param ownerPrivateKey - Owner's encrypted private key
- * @param memberPublicKey - Member's public key
- * @param masterPassword - Owner's master password
- */
-export async function addMemberToCollection(
-    collectionId: string,
-    userId: string,
-    permission: 'view' | 'edit',
-    ownerPrivateKey: string,
-    memberPublicKey: string,
-    masterPassword: string
-): Promise<void> {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated');
-    
-    // 1. Load wrapped Shared Key for Owner
-    const { data: ownerKey, error: keyError } = await supabase
-        .from('collection_keys')
-        .select('wrapped_key')
-        .eq('collection_id', collectionId)
-        .eq('user_id', user.id)
-        .single();
-    
-    if (keyError || !ownerKey) throw new Error('Collection key not found');
-    
-    // 2. Unwrap Shared Key
-    const sharedKey = await unwrapKey(ownerKey.wrapped_key, ownerPrivateKey, masterPassword);
-    
-    // 3. Wrap Shared Key with Member's Public Key
-    const wrappedKey = await wrapKey(sharedKey, memberPublicKey);
-    
-    // 4. Add Member
-    const { error: memberError } = await supabase
-        .from('shared_collection_members')
-        .insert({
-            collection_id: collectionId,
-            user_id: userId,
-            permission,
-        });
-    
-    if (memberError) throw memberError;
-    
-    // 5. Store wrapped Key for Member
-    const { error: memberKeyError } = await supabase
-        .from('collection_keys')
-        .insert({
-            collection_id: collectionId,
-            user_id: userId,
-            wrapped_key: wrappedKey,
-        });
-    
-    if (memberKeyError) {
-        // Rollback: Remove member if key creation failed
-        await supabase
-            .from('shared_collection_members')
-            .delete()
-            .eq('collection_id', collectionId)
-            .eq('user_id', userId);
-        throw memberKeyError;
-    }
-}
 
 /**
  * Removes a member from a collection
@@ -337,14 +217,16 @@ export async function updateMemberPermission(
  * @param collectionId - Collection ID
  * @param vaultItemId - Vault item ID
  * @param itemData - Decrypted item data
- * @param privateKey - User's encrypted private key
+ * @param rsaPrivateKey - User's RSA private key (JWK string)
+ * @param pqSecretKey - User's ML-KEM-768 secret key (base64)
  * @param masterPassword - User's master password
  */
 export async function addItemToCollection(
     collectionId: string,
     vaultItemId: string,
     itemData: VaultItemData,
-    privateKey: string,
+    rsaPrivateKey: string,
+    pqSecretKey: string,
     masterPassword: string
 ): Promise<void> {
     const { data: { user } } = await supabase.auth.getUser();
@@ -353,15 +235,24 @@ export async function addItemToCollection(
     // 1. Load wrapped Shared Key
     const { data: keyData, error: keyError } = await supabase
         .from('collection_keys')
-        .select('wrapped_key')
+        .select('wrapped_key, pq_wrapped_key')
         .eq('collection_id', collectionId)
         .eq('user_id', user.id)
-        .single();
+        .single() as {
+            data: { wrapped_key: string; pq_wrapped_key: string | null } | null;
+            error: unknown;
+        };
     
     if (keyError || !keyData) throw new Error('Collection key not found');
     
-    // 2. Unwrap Shared Key
-    const sharedKey = await unwrapKey(keyData.wrapped_key, privateKey, masterPassword);
+    // 2. Unwrap Shared Key (Security Standard v1 hybrid path only)
+    const sharedKey = await unwrapCollectionKey(
+        keyData.wrapped_key,
+        keyData.pq_wrapped_key,
+        rsaPrivateKey,
+        pqSecretKey,
+        masterPassword,
+    );
     
     // 3. Encrypt Item with Shared Key
     const encryptedData = await encryptWithSharedKey(itemData, sharedKey);
@@ -402,13 +293,15 @@ export async function removeItemFromCollection(
  * Gets all items in a collection (decrypted)
  * 
  * @param collectionId - Collection ID
- * @param privateKey - User's encrypted private key
+ * @param rsaPrivateKey - User's RSA private key (JWK string)
+ * @param pqSecretKey - User's ML-KEM-768 secret key (base64)
  * @param masterPassword - User's master password
  * @returns Array of collection items with decrypted data
  */
 export async function getCollectionItems(
     collectionId: string,
-    privateKey: string,
+    rsaPrivateKey: string,
+    pqSecretKey: string,
     masterPassword: string
 ): Promise<CollectionItem[]> {
     const { data: { user } } = await supabase.auth.getUser();
@@ -417,15 +310,24 @@ export async function getCollectionItems(
     // 1. Load wrapped Shared Key
     const { data: keyData, error: keyError } = await supabase
         .from('collection_keys')
-        .select('wrapped_key')
+        .select('wrapped_key, pq_wrapped_key')
         .eq('collection_id', collectionId)
         .eq('user_id', user.id)
-        .single();
+        .single() as {
+            data: { wrapped_key: string; pq_wrapped_key: string | null } | null;
+            error: unknown;
+        };
     
     if (keyError || !keyData) throw new Error('Collection key not found');
     
-    // 2. Unwrap Shared Key
-    const sharedKey = await unwrapKey(keyData.wrapped_key, privateKey, masterPassword);
+    // 2. Unwrap Shared Key (Security Standard v1 hybrid path only)
+    const sharedKey = await unwrapCollectionKey(
+        keyData.wrapped_key,
+        keyData.pq_wrapped_key,
+        rsaPrivateKey,
+        pqSecretKey,
+        masterPassword,
+    );
     
     // 3. Load Items
     const { data: items, error } = await supabase
@@ -485,12 +387,14 @@ export async function getCollectionAuditLog(collectionId: string): Promise<Audit
  * Re-encrypts all items with a new key
  * 
  * @param collectionId - Collection ID
- * @param privateKey - Owner's encrypted private key
+ * @param rsaPrivateKey - Owner's RSA private key (JWK string)
+ * @param pqSecretKey - Owner's ML-KEM-768 secret key (base64)
  * @param masterPassword - Owner's master password
  */
 export async function rotateCollectionKey(
     collectionId: string,
-    privateKey: string,
+    rsaPrivateKey: string,
+    pqSecretKey: string,
     masterPassword: string
 ): Promise<void> {
     const { data: { user } } = await supabase.auth.getUser();
@@ -499,15 +403,24 @@ export async function rotateCollectionKey(
     // 1. Load old wrapped key
     const { data: oldKeyData, error: oldKeyError } = await supabase
         .from('collection_keys')
-        .select('wrapped_key')
+        .select('wrapped_key, pq_wrapped_key')
         .eq('collection_id', collectionId)
         .eq('user_id', user.id)
-        .single();
+        .single() as {
+            data: { wrapped_key: string; pq_wrapped_key: string | null } | null;
+            error: unknown;
+        };
     
     if (oldKeyError || !oldKeyData) throw new Error('Collection key not found');
     
-    // 2. Unwrap old key
-    const oldSharedKey = await unwrapKey(oldKeyData.wrapped_key, privateKey, masterPassword);
+    // 2. Unwrap old key (Security Standard v1 hybrid path only)
+    const oldSharedKey = await unwrapCollectionKey(
+        oldKeyData.wrapped_key,
+        oldKeyData.pq_wrapped_key,
+        rsaPrivateKey,
+        pqSecretKey,
+        masterPassword,
+    );
     
     // 3. Load all items
     const { data: items, error: itemsError } = await supabase
@@ -540,27 +453,45 @@ export async function rotateCollectionKey(
     
     if (membersError) throw membersError;
     
-    // 7. Load public keys for all members
+    // 7. Load RSA public keys for all members
     const { data: publicKeys, error: publicKeysError } = await supabase
         .from('user_keys')
         .select('user_id, public_key')
         .in('user_id', (members || []).map(m => m.user_id));
-    
+
     if (publicKeysError) throw publicKeysError;
-    
-    // 8. Wrap new key for all members
+
+    // 8. Load PQ public keys for all members
+    const { data: pqProfiles, error: pqProfilesError } = await supabase
+        .from('profiles')
+        .select('user_id, pq_public_key')
+        .in('user_id', (members || []).map(m => m.user_id));
+
+    if (pqProfilesError) throw pqProfilesError;
+
+    const pqByUserId = new Map(
+        (pqProfiles || []).map((profile) => [profile.user_id, profile.pq_public_key]),
+    );
+
+    // 9. Wrap new key for all members with hybrid encryption
     const newWrappedKeys = await Promise.all(
         (publicKeys || []).map(async (pk) => {
-            const wrapped = await wrapKey(newSharedKey, pk.public_key);
+            const memberPqPublicKey = pqByUserId.get(pk.user_id);
+            if (!memberPqPublicKey) {
+                throw new Error('Security Standard v1 requires PQ key material for all collection members.');
+            }
+
+            const wrapped = await hybridWrapKey(newSharedKey, memberPqPublicKey, pk.public_key);
             return {
                 collection_id: collectionId,
                 user_id: pk.user_id,
                 wrapped_key: wrapped,
+                pq_wrapped_key: wrapped,
             };
         })
     );
-    
-    // 9. Update database atomically via server-side transaction
+
+    // 10. Update database atomically via server-side transaction
     const { error: rpcError } = await supabase.rpc('rotate_collection_key_atomic', {
         p_collection_id: collectionId,
         p_items: reencryptedItems.map(item => ({
@@ -612,17 +543,15 @@ export async function createCollectionWithHybridKey(
         
         // 3. Wrap Shared Key with hybrid encryption (PQ + RSA)
         const hybridWrappedKey = await hybridWrapKey(sharedKey, pqPublicKey, rsaPublicKey);
-        
-        // 4. Also wrap with RSA-only for backward compatibility
-        const rsaWrappedKey = await wrapKey(sharedKey, rsaPublicKey);
-        
-        // 5. Store both wrapped keys
+
+        // 4. Store hybrid ciphertext in both columns for strict v1 compatibility.
+        // `wrapped_key` stays populated due current DB NOT NULL constraints.
         const { error: keyError } = await supabase
             .from('collection_keys')
             .insert({
                 collection_id: collection.id,
                 user_id: user.id,
-                wrapped_key: rsaWrappedKey,
+                wrapped_key: hybridWrappedKey,
                 pq_wrapped_key: hybridWrappedKey,
             } as Record<string, unknown>);
         
@@ -660,7 +589,7 @@ export async function addMemberWithHybridKey(
     memberPqPublicKey: string,
     ownerPrivateKey: string,
     ownerPqSecretKey: string,
-    masterPassword: string
+    _masterPassword: string
 ): Promise<void> {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Not authenticated');
@@ -675,21 +604,20 @@ export async function addMemberWithHybridKey(
     
     if (keyError || !ownerKey) throw new Error('Collection key not found');
     
-    // 2. Unwrap shared key (use hybrid if available, else RSA-only)
-    let sharedKey: string;
-    if (ownerKey.pq_wrapped_key && isHybridEncrypted(ownerKey.pq_wrapped_key)) {
-        sharedKey = await hybridUnwrapKey(
-            ownerKey.pq_wrapped_key,
-            ownerPqSecretKey,
-            ownerPrivateKey
-        );
-    } else {
-        sharedKey = await unwrapKey(ownerKey.wrapped_key, ownerPrivateKey, masterPassword);
+    // 2. Unwrap shared key (Security Standard v1 requires hybrid key material)
+    if (!ownerKey.pq_wrapped_key || !isHybridEncrypted(ownerKey.pq_wrapped_key)) {
+        throw new Error(SECURITY_STANDARD_V1_ERROR);
     }
+
+    const sharedKey = await hybridUnwrapKey(
+        ownerKey.pq_wrapped_key,
+        ownerPqSecretKey,
+        ownerPrivateKey
+    );
     
     // 3. Wrap for new member with hybrid encryption
     const hybridWrappedKey = await hybridWrapKey(sharedKey, memberPqPublicKey, memberRsaPublicKey);
-    const rsaWrappedKey = await wrapKey(sharedKey, memberRsaPublicKey);
+    const rsaWrappedKey = hybridWrappedKey;
     
     // 4. Add Member
     const { error: memberError } = await supabase
@@ -744,14 +672,13 @@ export async function collectionUsesPQ(collectionId: string): Promise<boolean> {
 }
 
 /**
- * Unwraps a collection key using the appropriate method (hybrid or RSA-only).
- * Automatically detects and handles both encryption formats.
+ * Unwraps a collection key using Security Standard v1 hybrid decryption.
  * 
- * @param wrappedKey - RSA-wrapped key
+ * @param wrappedKey - Legacy compatibility placeholder
  * @param pqWrappedKey - Hybrid-wrapped key (optional)
  * @param rsaPrivateKey - User's RSA private key
- * @param pqSecretKey - User's ML-KEM-768 secret key (optional)
- * @param masterPassword - User's master password
+ * @param pqSecretKey - User's ML-KEM-768 secret key (required)
+ * @param masterPassword - User's master password (unused, kept for API compatibility)
  * @returns Unwrapped shared key (JWK string)
  */
 export async function unwrapCollectionKey(
@@ -759,14 +686,15 @@ export async function unwrapCollectionKey(
     pqWrappedKey: string | null | undefined,
     rsaPrivateKey: string,
     pqSecretKey: string | null | undefined,
-    masterPassword: string
+    _masterPassword: string
 ): Promise<string> {
-    // Prefer hybrid decryption if available
     if (pqWrappedKey && pqSecretKey && isHybridEncrypted(pqWrappedKey)) {
         return hybridUnwrapKey(pqWrappedKey, pqSecretKey, rsaPrivateKey);
     }
-    
-    // Fallback to RSA-only
-    return unwrapKey(wrappedKey, rsaPrivateKey, masterPassword);
-}
 
+    if (wrappedKey && isHybridEncrypted(wrappedKey) && pqSecretKey) {
+        return hybridUnwrapKey(wrappedKey, pqSecretKey, rsaPrivateKey);
+    }
+
+    throw new Error(SECURITY_STANDARD_V1_ERROR);
+}

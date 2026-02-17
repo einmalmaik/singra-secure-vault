@@ -111,10 +111,8 @@ vi.mock("../pqCryptoService", () => ({
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
-    createCollectionWithKey,
     getAllCollections,
     deleteCollection,
-    addMemberToCollection,
     removeMemberFromCollection,
     getCollectionMembers,
     updateMemberPermission,
@@ -145,16 +143,6 @@ describe("collectionService", () => {
         mockPQCryptoService.hybridWrapKey.mockResolvedValue("hybrid-wrapped-key");
         mockPQCryptoService.hybridUnwrapKey.mockResolvedValue("unwrapped-pq-key");
         mockPQCryptoService.isHybridEncrypted.mockReturnValue(false);
-    });
-
-    // ============ createCollectionWithKey() ============
-
-    describe("createCollectionWithKey()", () => {
-        it("blocks legacy RSA-only collection creation", async () => {
-            await expect(
-                createCollectionWithKey("Work Passwords", "Shared work items", "mock-public-key-jwk")
-            ).rejects.toThrow("Security Standard v1 requires hybrid ML-KEM-768 + RSA-4096 key wrapping.");
-        });
     });
 
     // ============ getAllCollections() ============
@@ -254,23 +242,6 @@ describe("collectionService", () => {
             mockSupabase.from.mockReturnValue(deleteChain);
 
             await expect(deleteCollection("collection-1")).rejects.toThrow();
-        });
-    });
-
-    // ============ addMemberToCollection() ============
-
-    describe("addMemberToCollection()", () => {
-        it("blocks legacy RSA-only member sharing", async () => {
-            await expect(
-                addMemberToCollection(
-                    "collection-1",
-                    "new-member-id",
-                    "view",
-                    "owner-private-key",
-                    "member-public-key",
-                    "master-password"
-                )
-            ).rejects.toThrow("Security Standard v1 requires hybrid ML-KEM-768 + RSA-4096 key wrapping.");
         });
     });
 

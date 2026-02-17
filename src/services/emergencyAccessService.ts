@@ -7,9 +7,6 @@ import {
     isHybridEncrypted
 } from './pqCryptoService';
 
-const SECURITY_STANDARD_V1_ERROR =
-    'Security Standard v1 requires hybrid ML-KEM-768 + RSA-4096 emergency access flows.';
-
 interface ProfileRow {
     user_id: string;
     display_name: string | null;
@@ -21,7 +18,7 @@ export interface EmergencyAccess {
     grantor_id: string;
     trusted_email: string;
     trusted_user_id: string | null;
-    status: 'invited' | 'accepted' | 'pending' | 'granted' | 'rejected' | 'expired' | 'revoked';
+    status: 'invited' | 'accepted' | 'pending' | 'granted' | 'rejected' | 'expired';
     wait_days: number;
     requested_at: string | null;
     granted_at: string | null;
@@ -144,16 +141,6 @@ export const emergencyAccessService = {
             .eq('id', id);
 
         if (error) throw error;
-    },
-
-    // Accept an invitation (as trustee)
-    async acceptInvite(_accessId: string, _publicKeyJwk: string) {
-        throw new Error(SECURITY_STANDARD_V1_ERROR);
-    },
-
-    // Update encrypted master key (as grantor, after trustee accepts)
-    async setEncryptedMasterKey(_accessId: string, _encryptedKey: string) {
-        throw new Error(SECURITY_STANDARD_V1_ERROR);
     },
 
     // Request access (as trustee) - starts the timer

@@ -151,24 +151,6 @@ describe("revokeAccess()", () => {
   });
 });
 
-describe("acceptInvite()", () => {
-  it("is blocked by Security Standard v1 policy", async () => {
-    await expect(emergencyAccessService.acceptInvite("ea1", "key")).rejects.toThrow(
-      "Security Standard v1 requires hybrid ML-KEM-768 + RSA-4096 emergency access flows."
-    );
-  });
-});
-
-describe("setEncryptedMasterKey()", () => {
-  it("is blocked by Security Standard v1 policy", async () => {
-    await expect(
-      emergencyAccessService.setEncryptedMasterKey("ea1", "encrypted-key")
-    ).rejects.toThrow(
-      "Security Standard v1 requires hybrid ML-KEM-768 + RSA-4096 emergency access flows."
-    );
-  });
-});
-
 describe("requestAccess()", () => {
   it("sets status to pending and starts timer", async () => {
     const chain = createChainable({

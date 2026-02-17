@@ -70,22 +70,6 @@ export interface AuditLogEntry {
 // ============ Collection Management ============
 
 /**
- * Creates a new collection with a shared encryption key
- *
- * @param name - Collection name
- * @param description - Optional description
- * @param publicKey - Owner's public key (JWK string)
- * @returns Collection ID
- */
-export async function createCollectionWithKey(
-    _name: string,
-    _description: string | null,
-    _publicKey: string
-): Promise<string> {
-    throw new Error(SECURITY_STANDARD_V1_ERROR);
-}
-
-/**
  * Gets all collections (owned + member)
  * 
  * @returns Array of collections with role/permission info
@@ -145,27 +129,6 @@ export async function deleteCollection(collectionId: string): Promise<void> {
 }
 
 // ============ Member Management ============
-
-/**
- * Adds a member to a collection
- *
- * @param collectionId - Collection ID
- * @param userId - User ID to add
- * @param permission - 'view' or 'edit'
- * @param ownerPrivateKey - Owner's encrypted private key
- * @param memberPublicKey - Member's public key
- * @param masterPassword - Owner's master password
- */
-export async function addMemberToCollection(
-    _collectionId: string,
-    _userId: string,
-    _permission: 'view' | 'edit',
-    _ownerPrivateKey: string,
-    _memberPublicKey: string,
-    _masterPassword: string
-): Promise<void> {
-    throw new Error(SECURITY_STANDARD_V1_ERROR);
-}
 
 /**
  * Removes a member from a collection

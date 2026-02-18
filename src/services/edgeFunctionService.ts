@@ -249,6 +249,16 @@ function extractPayloadMessage(payload: Record<string, unknown> | null): string 
     }
 
     const errorMessage = payload.error;
+    const detailsMessage = payload.details;
+
+    if (
+        errorMessage === 'Internal server error'
+        && typeof detailsMessage === 'string'
+        && detailsMessage.trim().length > 0
+    ) {
+        return detailsMessage;
+    }
+
     if (typeof errorMessage === 'string' && errorMessage.trim().length > 0) {
         return errorMessage;
     }

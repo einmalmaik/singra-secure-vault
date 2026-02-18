@@ -89,29 +89,43 @@ Deno.serve(async (req: Request) => {
     }
     inviteEmail = email.trim().toLowerCase();
 
+    const { data: isAdminRole, error: isAdminRoleError } = await admin.rpc("has_role", {
+      _user_id: user.id,
+      _role: "admin",
+    });
+
+    if (isAdminRoleError) {
+      console.warn(`${FUNCTION_NAME}: has_role_check_failed`, {
+        actorUserId,
+        dbError: isAdminRoleError.message,
+      });
+    }
+
     // =====================================================
     // VALIDATION 1: Check subscription tier
     // =====================================================
-    const { data: subscription } = await admin
-      .from("subscriptions")
-      .select("tier")
-      .eq("user_id", user.id)
-      .eq("status", "active")
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .single();
+    if (isAdminRole !== true) {
+      const { data: subscription } = await admin
+        .from("subscriptions")
+        .select("tier")
+        .eq("user_id", user.id)
+        .eq("status", "active")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single();
 
-    if (!subscription || subscription.tier !== "families") {
-      console.warn(`${FUNCTION_NAME}: families_tier_required`, {
-        actorUserId,
-      });
-      return new Response(
-        JSON.stringify({ error: "Families subscription required" }),
-        {
-          status: 403,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
+      if (!subscription || subscription.tier !== "families") {
+        console.warn(`${FUNCTION_NAME}: families_tier_required`, {
+          actorUserId,
+        });
+        return new Response(
+          JSON.stringify({ error: "Families subscription required" }),
+          {
+            status: 403,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
     }
 
     // =====================================================

@@ -15,7 +15,11 @@ import { PendingInvitationsAlert } from '@/components/settings/PendingInvitation
 import { isEdgeFunctionServiceError } from '@/services/edgeFunctionService';
 import { getFamilyMembers, inviteFamilyMember, removeFamilyMember, type FamilyMember } from '@/services/familyService';
 
-export function FamilyOrganizationSettings() {
+interface FamilyOrganizationSettingsProps {
+  bypassFeatureGate?: boolean;
+}
+
+export function FamilyOrganizationSettings({ bypassFeatureGate = false }: FamilyOrganizationSettingsProps) {
   const { t } = useTranslation();
   const { user } = useAuth();
   const { toast } = useToast();
@@ -88,8 +92,8 @@ export function FamilyOrganizationSettings() {
     }
   };
 
-  return (
-    <FeatureGate feature="family_members" featureLabel={t('subscription.features.family_organization')}>
+  const content = (
+    <>
       <PendingInvitationsAlert />
       <Card>
         <CardHeader>
@@ -137,6 +141,16 @@ export function FamilyOrganizationSettings() {
           )}
         </CardContent>
       </Card>
+    </>
+  );
+
+  if (bypassFeatureGate) {
+    return content;
+  }
+
+  return (
+    <FeatureGate feature="family_members" featureLabel={t('subscription.features.family_organization')}>
+      {content}
     </FeatureGate>
   );
 }

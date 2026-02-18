@@ -16,129 +16,129 @@
 @layer base {
   :root {
     /* Background & Foreground */
-    --background: 210 20% 98%;
-    --foreground: 222 47% 11%;
+    --background: 205 28% 7%;
+    --foreground: 186 31% 95%;
 
     /* Card surfaces */
-    --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --card: 203 31% 11%;
+    --card-foreground: 186 31% 95%;
 
     /* Popover surfaces */
-    --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
+    --popover: 203 31% 11%;
+    --popover-foreground: 186 31% 95%;
 
-    /* Primary - Deep Blue (Security & Trust) */
-    --primary: 221 83% 53%;
-    --primary-foreground: 210 40% 98%;
+    /* Primary - Maunting cyan */
+    --primary: 193 49% 70%;
+    --primary-foreground: 204 43% 10%;
 
-    /* Secondary - Soft blue-gray */
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 222 47% 11%;
+    /* Secondary - Deep slate */
+    --secondary: 202 28% 15%;
+    --secondary-foreground: 186 31% 95%;
 
     /* Muted - For subtle backgrounds */
-    --muted: 210 40% 96%;
-    --muted-foreground: 215 16% 47%;
+    --muted: 202 28% 15%;
+    --muted-foreground: 195 21% 65%;
 
     /* Accent - For hover states */
-    --accent: 210 40% 96%;
-    --accent-foreground: 222 47% 11%;
+    --accent: 202 30% 17%;
+    --accent-foreground: 186 31% 95%;
 
     /* Destructive - Red for warnings */
     --destructive: 0 84% 60%;
     --destructive-foreground: 210 40% 98%;
 
     /* Success - Emerald Green */
-    --success: 142 76% 36%;
-    --success-foreground: 210 40% 98%;
+    --success: 158 49% 55%;
+    --success-foreground: 204 43% 10%;
 
     /* Warning - Amber */
     --warning: 38 92% 50%;
-    --warning-foreground: 222 47% 11%;
+    --warning-foreground: 204 43% 10%;
 
     /* Borders & Inputs */
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 221 83% 53%;
+    --border: 201 22% 26%;
+    --input: 201 22% 26%;
+    --ring: 193 49% 70%;
 
     /* Border Radius */
     --radius: 0.625rem;
 
     /* Sidebar */
-    --sidebar-background: 210 20% 98%;
-    --sidebar-foreground: 222 47% 11%;
-    --sidebar-primary: 221 83% 53%;
-    --sidebar-primary-foreground: 210 40% 98%;
-    --sidebar-accent: 210 40% 96%;
-    --sidebar-accent-foreground: 222 47% 11%;
-    --sidebar-border: 214 32% 91%;
-    --sidebar-ring: 221 83% 53%;
+    --sidebar-background: 205 28% 7%;
+    --sidebar-foreground: 186 31% 95%;
+    --sidebar-primary: 193 49% 70%;
+    --sidebar-primary-foreground: 204 43% 10%;
+    --sidebar-accent: 202 30% 17%;
+    --sidebar-accent-foreground: 186 31% 95%;
+    --sidebar-border: 201 22% 26%;
+    --sidebar-ring: 193 49% 70%;
 
     /* Singra Brand Colors */
-    --Singra-blue: 221 83% 53%;
-    --Singra-blue-dark: 221 83% 43%;
-    --Singra-blue-light: 221 83% 63%;
+    --Singra-blue: 193 49% 70%;
+    --Singra-blue-dark: 196 44% 54%;
+    --Singra-blue-light: 190 56% 80%;
   }
 
   .dark {
     /* Background & Foreground */
-    --background: 222 47% 7%;
-    --foreground: 210 40% 98%;
+    --background: 205 32% 5%;
+    --foreground: 186 31% 95%;
 
     /* Card surfaces */
-    --card: 222 47% 9%;
-    --card-foreground: 210 40% 98%;
+    --card: 203 33% 9%;
+    --card-foreground: 186 31% 95%;
 
     /* Popover surfaces */
-    --popover: 222 47% 9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 203 33% 9%;
+    --popover-foreground: 186 31% 95%;
 
-    /* Primary - Bright Blue */
-    --primary: 217 91% 60%;
-    --primary-foreground: 222 47% 7%;
+    /* Primary - Bright cyan */
+    --primary: 193 58% 74%;
+    --primary-foreground: 204 43% 10%;
 
     /* Secondary */
-    --secondary: 217 33% 17%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 203 28% 14%;
+    --secondary-foreground: 186 31% 95%;
 
     /* Muted */
-    --muted: 217 33% 17%;
-    --muted-foreground: 215 20% 65%;
+    --muted: 203 28% 14%;
+    --muted-foreground: 195 21% 65%;
 
     /* Accent */
-    --accent: 217 33% 17%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 202 30% 17%;
+    --accent-foreground: 186 31% 95%;
 
     /* Destructive */
     --destructive: 0 63% 31%;
     --destructive-foreground: 210 40% 98%;
 
     /* Success */
-    --success: 142 76% 36%;
-    --success-foreground: 210 40% 98%;
+    --success: 158 49% 55%;
+    --success-foreground: 204 43% 10%;
 
     /* Warning */
     --warning: 38 92% 50%;
-    --warning-foreground: 222 47% 7%;
+    --warning-foreground: 204 43% 10%;
 
     /* Borders & Inputs */
-    --border: 217 33% 17%;
-    --input: 217 33% 17%;
-    --ring: 217 91% 60%;
+    --border: 201 24% 22%;
+    --input: 201 24% 22%;
+    --ring: 193 58% 74%;
 
     /* Sidebar */
-    --sidebar-background: 222 47% 7%;
-    --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 217 91% 60%;
-    --sidebar-primary-foreground: 222 47% 7%;
-    --sidebar-accent: 217 33% 17%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 217 33% 17%;
-    --sidebar-ring: 217 91% 60%;
+    --sidebar-background: 205 32% 5%;
+    --sidebar-foreground: 186 31% 95%;
+    --sidebar-primary: 193 58% 74%;
+    --sidebar-primary-foreground: 204 43% 10%;
+    --sidebar-accent: 202 30% 17%;
+    --sidebar-accent-foreground: 186 31% 95%;
+    --sidebar-border: 201 24% 22%;
+    --sidebar-ring: 193 58% 74%;
 
     /* Singra Brand Colors (Dark) */
-    --Singra-blue: 217 91% 60%;
-    --Singra-blue-dark: 217 91% 50%;
-    --Singra-blue-light: 217 91% 70%;
+    --Singra-blue: 193 58% 74%;
+    --Singra-blue-dark: 196 44% 54%;
+    --Singra-blue-light: 190 56% 80%;
   }
 }
 
@@ -175,7 +175,15 @@
 
   /* Glass morphism effect */
   .glass {
-    @apply bg-background/80 backdrop-blur-lg;
+    background: linear-gradient(
+      135deg,
+      hsl(var(--card) / 0.76),
+      hsl(var(--card) / 0.5)
+    );
+    border: 1px solid hsl(var(--border) / 0.6);
+    box-shadow: 0 20px 45px hsl(0 0% 0% / 0.32);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
   }
 
   /* Gradient text */

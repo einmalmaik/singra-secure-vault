@@ -948,6 +948,7 @@
     "icon": "Icon",
     "emojiPlaceholder": "Enter or select an emoji",
     "svgHint": "Paste SVG code (24x24px recommended)",
+    "svgDisabled": "SVG icons are disabled for security reasons.",
     "color": "Color",
     "preview": "Preview",
     "created": "Category created",

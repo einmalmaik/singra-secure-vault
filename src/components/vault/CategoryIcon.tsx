@@ -3,13 +3,12 @@
 /**
  * @fileoverview Category Icon Component
  * 
- * Renders category icons that can be either emoji or inline SVG.
- * Detects the type automatically based on content.
+ * Renders category icons as emoji/text only.
+ * Legacy SVG payloads are intentionally ignored for security hardening.
  */
 
 import { Folder } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { sanitizeInlineSvg } from '@/lib/sanitizeSvg';
 
 interface CategoryIconProps {
     icon: string | null | undefined;
@@ -17,20 +16,8 @@ interface CategoryIconProps {
     fallbackSize?: number;
 }
 
-/**
- * Detects if the given string is an SVG
- */
-function isSvg(str: string): boolean {
+function isSvgPayload(str: string): boolean {
     return str.trim().startsWith('<svg') || str.trim().startsWith('<?xml');
-}
-
-/**
- * Detects if the given string is an emoji
- * (rough check: short content that isn't SVG)
- */
-function isEmoji(str: string): boolean {
-    const trimmed = str.trim();
-    return trimmed.length <= 4 && !isSvg(trimmed);
 }
 
 export function CategoryIcon({ icon, className, fallbackSize = 4 }: CategoryIconProps) {
@@ -41,19 +28,9 @@ export function CategoryIcon({ icon, className, fallbackSize = 4 }: CategoryIcon
 
     const trimmedIcon = icon.trim();
 
-    // SVG icon - render inline
-    if (isSvg(trimmedIcon)) {
-        const safeSvg = sanitizeInlineSvg(trimmedIcon);
-        if (!safeSvg) {
-            return <Folder className={cn(`w-${fallbackSize} h-${fallbackSize}`, className)} />;
-        }
-
-        return (
-            <span
-                className={cn('inline-flex items-center justify-center', className)}
-                dangerouslySetInnerHTML={{ __html: safeSvg }}
-            />
-        );
+    // Legacy SVG icon payloads are blocked and replaced with fallback icon.
+    if (isSvgPayload(trimmedIcon)) {
+        return <Folder className={cn(`w-${fallbackSize} h-${fallbackSize}`, className)} />;
     }
 
     // Emoji or text icon

@@ -307,6 +307,7 @@ describe("Integration: Core Cryptographic Pipeline", () => {
     it("should verify correct key", async () => {
       const key = await testKey("my-password");
       const hash = await createVerificationHash(key);
+      expect(hash.startsWith("v2:")).toBe(true);
       const result = await verifyKey(hash, key);
       expect(result).toBe(true);
     });
@@ -325,6 +326,13 @@ describe("Integration: Core Cryptographic Pipeline", () => {
       const tampered = hash.slice(0, -4) + "XXXX";
       const result = await verifyKey(tampered, key);
       expect(result).toBe(false);
+    });
+
+    it("should verify legacy v1 verification hashes for backward compatibility", async () => {
+      const key = await testKey("my-password");
+      const legacyHash = await encrypt("SINGRA_PW_VERIFICATION", key);
+      const result = await verifyKey(legacyHash, key);
+      expect(result).toBe(true);
     });
   });
 

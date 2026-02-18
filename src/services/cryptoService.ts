@@ -256,8 +256,14 @@ export async function decryptVaultItem(
  * @returns Base64-encoded verification hash
  */
 export async function createVerificationHash(key: CryptoKey): Promise<string> {
-    const verificationData = 'SINGRA_PW_VERIFICATION';
-    return encrypt(verificationData, key);
+    const challengeBytes = crypto.getRandomValues(new Uint8Array(32));
+    try {
+        const challenge = uint8ArrayToBase64(challengeBytes);
+        const encryptedChallenge = await encrypt(challenge, key);
+        return `v2:${challenge}:${encryptedChallenge}`;
+    } finally {
+        challengeBytes.fill(0);
+    }
 }
 
 /**
@@ -272,6 +278,17 @@ export async function verifyKey(
     key: CryptoKey
 ): Promise<boolean> {
     try {
+        if (verificationHash.startsWith('v2:')) {
+            const parts = verificationHash.split(':');
+            if (parts.length !== 3) {
+                return false;
+            }
+
+            const [, challenge, encryptedChallenge] = parts;
+            const decrypted = await decrypt(encryptedChallenge, key);
+            return decrypted === challenge;
+        }
+
         const decrypted = await decrypt(verificationHash, key);
         return decrypted === 'SINGRA_PW_VERIFICATION';
     } catch {

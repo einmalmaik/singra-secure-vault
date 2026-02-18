@@ -128,7 +128,7 @@ export default function SettingsPage() {
             {
                 id: 'emergency',
                 component: <EmergencyAccessSettings />,
-                title: t('emergencyAccess.title'),
+                title: t('emergency.title'),
                 keywords: ['emergency', 'notfall', 'trustee', 'recovery', 'wiederherstellung', 'zugriff'],
                 premium: true,
             },

@@ -26,21 +26,7 @@ export async function invokeAuthedFunction<
     functionName: string,
     body?: TBody,
 ): Promise<TResponse> {
-    const {
-        data: { session },
-        error: sessionError,
-    } = await supabase.auth.getSession();
-
-    if (sessionError) {
-        throw createEdgeFunctionError(
-            'Failed to load session',
-            'UNKNOWN',
-            401,
-            { sessionError: sessionError.message },
-        );
-    }
-
-    const accessToken = session?.access_token;
+    const accessToken = await resolveAccessToken();
     if (!accessToken) {
         throw createEdgeFunctionError('Authentication required', 'AUTH_REQUIRED', 401);
     }
@@ -74,6 +60,37 @@ export function isEdgeFunctionServiceError(error: unknown): error is EdgeFunctio
 }
 
 // ============ Internal Helpers ============
+
+async function resolveAccessToken(): Promise<string | null> {
+    const {
+        data: { session },
+        error: sessionError,
+    } = await supabase.auth.getSession();
+
+    if (sessionError) {
+        throw createEdgeFunctionError(
+            'Failed to load session',
+            'UNKNOWN',
+            401,
+            { sessionError: sessionError.message },
+        );
+    }
+
+    if (session?.access_token) {
+        return session.access_token;
+    }
+
+    const {
+        data: refreshData,
+        error: refreshError,
+    } = await supabase.auth.refreshSession();
+
+    if (refreshError) {
+        return null;
+    }
+
+    return refreshData.session?.access_token ?? null;
+}
 
 async function normalizeFunctionError(error: unknown): Promise<EdgeFunctionServiceError> {
     const fallbackMessage = extractErrorMessage(error) || 'Edge function request failed';

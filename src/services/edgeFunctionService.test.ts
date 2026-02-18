@@ -6,13 +6,15 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockGetSession, mockInvoke, supabaseMock } = vi.hoisted(() => {
+const { mockGetSession, mockRefreshSession, mockInvoke, supabaseMock } = vi.hoisted(() => {
   const mockInvoke = vi.fn();
   const mockGetSession = vi.fn();
+  const mockRefreshSession = vi.fn();
 
   const supabaseMock = {
     auth: {
       getSession: mockGetSession,
+      refreshSession: mockRefreshSession,
     },
     functions: {
       invoke: mockInvoke,
@@ -21,6 +23,7 @@ const { mockGetSession, mockInvoke, supabaseMock } = vi.hoisted(() => {
 
   return {
     mockGetSession,
+    mockRefreshSession,
     mockInvoke,
     supabaseMock,
   };
@@ -40,6 +43,10 @@ describe("edgeFunctionService", () => {
     vi.clearAllMocks();
     mockGetSession.mockResolvedValue({
       data: { session: { access_token: "test-token" } },
+      error: null,
+    });
+    mockRefreshSession.mockResolvedValue({
+      data: { session: null },
       error: null,
     });
   });
@@ -66,6 +73,10 @@ describe("edgeFunctionService", () => {
       data: { session: null },
       error: null,
     });
+    mockRefreshSession.mockResolvedValueOnce({
+      data: { session: null },
+      error: null,
+    });
 
     await expect(
       invokeAuthedFunction("invite-family-member", { email: "a@example.com" }),
@@ -73,6 +84,30 @@ describe("edgeFunctionService", () => {
       code: "AUTH_REQUIRED",
       status: 401,
       message: "Authentication required",
+    });
+  });
+
+  it("refreshes the session when access token is missing", async () => {
+    mockGetSession.mockResolvedValueOnce({
+      data: { session: null },
+      error: null,
+    });
+    mockRefreshSession.mockResolvedValueOnce({
+      data: { session: { access_token: "fresh-token" } },
+      error: null,
+    });
+    mockInvoke.mockResolvedValueOnce({
+      data: { success: true },
+      error: null,
+    });
+
+    await invokeAuthedFunction<{ success: boolean }>("invite-family-member", {
+      email: "a@example.com",
+    });
+
+    expect(mockInvoke).toHaveBeenCalledWith("invite-family-member", {
+      body: { email: "a@example.com" },
+      headers: { Authorization: "Bearer fresh-token" },
     });
   });
 

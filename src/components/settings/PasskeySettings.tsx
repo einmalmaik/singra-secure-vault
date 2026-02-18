@@ -27,6 +27,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useVault } from '@/contexts/VaultContext';
+import { useAuth } from '@/contexts/AuthContext';
 import {
     registerPasskey,
     activatePasskeyPrf,
@@ -40,6 +41,7 @@ import { isEdgeFunctionServiceError } from '@/services/edgeFunctionService';
 export function PasskeySettings() {
     const { t } = useTranslation();
     const { toast } = useToast();
+    const { user } = useAuth();
     const { webAuthnAvailable, getRawKeyForPasskey, refreshPasskeyUnlockStatus } = useVault();
 
     const [passkeys, setPasskeys] = useState<PasskeyCredential[]>([]);
@@ -75,6 +77,11 @@ export function PasskeySettings() {
     }, [t]);
 
     const loadPasskeys = useCallback(async () => {
+        if (!user) {
+            setPasskeys([]);
+            return;
+        }
+
         setLoading(true);
         try {
             const creds = await listPasskeys();
@@ -90,14 +97,14 @@ export function PasskeySettings() {
         } finally {
             setLoading(false);
         }
-    }, [refreshPasskeyUnlockStatus, resolveErrorMessage, t, toast]);
+    }, [refreshPasskeyUnlockStatus, resolveErrorMessage, t, toast, user]);
 
     useEffect(() => {
-        if (webAuthnAvailable) {
+        if (webAuthnAvailable && user) {
             loadPasskeys();
             isPlatformAuthenticatorAvailable().then(setHasPlatformAuth);
         }
-    }, [webAuthnAvailable, loadPasskeys]);
+    }, [webAuthnAvailable, loadPasskeys, user]);
 
     const handleRegister = async (e: React.FormEvent) => {
         e.preventDefault();

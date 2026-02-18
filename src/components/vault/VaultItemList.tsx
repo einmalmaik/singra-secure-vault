@@ -155,7 +155,11 @@ export function VaultItemList({
 
                             return { ...item, decryptedData };
                         } catch (err) {
-                            console.error('Failed to decrypt item:', item.id, err);
+                            if (isDuressMode) {
+                                console.debug('Failed to decrypt item in Duress Mode (expected for Real items):', item.id);
+                            } else {
+                                console.error('Failed to decrypt item:', item.id, err);
+                            }
                             return { ...item, decryptedData: undefined };
                         }
                     })
@@ -171,11 +175,14 @@ export function VaultItemList({
         }
 
         fetchItems();
-    }, [user, decryptItem, encryptItem, refreshKey]); // Added refreshKey to trigger refetch
+    }, [user, decryptItem, encryptItem, refreshKey, isDuressMode]); // Added refreshKey to trigger refetch
 
     // Filter items
     const filteredItems = useMemo(() => {
         return items.filter((item) => {
+            // Items that cannot be decrypted with the active key are never renderable.
+            if (!item.decryptedData) return false;
+
             const resolvedCategoryId = item.decryptedData?.categoryId ?? item.category_id;
             const resolvedItemType = item.decryptedData?.itemType || item.item_type;
             const resolvedIsFavorite = typeof item.decryptedData?.isFavorite === 'boolean'
@@ -184,7 +191,7 @@ export function VaultItemList({
 
             // Duress mode filter: only show decoy items in duress mode, real items otherwise
             // This is critical for plausible deniability — the filter happens AFTER decryption
-            const itemIsDecoy = item.decryptedData ? isDecoyItem(item.decryptedData) : false;
+            const itemIsDecoy = isDecoyItem(item.decryptedData);
             if (isDuressMode && !itemIsDecoy) return false;
             if (!isDuressMode && itemIsDecoy) return false;
 

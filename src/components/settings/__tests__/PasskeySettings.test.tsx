@@ -15,8 +15,14 @@ vi.mock("react-i18next", () => ({
 }));
 
 const mockToast = vi.fn();
+let mockUser: { id: string } | null = { id: "user-1" };
 vi.mock("@/hooks/use-toast", () => ({
   useToast: () => ({ toast: mockToast }),
+}));
+vi.mock("@/contexts/AuthContext", () => ({
+  useAuth: () => ({
+    user: mockUser,
+  }),
 }));
 
 const mockGetRawKeyForPasskey = vi.fn();
@@ -46,6 +52,7 @@ vi.mock("@/services/passkeyService", () => ({
 describe("PasskeySettings", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockUser = { id: "user-1" };
     mockListPasskeys.mockResolvedValue([]);
     mockDeletePasskey.mockResolvedValue({ success: true });
     mockGetRawKeyForPasskey.mockResolvedValue(new Uint8Array(32));
@@ -100,5 +107,17 @@ describe("PasskeySettings", () => {
         }),
       );
     });
+  });
+
+  it("does not load passkeys when no authenticated user exists", async () => {
+    mockUser = null;
+
+    render(<PasskeySettings />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Add Passkey" })).toBeInTheDocument();
+    });
+
+    expect(mockListPasskeys).not.toHaveBeenCalled();
   });
 });

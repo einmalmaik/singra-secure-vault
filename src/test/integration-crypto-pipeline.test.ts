@@ -307,6 +307,7 @@ describe("Integration: Core Cryptographic Pipeline", () => {
     it("should verify correct key", async () => {
       const key = await testKey("my-password");
       const hash = await createVerificationHash(key);
+      expect(hash.startsWith("v2:")).toBe(true);
       const result = await verifyKey(hash, key);
       expect(result).toBe(true);
     });
@@ -325,6 +326,13 @@ describe("Integration: Core Cryptographic Pipeline", () => {
       const tampered = hash.slice(0, -4) + "XXXX";
       const result = await verifyKey(tampered, key);
       expect(result).toBe(false);
+    });
+
+    it("should verify legacy v1 verification hashes for backward compatibility", async () => {
+      const key = await testKey("my-password");
+      const legacyHash = await encrypt("SINGRA_PW_VERIFICATION", key);
+      const result = await verifyKey(legacyHash, key);
+      expect(result).toBe(true);
     });
   });
 
@@ -451,7 +459,11 @@ describe("Integration: Core Cryptographic Pipeline", () => {
       const { publicKey, encryptedPrivateKey } =
         await generateUserKeyPair(masterPassword);
       expect(publicKey).toBeTruthy();
-      expect(encryptedPrivateKey).toContain(":"); // salt:encryptedData format
+      expect(encryptedPrivateKey).toContain(":");
+
+      const keyParts = encryptedPrivateKey.split(":");
+      expect(keyParts).toHaveLength(3);
+      expect(Number.parseInt(keyParts[0], 10)).toBe(CURRENT_KDF_VERSION);
 
       // 2. Generate a shared collection key
       const sharedKey = await generateSharedKey();
@@ -495,6 +507,23 @@ describe("Integration: Core Cryptographic Pipeline", () => {
       await expect(
         unwrapKey(wrappedKey, encryptedPrivateKey, "wrong-password")
       ).rejects.toThrow();
+    }, 60000);
+
+    it("should unwrap legacy private key format without kdf version prefix", async () => {
+      const masterPassword = "legacy-password";
+      const { publicKey, encryptedPrivateKey } = await generateUserKeyPair(masterPassword);
+      const [, salt, encrypted] = encryptedPrivateKey.split(":");
+      const legacyEncryptedPrivateKey = `${salt}:${encrypted}`;
+
+      const sharedKey = await generateSharedKey();
+      const wrappedKey = await wrapKey(sharedKey, publicKey);
+
+      const unwrapped = await unwrapKey(
+        wrappedKey,
+        legacyEncryptedPrivateKey,
+        masterPassword
+      );
+      expect(unwrapped).toBe(sharedKey);
     }, 60000);
   });
 

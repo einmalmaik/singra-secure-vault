@@ -6,6 +6,7 @@
  *   - verify-registration: Verifies the registration response from the browser
  *   - generate-authentication-options: Creates a challenge for passkey authentication
  *   - verify-authentication: Verifies the authentication response
+ *   - activate-prf: Verifies authentication and stores wrapped master key for PRF unlock
  *   - list-credentials: Lists all registered passkeys for a user
  *   - delete-credential: Removes a registered passkey
  *
@@ -39,12 +40,19 @@ import { getCorsHeaders } from "../_shared/cors.ts";
  * In production this is "singra.pw", in dev "localhost".
  */
 function getRpConfig(req: Request): { rpName: string; rpID: string; origin: string } {
-    const origin = req.headers.get("origin") || Deno.env.get("SITE_URL") || "http://localhost:8080";
-    const url = new URL(origin);
+    const rawOrigin = req.headers.get("origin") || Deno.env.get("SITE_URL") || "http://localhost:8080";
+    let url: URL;
+
+    try {
+        url = new URL(rawOrigin);
+    } catch {
+        url = new URL("http://localhost:8080");
+    }
+
     return {
         rpName: "SingraPW",
         rpID: url.hostname,
-        origin: origin,
+        origin: url.origin,
     };
 }
 
@@ -63,27 +71,38 @@ Deno.serve(async (req: Request) => {
     }
 
     try {
+        console.log("WebAuthn function called. Method:", req.method);
+
         // 1. Authenticate user via Supabase JWT
         const authHeader = req.headers.get("Authorization");
+        console.log("Auth header provided:", !!authHeader, authHeader ? `(Length: ${authHeader.length})` : "");
+
         if (!authHeader) {
+            console.log("Missing authorization header");
             return jsonResponse({ error: "Missing authorization header" }, 401, corsHeaders);
+        }
+
+        const accessToken = extractBearerToken(authHeader);
+        if (!accessToken) {
+            return jsonResponse({ error: "Missing bearer token" }, 401, corsHeaders);
         }
 
         const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
         const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-        // User-scoped client (respects RLS)
-        const supabaseUser = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
-            global: { headers: { Authorization: authHeader } },
-        });
-
-        const { data: { user }, error: authError } = await supabaseUser.auth.getUser();
-        if (authError || !user) {
-            return jsonResponse({ error: "Unauthorized" }, 401, corsHeaders);
-        }
-
         // Admin client (bypasses RLS for challenge management)
         const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+
+        const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(accessToken);
+
+        if (authError || !user) {
+            console.log("Auth failed in Edge Function:", authError);
+            if (authError) console.log("Auth error message:", authError.message);
+            console.log("User object:", user);
+            return jsonResponse({ error: "Unauthorized", details: authError?.message }, 401, corsHeaders);
+        }
+
+        console.log("User authenticated successfully:", user.id);
 
         // 2. Parse action
         const body = await req.json();
@@ -104,18 +123,28 @@ Deno.serve(async (req: Request) => {
             case "verify-authentication":
                 return await handleVerifyAuthentication(user, rp, supabaseAdmin, body, corsHeaders);
 
+            case "activate-prf":
+                return await handleActivatePrf(user, rp, supabaseAdmin, body, corsHeaders);
+
             case "list-credentials":
-                return await handleListCredentials(user, supabaseUser, corsHeaders);
+                return await handleListCredentials(user, supabaseAdmin, corsHeaders);
 
             case "delete-credential":
-                return await handleDeleteCredential(user, supabaseUser, body, corsHeaders);
+                return await handleDeleteCredential(user, supabaseAdmin, body, corsHeaders);
 
             default:
                 return jsonResponse({ error: `Unknown action: ${action}` }, 400, corsHeaders);
         }
     } catch (err) {
         console.error("WebAuthn edge function error:", err);
-        return jsonResponse({ error: "Internal server error" }, 500, corsHeaders);
+        return jsonResponse(
+            {
+                error: "Internal server error",
+                details: err instanceof Error ? err.message : String(err),
+            },
+            500,
+            corsHeaders,
+        );
     }
 });
 
@@ -134,8 +163,11 @@ async function handleGenerateRegistrationOptions(
         .select("credential_id")
         .eq("user_id", user.id);
 
-    const excludeCredentials = (existingCreds || []).map((c: { credential_id: string }) => ({
-        id: c.credential_id,
+    const excludeCredentials = (existingCreds || [])
+        .map((c: { credential_id: string }) => c.credential_id)
+        .filter(isLikelyBase64UrlCredentialId)
+        .map((credentialId: string) => ({
+        id: credentialId,
         transports: undefined,
     }));
 
@@ -161,7 +193,11 @@ async function handleGenerateRegistrationOptions(
     const prfSalt = isoBase64URL.fromBuffer(prfSaltBytes);
 
     // Clean up expired challenges first
-    await supabase.rpc("cleanup_expired_webauthn_challenges").catch(() => {});
+    try {
+        await supabase.rpc("cleanup_expired_webauthn_challenges");
+    } catch (cleanupError) {
+        console.warn("Failed to cleanup expired registration challenges", cleanupError);
+    }
 
     // Store challenge server-side (5 min TTL)
     await supabase.from("webauthn_challenges").insert({
@@ -248,6 +284,9 @@ async function handleVerifyRegistration(
 
         if (insertError) {
             console.error("Failed to store credential:", insertError);
+            if (insertError.code === "23505") { // Unique violation
+                return jsonResponse({ error: "Passkey already registered on this device" }, 409, corsHeaders);
+            }
             return jsonResponse({ error: "Failed to store credential" }, 500, corsHeaders);
         }
 
@@ -293,7 +332,15 @@ async function handleGenerateAuthenticationOptions(
         return jsonResponse({ error: "Requested passkey credential not found" }, 404, corsHeaders);
     }
 
-    const allowCredentials = scopedCredentials.map((c: { credential_id: string; transports?: string[]; prf_salt?: string; prf_enabled?: boolean }) => ({
+    const validScopedCredentials = scopedCredentials.filter((c: { credential_id: string }) =>
+        isLikelyBase64UrlCredentialId(c.credential_id)
+    );
+
+    if (validScopedCredentials.length === 0) {
+        return jsonResponse({ error: "No valid passkey credentials found" }, 404, corsHeaders);
+    }
+
+    const allowCredentials = validScopedCredentials.map((c: { credential_id: string; transports?: string[]; prf_salt?: string; prf_enabled?: boolean }) => ({
         id: c.credential_id,
         transports: c.transports || undefined,
     }));
@@ -305,7 +352,11 @@ async function handleGenerateAuthenticationOptions(
     });
 
     // Clean up expired challenges first
-    await supabase.rpc("cleanup_expired_webauthn_challenges").catch(() => {});
+    try {
+        await supabase.rpc("cleanup_expired_webauthn_challenges");
+    } catch (cleanupError) {
+        console.warn("Failed to cleanup expired authentication challenges", cleanupError);
+    }
 
     // Store challenge server-side
     await supabase.from("webauthn_challenges").insert({
@@ -314,10 +365,17 @@ async function handleGenerateAuthenticationOptions(
         type: "authentication",
     });
 
-    // Build a map of credential_id -> prfSalt for PRF-enabled credentials
+    // Build a map of credential_id -> prfSalt.
+    // Include:
+    // - credentials already marked as PRF-enabled
+    // - a specifically requested credential (credentialId), even if not yet
+    //   marked PRF-enabled, so PRF activation can complete after registration
     const prfSalts: Record<string, string> = {};
-    for (const cred of scopedCredentials) {
-        if (cred.prf_enabled && cred.prf_salt) {
+    for (const cred of validScopedCredentials) {
+        const isRequestedCredential = credentialId
+            ? cred.credential_id === credentialId
+            : false;
+        if ((cred.prf_enabled || isRequestedCredential) && cred.prf_salt) {
             prfSalts[cred.credential_id] = cred.prf_salt;
         }
     }
@@ -372,6 +430,9 @@ async function handleVerifyAuthentication(
         return jsonResponse({ error: "Challenge expired" }, 400, corsHeaders);
     }
 
+    // Challenge sofort löschen — verhindert Replay-Angriffe auch bei Verifikationsfehlern
+    await supabase.from("webauthn_challenges").delete().eq("id", storedChallenge.id);
+
     // Find the matching credential in DB
     const { data: dbCredentials } = await supabase
         .from("passkey_credentials")
@@ -420,8 +481,7 @@ async function handleVerifyAuthentication(
             })
             .eq("id", dbCredential.id);
 
-        // Clean up the used challenge
-        await supabase.from("webauthn_challenges").delete().eq("id", storedChallenge.id);
+        // Challenge wurde bereits vor der Verifikation gelöscht (Replay-Schutz)
 
         return jsonResponse({
             verified: true,
@@ -431,6 +491,121 @@ async function handleVerifyAuthentication(
         }, 200, corsHeaders);
     } catch (err) {
         console.error("Authentication verification error:", err);
+        return jsonResponse({ error: "Verification failed" }, 400, corsHeaders);
+    }
+}
+
+async function handleActivatePrf(
+    user: { id: string },
+    rp: { rpID: string; origin: string },
+    supabase: ReturnType<typeof createClient>,
+    body: Record<string, unknown>,
+    corsHeaders: Record<string, string>,
+) {
+    const { credential, expectedCredentialId, wrappedMasterKey } = body as {
+        credential: unknown;
+        expectedCredentialId?: string;
+        wrappedMasterKey?: string;
+    };
+
+    if (!credential) {
+        return jsonResponse({ error: "Missing credential response" }, 400, corsHeaders);
+    }
+
+    if (!expectedCredentialId) {
+        return jsonResponse({ error: "Missing expectedCredentialId" }, 400, corsHeaders);
+    }
+
+    if (typeof wrappedMasterKey !== "string" || wrappedMasterKey.length === 0) {
+        return jsonResponse({ error: "Missing wrappedMasterKey" }, 400, corsHeaders);
+    }
+
+    const credentialResponse = credential as { id: string };
+    if (credentialResponse.id !== expectedCredentialId) {
+        return jsonResponse({ error: "Unexpected passkey credential used" }, 400, corsHeaders);
+    }
+
+    const { data: challenges } = await supabase
+        .from("webauthn_challenges")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("type", "authentication")
+        .order("created_at", { ascending: false })
+        .limit(1);
+
+    if (!challenges || challenges.length === 0) {
+        return jsonResponse({ error: "No pending authentication challenge" }, 400, corsHeaders);
+    }
+
+    const storedChallenge = challenges[0];
+
+    if (new Date(storedChallenge.expires_at) < new Date()) {
+        await supabase.from("webauthn_challenges").delete().eq("id", storedChallenge.id);
+        return jsonResponse({ error: "Challenge expired" }, 400, corsHeaders);
+    }
+
+    // Challenge sofort löschen — verhindert Replay-Angriffe auch bei Verifikationsfehlern
+    await supabase.from("webauthn_challenges").delete().eq("id", storedChallenge.id);
+
+    const { data: dbCredentials } = await supabase
+        .from("passkey_credentials")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("credential_id", expectedCredentialId);
+
+    if (!dbCredentials || dbCredentials.length === 0) {
+        return jsonResponse({ error: "Credential not found" }, 400, corsHeaders);
+    }
+
+    const dbCredential = dbCredentials[0] as {
+        id: string;
+        credential_id: string;
+        public_key: string;
+        counter: number;
+        transports?: string[];
+    };
+
+    try {
+        const verification = await verifyAuthenticationResponse({
+            response: credential as AuthenticationResponseJSON,
+            expectedChallenge: storedChallenge.challenge,
+            expectedOrigin: rp.origin,
+            expectedRPID: rp.rpID,
+            credential: {
+                id: dbCredential.credential_id,
+                publicKey: isoBase64URL.toBuffer(dbCredential.public_key),
+                counter: dbCredential.counter,
+                transports: dbCredential.transports || undefined,
+            },
+        });
+
+        if (!verification.verified) {
+            return jsonResponse({ error: "Authentication verification failed" }, 400, corsHeaders);
+        }
+
+        const { error: updateError } = await supabase
+            .from("passkey_credentials")
+            .update({
+                counter: verification.authenticationInfo.newCounter,
+                last_used_at: new Date().toISOString(),
+                wrapped_master_key: wrappedMasterKey,
+                prf_enabled: true,
+            })
+            .eq("id", dbCredential.id)
+            .eq("user_id", user.id)
+            .eq("credential_id", dbCredential.credential_id);
+
+        if (updateError) {
+            console.error("Failed to activate PRF credential:", updateError);
+            return jsonResponse({ error: "Failed to save wrapped key" }, 500, corsHeaders);
+        }
+
+        return jsonResponse({
+            activated: true,
+            credentialId: dbCredential.credential_id,
+        }, 200, corsHeaders);
+    } catch (err) {
+        console.error("PRF activation verification error:", err);
         return jsonResponse({ error: "Verification failed" }, 400, corsHeaders);
     }
 }
@@ -487,4 +662,19 @@ function jsonResponse(data: unknown, status = 200, corsHeaders: Record<string, s
         status,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
+}
+
+function extractBearerToken(authHeader: string): string | null {
+    if (!authHeader.toLowerCase().startsWith("bearer ")) {
+        return null;
+    }
+
+    const token = authHeader.slice("bearer ".length).trim();
+    return token.length > 0 ? token : null;
+}
+
+function isLikelyBase64UrlCredentialId(value: string): boolean {
+    return typeof value === "string"
+        && value.length >= 16
+        && /^[A-Za-z0-9_-]+$/.test(value);
 }

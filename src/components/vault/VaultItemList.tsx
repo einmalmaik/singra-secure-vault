@@ -7,7 +7,7 @@
  * search, and decryption.
  */
 
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2, Plus, Shield, KeyRound } from 'lucide-react';
 
@@ -67,6 +67,13 @@ export function VaultItemList({
     const [items, setItems] = useState<VaultItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [decrypting, setDecrypting] = useState(false);
+    const failedDecryptPayloadByItemIdRef = useRef<Map<string, string>>(new Map());
+    const loggedDecryptFailuresRef = useRef<Set<string>>(new Set());
+
+    useEffect(() => {
+        failedDecryptPayloadByItemIdRef.current.clear();
+        loggedDecryptFailuresRef.current.clear();
+    }, [user?.id, isDuressMode]);
 
     // Fetch vault items
     useEffect(() => {
@@ -82,8 +89,14 @@ export function VaultItemList({
                 setDecrypting(true);
                 const decryptedItems = await Promise.all(
                     (vaultItems || []).map(async (item) => {
+                        const cachedFailedPayload = failedDecryptPayloadByItemIdRef.current.get(item.id);
+                        if (cachedFailedPayload === item.encrypted_data) {
+                            return { ...item, decryptedData: undefined };
+                        }
+
                         try {
                             const decryptedData = await decryptItem(item.encrypted_data);
+                            failedDecryptPayloadByItemIdRef.current.delete(item.id);
                             const hasLegacyPlaintextMeta =
                                 (!decryptedData.title && item.title && item.title !== ENCRYPTED_ITEM_TITLE_PLACEHOLDER) ||
                                 (!decryptedData.websiteUrl && !!item.website_url) ||
@@ -155,7 +168,16 @@ export function VaultItemList({
 
                             return { ...item, decryptedData };
                         } catch (err) {
-                            console.error('Failed to decrypt item:', item.id, err);
+                            failedDecryptPayloadByItemIdRef.current.set(item.id, item.encrypted_data);
+                            const logKey = `${item.id}:${item.updated_at}`;
+                            if (!loggedDecryptFailuresRef.current.has(logKey)) {
+                                loggedDecryptFailuresRef.current.add(logKey);
+                                if (isDuressMode) {
+                                    console.debug('Failed to decrypt item in Duress Mode (expected for Real items):', item.id);
+                                } else {
+                                    console.error('Failed to decrypt item:', item.id, err);
+                                }
+                            }
                             return { ...item, decryptedData: undefined };
                         }
                     })
@@ -171,11 +193,14 @@ export function VaultItemList({
         }
 
         fetchItems();
-    }, [user, decryptItem, encryptItem, refreshKey]); // Added refreshKey to trigger refetch
+    }, [user, decryptItem, encryptItem, refreshKey, isDuressMode]); // Added refreshKey to trigger refetch
 
     // Filter items
     const filteredItems = useMemo(() => {
         return items.filter((item) => {
+            // Items that cannot be decrypted with the active key are never renderable.
+            if (!item.decryptedData) return false;
+
             const resolvedCategoryId = item.decryptedData?.categoryId ?? item.category_id;
             const resolvedItemType = item.decryptedData?.itemType || item.item_type;
             const resolvedIsFavorite = typeof item.decryptedData?.isFavorite === 'boolean'
@@ -184,7 +209,7 @@ export function VaultItemList({
 
             // Duress mode filter: only show decoy items in duress mode, real items otherwise
             // This is critical for plausible deniability — the filter happens AFTER decryption
-            const itemIsDecoy = item.decryptedData ? isDecoyItem(item.decryptedData) : false;
+            const itemIsDecoy = isDecoyItem(item.decryptedData);
             if (isDuressMode && !itemIsDecoy) return false;
             if (!isDuressMode && itemIsDecoy) return false;
 

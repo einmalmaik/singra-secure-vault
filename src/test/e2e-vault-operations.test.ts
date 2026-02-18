@@ -265,7 +265,7 @@ describe("E2E: Vault Operations", () => {
             const keyPair = await generateUserKeyPair(MASTER_PASSWORD);
             expect(keyPair.publicKey).toBeTruthy();
             expect(keyPair.encryptedPrivateKey).toBeTruthy();
-            expect(keyPair.encryptedPrivateKey).toContain(":"); // salt:encryptedData format
+            expect(keyPair.encryptedPrivateKey.split(':').length).toBe(3); // kdfVersion:salt:encryptedData
 
             // Step 2: Generate shared collection key
             const sharedKey = await generateSharedKey();

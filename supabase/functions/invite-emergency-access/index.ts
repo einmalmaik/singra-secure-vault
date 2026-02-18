@@ -1,6 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-import { corsHeaders } from "../_shared/cors.ts";
+import { getCorsHeaders } from "../_shared/cors.ts";
 
 const FUNCTION_NAME = "invite-emergency-access";
 
@@ -31,6 +31,7 @@ async function sendResendMail(to: string, subject: string, html: string) {
 Deno.serve(async (req: Request) => {
   let actorUserId: string | null = null;
   let inviteEmail: string | null = null;
+  const corsHeaders = getCorsHeaders(req);
 
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders });
   if (req.method !== "POST") {
@@ -50,15 +51,20 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    const accessToken = extractBearerToken(authHeader);
+    if (!accessToken) {
+      return new Response(JSON.stringify({ error: "Missing bearer token" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseAnon = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabaseService = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    const client = createClient(supabaseUrl, supabaseAnon, {
-      global: { headers: { Authorization: authHeader } },
-    });
+    const admin = createClient(supabaseUrl, supabaseService);
 
-    const { data: { user }, error: authError } = await client.auth.getUser();
+    const { data: { user }, error: authError } = await admin.auth.getUser(accessToken);
     if (authError || !user) {
       console.warn(`${FUNCTION_NAME}: unauthorized_user`, {
         authError: authError?.message || null,
@@ -82,6 +88,15 @@ Deno.serve(async (req: Request) => {
     }
     inviteEmail = email.trim().toLowerCase();
 
+    // Verhindere Selbsteinladung
+    if (inviteEmail === user.email?.toLowerCase()) {
+      console.warn(`${FUNCTION_NAME}: self_invite_rejected`, { actorUserId });
+      return new Response(JSON.stringify({ error: "Du kannst dich nicht selbst als Notfallkontakt einladen" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const waitDays = Number(wait_days || 7);
     if (!Number.isFinite(waitDays) || waitDays < 1 || waitDays > 90) {
       console.warn(`${FUNCTION_NAME}: invalid_wait_days`, {
@@ -93,8 +108,6 @@ Deno.serve(async (req: Request) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-
-    const admin = createClient(supabaseUrl, supabaseService);
 
     const { error: insertError } = await admin
       .from("emergency_access")
@@ -148,3 +161,12 @@ Deno.serve(async (req: Request) => {
     });
   }
 });
+
+function extractBearerToken(authHeader: string): string | null {
+  if (!authHeader.toLowerCase().startsWith("bearer ")) {
+    return null;
+  }
+
+  const token = authHeader.slice("bearer ".length).trim();
+  return token.length > 0 ? token : null;
+}

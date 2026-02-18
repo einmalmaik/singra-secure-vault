@@ -28,7 +28,7 @@ export function VaultUnlock() {
     const { t } = useTranslation();
     const { toast } = useToast();
     const { unlock, unlockWithPasskey, pendingSessionRestore, webAuthnAvailable, hasPasskeyUnlock } = useVault();
-    const { signOut, user } = useAuth();
+    const { signOut, user, loading: authLoading } = useAuth();
 
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
@@ -161,9 +161,9 @@ export function VaultUnlock() {
                                 variant="outline"
                                 className="w-full h-12 text-base gap-3 border-primary/30 hover:bg-primary/5"
                                 onClick={handlePasskeyUnlock}
-                                disabled={passkeyLoading || loading}
+                                disabled={passkeyLoading || loading || authLoading}
                             >
-                                {passkeyLoading ? (
+                                {passkeyLoading || authLoading ? (
                                     <Loader2 className="w-5 h-5 animate-spin" />
                                 ) : (
                                     <Fingerprint className="w-5 h-5" />

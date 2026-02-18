@@ -37,7 +37,11 @@ import {
   isMasterPasswordRequiredError,
 } from '@/services/keyMaterialService';
 
-export function SharedCollectionsSettings() {
+interface SharedCollectionsSettingsProps {
+  bypassFeatureGate?: boolean;
+}
+
+export function SharedCollectionsSettings({ bypassFeatureGate = false }: SharedCollectionsSettingsProps) {
   const { t } = useTranslation();
   const { user } = useAuth();
   const { toast } = useToast();
@@ -144,119 +148,127 @@ export function SharedCollectionsSettings() {
     }
   };
 
+  const content = (
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FolderOpen className="w-5 h-5" />
+            {t('settings.sharedCollections.title', { defaultValue: 'Shared Collections' })}
+          </CardTitle>
+          <CardDescription>
+            {t('settings.sharedCollections.description', { defaultValue: 'Create collections for sharing vault items with family members.' })}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex gap-2">
+            <Input
+              placeholder={t('settings.sharedCollections.namePlaceholder', { defaultValue: 'Collection name' })}
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+            />
+            <Button type="button" onClick={onCreate} disabled={saving || !name.trim()}>
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+            </Button>
+          </div>
+
+          {loading ? (
+            <div className="flex justify-center py-4"><Loader2 className="w-5 h-5 animate-spin" /></div>
+          ) : items.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              {t('settings.sharedCollections.empty', { defaultValue: 'No shared collections yet.' })}
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {items.map((collection) => (
+                <div key={collection.id} className="flex items-center justify-between border rounded-lg p-3">
+                  <div>
+                    <p className="font-medium text-sm">{collection.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {collection.description || t('settings.sharedCollections.noDescription', { defaultValue: 'No description' })}
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => onDelete(collection.id)}
+                  >
+                    <Trash2 className="w-4 h-4 text-destructive" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog
+        open={masterPasswordDialogOpen}
+        onOpenChange={(open) => {
+          setMasterPasswordDialogOpen(open);
+          if (!open) {
+            setMasterPassword('');
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {t('settings.sharedCollections.masterPasswordTitle', {
+                defaultValue: 'Confirm master password',
+              })}
+            </DialogTitle>
+            <DialogDescription>
+              {t('settings.sharedCollections.masterPasswordDescription', {
+                defaultValue: 'To create your first shared collection, we need to provision hybrid key material for your account.',
+              })}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-2 py-2">
+            <Label htmlFor="shared-collections-master-password">
+              {t('auth.masterPassword.password', { defaultValue: 'Master Password' })}
+            </Label>
+            <Input
+              id="shared-collections-master-password"
+              type="password"
+              value={masterPassword}
+              onChange={(event) => setMasterPassword(event.target.value)}
+              placeholder={t('settings.sharedCollections.masterPasswordPlaceholder', {
+                defaultValue: 'Enter your master password',
+              })}
+            />
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setMasterPasswordDialogOpen(false);
+                setMasterPassword('');
+              }}
+            >
+              {t('common.cancel')}
+            </Button>
+            <Button type="button" onClick={onConfirmMasterPassword} disabled={saving || !masterPassword}>
+              {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {t('common.confirm', { defaultValue: 'Confirm' })}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+
+  if (bypassFeatureGate) {
+    return content;
+  }
+
   return (
     <FeatureGate feature="shared_collections" featureLabel={t('subscription.features.shared_collections')}>
-      <>
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FolderOpen className="w-5 h-5" />
-              {t('settings.sharedCollections.title', { defaultValue: 'Shared Collections' })}
-            </CardTitle>
-            <CardDescription>
-              {t('settings.sharedCollections.description', { defaultValue: 'Create collections for sharing vault items with family members.' })}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex gap-2">
-              <Input
-                placeholder={t('settings.sharedCollections.namePlaceholder', { defaultValue: 'Collection name' })}
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-              />
-              <Button type="button" onClick={onCreate} disabled={saving || !name.trim()}>
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-              </Button>
-            </div>
-
-            {loading ? (
-              <div className="flex justify-center py-4"><Loader2 className="w-5 h-5 animate-spin" /></div>
-            ) : items.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                {t('settings.sharedCollections.empty', { defaultValue: 'No shared collections yet.' })}
-              </p>
-            ) : (
-              <div className="space-y-2">
-                {items.map((collection) => (
-                  <div key={collection.id} className="flex items-center justify-between border rounded-lg p-3">
-                    <div>
-                      <p className="font-medium text-sm">{collection.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {collection.description || t('settings.sharedCollections.noDescription', { defaultValue: 'No description' })}
-                      </p>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => onDelete(collection.id)}
-                    >
-                      <Trash2 className="w-4 h-4 text-destructive" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Dialog
-          open={masterPasswordDialogOpen}
-          onOpenChange={(open) => {
-            setMasterPasswordDialogOpen(open);
-            if (!open) {
-              setMasterPassword('');
-            }
-          }}
-        >
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>
-                {t('settings.sharedCollections.masterPasswordTitle', {
-                  defaultValue: 'Confirm master password',
-                })}
-              </DialogTitle>
-              <DialogDescription>
-                {t('settings.sharedCollections.masterPasswordDescription', {
-                  defaultValue: 'To create your first shared collection, we need to provision hybrid key material for your account.',
-                })}
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="grid gap-2 py-2">
-              <Label htmlFor="shared-collections-master-password">
-                {t('auth.masterPassword.password', { defaultValue: 'Master Password' })}
-              </Label>
-              <Input
-                id="shared-collections-master-password"
-                type="password"
-                value={masterPassword}
-                onChange={(event) => setMasterPassword(event.target.value)}
-                placeholder={t('settings.sharedCollections.masterPasswordPlaceholder', {
-                  defaultValue: 'Enter your master password',
-                })}
-              />
-            </div>
-
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setMasterPasswordDialogOpen(false);
-                  setMasterPassword('');
-                }}
-              >
-                {t('common.cancel')}
-              </Button>
-              <Button type="button" onClick={onConfirmMasterPassword} disabled={saving || !masterPassword}>
-                {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                {t('common.confirm', { defaultValue: 'Confirm' })}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </>
+      {content}
     </FeatureGate>
   );
 }

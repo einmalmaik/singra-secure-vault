@@ -26,7 +26,6 @@ import { SharedCollectionsSettings } from '@/components/settings/SharedCollectio
 
 import { useAuth } from '@/contexts/AuthContext';
 import { useVault } from '@/contexts/VaultContext';
-import { useFeatureGate } from '@/hooks/useFeatureGate';
 import { getTeamAccess } from '@/services/adminService';
 
 type SettingsSection = {
@@ -43,12 +42,10 @@ export default function SettingsPage() {
     const navigate = useNavigate();
     const { user, loading } = useAuth();
     const { isLocked } = useVault();
-    const emergencyGate = useFeatureGate('emergency_access');
-    const familyGate = useFeatureGate('family_members');
-    const sharedCollectionsGate = useFeatureGate('shared_collections');
 
     const [searchQuery, setSearchQuery] = useState('');
     const [showAdminButton, setShowAdminButton] = useState(false);
+    const [isAdminUser, setIsAdminUser] = useState(false);
 
     useEffect(() => {
         if (!loading && !user) {
@@ -69,6 +66,7 @@ export default function SettingsPage() {
             if (!user) {
                 if (!isCancelled) {
                     setShowAdminButton(false);
+                    setIsAdminUser(false);
                 }
                 return;
             }
@@ -80,9 +78,11 @@ export default function SettingsPage() {
 
             if (error || !access) {
                 setShowAdminButton(false);
+                setIsAdminUser(false);
                 return;
             }
 
+            setIsAdminUser(access.is_admin);
             setShowAdminButton(access.is_admin && access.can_access_admin);
         };
 
@@ -128,48 +128,41 @@ export default function SettingsPage() {
             {
                 id: 'emergency',
                 component: <EmergencyAccessSettings />,
-                title: t('emergencyAccess.title'),
+                title: t('emergency.title'),
                 keywords: ['emergency', 'notfall', 'trustee', 'recovery', 'wiederherstellung', 'zugriff'],
                 premium: true,
             },
             {
                 id: 'family',
-                component: <FamilyOrganizationSettings />,
+                component: <FamilyOrganizationSettings bypassFeatureGate={isAdminUser} />,
                 title: t('settings.family.title'),
                 keywords: ['family', 'familie', 'organization', 'members', 'mitglieder', 'invite', 'einladen'],
                 families: true,
             },
             {
                 id: 'shared-collections',
-                component: <SharedCollectionsSettings />,
+                component: <SharedCollectionsSettings bypassFeatureGate={isAdminUser} />,
                 title: t('settings.sharedCollections.title'),
                 keywords: ['shared', 'collections', 'geteilt', 'sammlungen', 'share', 'teilen'],
                 families: true,
             },
         ],
-        [t],
+        [isAdminUser, t],
     );
 
     const filteredSections = useMemo(() => {
         const query = searchQuery.toLowerCase().trim();
         if (!query) {
-            return sections.filter((section) => {
-                if (section.premium && !emergencyGate.allowed) return false;
-                if (section.families && !familyGate.allowed) return false;
-                return true;
-            });
+            return sections;
         }
 
         return sections.filter((section) => {
-            if (section.premium && !emergencyGate.allowed) return false;
-            if (section.families && !familyGate.allowed) return false;
-
             const titleMatch = section.title.toLowerCase().includes(query);
             const keywordMatch = section.keywords.some((kw) => kw.toLowerCase().includes(query));
 
             return titleMatch || keywordMatch;
         });
-    }, [searchQuery, sections, emergencyGate.allowed, familyGate.allowed]);
+    }, [searchQuery, sections]);
 
     if (loading) {
         return (

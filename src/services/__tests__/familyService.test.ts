@@ -39,6 +39,10 @@ const mockSupabase = vi.hoisted(() => {
         data: { session: { access_token: "test-token" } },
         error: null,
       }),
+      refreshSession: vi.fn().mockResolvedValue({
+        data: { session: { access_token: "test-token", user: { id: "user-123" } } },
+        error: null,
+      }),
     },
     functions: { invoke: vi.fn() },
     storage: { from: vi.fn() },
@@ -49,6 +53,10 @@ const mockSupabase = vi.hoisted(() => {
 });
 
 vi.mock("@/integrations/supabase/client", () => ({ supabase: mockSupabase }));
+const mockInvokeAuthedFunction = vi.hoisted(() => vi.fn());
+vi.mock("@/services/edgeFunctionService", () => ({
+  invokeAuthedFunction: mockInvokeAuthedFunction,
+}));
 
 // ---------------------------------------------------------------------------
 // Import after mocks
@@ -72,6 +80,7 @@ import {
 beforeEach(() => {
   vi.clearAllMocks();
   mockSupabase._reset();
+  mockInvokeAuthedFunction.mockReset();
 });
 
 describe("getFamilyMembers()", () => {
@@ -105,23 +114,22 @@ describe("getFamilyMembers()", () => {
 
 describe("inviteFamilyMember()", () => {
   it("invokes edge function with email", async () => {
-    mockSupabase.functions.invoke.mockResolvedValue({ data: null, error: null });
+    mockInvokeAuthedFunction.mockResolvedValue(undefined);
 
     await inviteFamilyMember("user-1", "invite@example.com");
-    expect(mockSupabase.functions.invoke).toHaveBeenCalledWith("invite-family-member", {
-      body: { email: "invite@example.com" },
-      headers: { Authorization: "Bearer test-token" },
+    expect(mockInvokeAuthedFunction).toHaveBeenCalledWith("invite-family-member", {
+      email: "invite@example.com",
     });
   });
 
   it("throws on edge function error", async () => {
-    mockSupabase.functions.invoke.mockResolvedValue({ data: null, error: { message: "Invalid email" } });
+    mockInvokeAuthedFunction.mockRejectedValue(new Error("Invalid email"));
 
     await expect(inviteFamilyMember("user-1", "bad")).rejects.toMatchObject({ message: "Invalid email" });
   });
 
   it("throws when session token is missing", async () => {
-    mockSupabase.auth.getSession.mockResolvedValueOnce({ data: { session: null }, error: null });
+    mockInvokeAuthedFunction.mockRejectedValue(new Error("Authentication required"));
 
     await expect(inviteFamilyMember("user-1", "invite@example.com")).rejects.toMatchObject({
       message: "Authentication required",

@@ -256,8 +256,14 @@ export async function decryptVaultItem(
  * @returns Base64-encoded verification hash
  */
 export async function createVerificationHash(key: CryptoKey): Promise<string> {
-    const verificationData = 'SINGRA_PW_VERIFICATION';
-    return encrypt(verificationData, key);
+    const challengeBytes = crypto.getRandomValues(new Uint8Array(32));
+    try {
+        const challenge = uint8ArrayToBase64(challengeBytes);
+        const encryptedChallenge = await encrypt(challenge, key);
+        return `v2:${challenge}:${encryptedChallenge}`;
+    } finally {
+        challengeBytes.fill(0);
+    }
 }
 
 /**
@@ -272,6 +278,17 @@ export async function verifyKey(
     key: CryptoKey
 ): Promise<boolean> {
     try {
+        if (verificationHash.startsWith('v2:')) {
+            const parts = verificationHash.split(':');
+            if (parts.length !== 3) {
+                return false;
+            }
+
+            const [, challenge, encryptedChallenge] = parts;
+            const decrypted = await decrypt(encryptedChallenge, key);
+            return decrypted === challenge;
+        }
+
         const decrypted = await decrypt(verificationHash, key);
         return decrypted === 'SINGRA_PW_VERIFICATION';
     } catch {
@@ -667,6 +684,7 @@ export async function decryptRSA(
  * 
  * @param masterPassword - User's master password
  * @returns Object with public key (JWK) and encrypted private key
+ *          in `kdfVersion:salt:encryptedData` format
  */
 export async function generateUserKeyPair(masterPassword: string): Promise<{
     publicKey: string;
@@ -695,11 +713,13 @@ export async function generateUserKeyPair(masterPassword: string): Promise<{
     // 4. Encrypt Private Key with Master Password
     // Generate a temporary salt for this encryption
     const salt = generateSalt();
-    const key = await deriveKey(masterPassword, salt);
+    const kdfVersion = CURRENT_KDF_VERSION;
+    const key = await deriveKey(masterPassword, salt, kdfVersion);
     const encryptedPrivateKey = await encrypt(privateKey, key);
     
-    // Store salt with encrypted key (format: salt:encryptedData)
-    const encryptedPrivateKeyWithSalt = `${salt}:${encryptedPrivateKey}`;
+    // Store KDF version with encrypted key (format: kdfVersion:salt:encryptedData).
+    // Legacy records may still be salt:encryptedData and remain supported in unwrapKey().
+    const encryptedPrivateKeyWithSalt = `${kdfVersion}:${salt}:${encryptedPrivateKey}`;
     
     return { publicKey, encryptedPrivateKey: encryptedPrivateKeyWithSalt };
 }
@@ -754,7 +774,8 @@ export async function wrapKey(sharedKey: string, publicKey: string): Promise<str
  * Unwraps (decrypts) a shared key with a user's private key
  * 
  * @param wrappedKey - Base64-encoded wrapped key
- * @param encryptedPrivateKey - Encrypted private key (format: salt:encryptedData)
+ * @param encryptedPrivateKey - Encrypted private key
+ *                              (legacy `salt:encryptedData` or current `kdfVersion:salt:encryptedData`)
  * @param masterPassword - User's master password
  * @returns JWK string of the shared AES key
  * @throws Error if decryption fails (wrong password or corrupted key)
@@ -765,12 +786,32 @@ export async function unwrapKey(
     masterPassword: string
 ): Promise<string> {
     // 1. Decrypt Private Key
-    const [salt, encryptedData] = encryptedPrivateKey.split(':');
+    const parts = encryptedPrivateKey.split(':');
+    let kdfVersion = 1;
+    let salt: string | null = null;
+    let encryptedData: string | null = null;
+
+    if (parts.length === 2) {
+        // Legacy format: salt:encryptedData (implicitly KDF v1)
+        salt = parts[0];
+        encryptedData = parts[1];
+    } else if (parts.length === 3) {
+        // Current format: kdfVersion:salt:encryptedData
+        const parsedVersion = Number.parseInt(parts[0], 10);
+        if (!Number.isInteger(parsedVersion) || parsedVersion < 1) {
+            throw new Error('Invalid encrypted private key KDF version');
+        }
+
+        kdfVersion = parsedVersion;
+        salt = parts[1];
+        encryptedData = parts[2];
+    }
+
     if (!salt || !encryptedData) {
         throw new Error('Invalid encrypted private key format');
     }
     
-    const key = await deriveKey(masterPassword, salt);
+    const key = await deriveKey(masterPassword, salt, kdfVersion);
     const privateKey = await decrypt(encryptedData, key);
     
     // 2. Import Private Key

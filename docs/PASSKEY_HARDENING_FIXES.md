@@ -13,6 +13,7 @@ This update hardens the passkey unlock implementation to avoid inconsistent PRF 
 - Updated passkey PRF activation to persist both:
   - `wrapped_master_key`
   - `prf_enabled = true`
+  - via a server-side WebAuthn action (`activate-prf`) after assertion verification
 - Hardened registration persistence in the WebAuthn Edge Function:
   - `prf_enabled` is now only stored as `true` when a wrapped key is present.
 

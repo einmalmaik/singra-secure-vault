@@ -1,6 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-import { corsHeaders } from "../_shared/cors.ts";
+import { getCorsHeaders } from "../_shared/cors.ts";
 
 const FUNCTION_NAME = "invite-family-member";
 
@@ -33,6 +33,7 @@ async function sendResendMail(to: string, subject: string, html: string) {
 Deno.serve(async (req: Request) => {
   let actorUserId: string | null = null;
   let inviteEmail: string | null = null;
+  const corsHeaders = getCorsHeaders(req);
 
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders });
   if (req.method !== "POST") {
@@ -52,15 +53,20 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    const accessToken = extractBearerToken(authHeader);
+    if (!accessToken) {
+      return new Response(JSON.stringify({ error: "Missing bearer token" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseAnon = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabaseService = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    const client = createClient(supabaseUrl, supabaseAnon, {
-      global: { headers: { Authorization: authHeader } },
-    });
+    const admin = createClient(supabaseUrl, supabaseService);
 
-    const { data: { user }, error: authError } = await client.auth.getUser();
+    const { data: { user }, error: authError } = await admin.auth.getUser(accessToken);
     if (authError || !user) {
       console.warn(`${FUNCTION_NAME}: unauthorized_user`, {
         authError: authError?.message || null,
@@ -84,31 +90,43 @@ Deno.serve(async (req: Request) => {
     }
     inviteEmail = email.trim().toLowerCase();
 
-    const admin = createClient(supabaseUrl, supabaseService);
+    const { data: isAdminRole, error: isAdminRoleError } = await admin.rpc("has_role", {
+      _user_id: user.id,
+      _role: "admin",
+    });
+
+    if (isAdminRoleError) {
+      console.warn(`${FUNCTION_NAME}: has_role_check_failed`, {
+        actorUserId,
+        dbError: isAdminRoleError.message,
+      });
+    }
 
     // =====================================================
     // VALIDATION 1: Check subscription tier
     // =====================================================
-    const { data: subscription } = await admin
-      .from("subscriptions")
-      .select("tier")
-      .eq("user_id", user.id)
-      .eq("status", "active")
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .single();
+    if (isAdminRole !== true) {
+      const { data: subscription } = await admin
+        .from("subscriptions")
+        .select("tier")
+        .eq("user_id", user.id)
+        .eq("status", "active")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single();
 
-    if (!subscription || subscription.tier !== "families") {
-      console.warn(`${FUNCTION_NAME}: families_tier_required`, {
-        actorUserId,
-      });
-      return new Response(
-        JSON.stringify({ error: "Families subscription required" }),
-        {
-          status: 403,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
+      if (!subscription || subscription.tier !== "families") {
+        console.warn(`${FUNCTION_NAME}: families_tier_required`, {
+          actorUserId,
+        });
+        return new Response(
+          JSON.stringify({ error: "Families subscription required" }),
+          {
+            status: 403,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
     }
 
     // =====================================================
@@ -118,17 +136,42 @@ Deno.serve(async (req: Request) => {
       .from("family_members")
       .select("*", { count: "exact", head: true })
       .eq("family_owner_id", user.id)
-      .eq("status", "active");
+      .in("status", ["active", "invited"]);
 
-    if (memberCount !== null && memberCount >= 6) {
+    // Bug-Fix: memberCount kann null sein → null >= 6 wäre false → Limit umgehbar
+    if ((memberCount ?? 0) >= 6) {
       console.warn(`${FUNCTION_NAME}: family_limit_reached`, {
         actorUserId,
         memberCount,
       });
       return new Response(
-        JSON.stringify({ error: "Maximum family size reached (6 members)" }),
+        JSON.stringify({ error: "Maximale Familiengröße erreicht (6 Mitglieder)" }),
         {
           status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    // Verhindere Doppeleinladung derselben E-Mail-Adresse
+    const { data: existingMember } = await admin
+      .from("family_members")
+      .select("id, status")
+      .eq("family_owner_id", user.id)
+      .eq("member_email", inviteEmail)
+      .in("status", ["invited", "active"])
+      .maybeSingle();
+
+    if (existingMember) {
+      console.warn(`${FUNCTION_NAME}: duplicate_invite`, {
+        actorUserId,
+        inviteEmail,
+        existingStatus: existingMember.status,
+      });
+      return new Response(
+        JSON.stringify({ error: "Diese E-Mail-Adresse ist bereits eingeladen oder aktives Mitglied" }),
+        {
+          status: 409,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         }
       );
@@ -186,3 +229,12 @@ Deno.serve(async (req: Request) => {
     });
   }
 });
+
+function extractBearerToken(authHeader: string): string | null {
+  if (!authHeader.toLowerCase().startsWith("bearer ")) {
+    return null;
+  }
+
+  const token = authHeader.slice("bearer ".length).trim();
+  return token.length > 0 ? token : null;
+}

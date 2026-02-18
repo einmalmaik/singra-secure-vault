@@ -889,8 +889,10 @@ export function VaultProvider({ children }: VaultProviderProps) {
      * The PRF output is used to unwrap the stored encryption key.
      */
     const unlockWithPasskey = useCallback(async (): Promise<{ error: Error | null }> => {
+        // Explicitly check for user to prevent "Authentication required" edge function errors
         if (!user) {
-            return { error: new Error('No user logged in') };
+            console.warn('unlockWithPasskey called without active user session');
+            return { error: new Error('User session not ready. Please wait a moment.') };
         }
 
         const cooldown = getUnlockCooldown();

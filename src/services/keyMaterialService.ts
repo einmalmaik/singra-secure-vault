@@ -13,6 +13,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import {
+    CURRENT_KDF_VERSION,
     deriveKey,
     encrypt,
     generateSalt,
@@ -181,14 +182,15 @@ export async function ensureUserPqKeyMaterial(
 
     const pqKeys = generatePQKeyPair();
     const salt = generateSalt();
-    const key = await deriveKey(masterPassword, salt);
+    const kdfVersion = CURRENT_KDF_VERSION;
+    const key = await deriveKey(masterPassword, salt, kdfVersion);
     const encryptedPrivateKey = await encrypt(pqKeys.secretKey, key);
     const needsEnforcedAt = !profileRow?.pq_enforced_at;
 
     const profilePayload = {
         user_id: userId,
         pq_public_key: pqKeys.publicKey,
-        pq_encrypted_private_key: `${salt}:${encryptedPrivateKey}`,
+        pq_encrypted_private_key: `${kdfVersion}:${salt}:${encryptedPrivateKey}`,
         pq_key_version: 1,
         security_standard_version: SECURITY_STANDARD_VERSION,
         pq_enforced_at: profileRow?.pq_enforced_at ?? nowIso,

@@ -73,22 +73,17 @@ export async function deriveRawKey(
     const salt = base64ToUint8Array(saltBase64);
 
     // Derive raw key bytes using Argon2id via hash-wasm
-    const hashHex = await argon2id({
+    const hashBytes = await argon2id({
         password: masterPassword,
         salt: salt,
         parallelism: params.parallelism,
         iterations: params.iterations,
         memorySize: params.memory,
         hashLength: params.hashLength,
-        outputType: 'hex',
+        outputType: 'binary',
     });
 
-    // Convert hex to bytes
-    const keyBytes = new Uint8Array(hashHex.length / 2);
-    for (let i = 0; i < keyBytes.length; i++) {
-        keyBytes[i] = parseInt(hashHex.substr(i * 2, 2), 16);
-    }
-    return keyBytes;
+    return hashBytes;
 }
 
 /**
@@ -896,9 +891,10 @@ export async function decryptWithSharedKey(
  */
 async function encryptWithPassword(plaintext: string, password: string): Promise<string> {
     const salt = generateSalt();
-    const key = await deriveKey(password, salt);
+    const kdfVersion = CURRENT_KDF_VERSION;
+    const key = await deriveKey(password, salt, kdfVersion);
     const encrypted = await encrypt(plaintext, key);
-    return `${salt}:${encrypted}`;
+    return `${kdfVersion}:${salt}:${encrypted}`;
 }
 
 /**
@@ -909,11 +905,24 @@ async function encryptWithPassword(plaintext: string, password: string): Promise
  * @returns Decrypted plaintext
  */
 async function decryptWithPassword(encryptedData: string, password: string): Promise<string> {
-    const [salt, encrypted] = encryptedData.split(':');
+    const parts = encryptedData.split(':');
+    let kdfVersion = 1;
+    let salt: string | null = null;
+    let encrypted: string | null = null;
+
+    if (parts.length === 2) {
+        salt = parts[0];
+        encrypted = parts[1];
+    } else if (parts.length === 3) {
+        kdfVersion = parseInt(parts[0], 10);
+        salt = parts[1];
+        encrypted = parts[2];
+    }
+
     if (!salt || !encrypted) {
         throw new Error('Invalid encrypted data format');
     }
     
-    const key = await deriveKey(password, salt);
+    const key = await deriveKey(password, salt, kdfVersion);
     return decrypt(encrypted, key);
 }

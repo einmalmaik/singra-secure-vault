@@ -221,15 +221,20 @@ export async function attemptDualUnlock(
     duressConfig: DuressConfig | null,
 ): Promise<DuressUnlockResult> {
     try {
-        // Always derive the real key
+        // Always derive both keys in parallel to maintain constant timing.
+        // This prevents timing attacks that could reveal whether duress mode is enabled.
         const realKeyPromise = deriveKey(password, realSalt, realKdfVersion);
 
-        // If duress is enabled, derive duress key in parallel
-        const duressKeyPromise = duressConfig?.enabled && duressConfig.salt
-            ? deriveKey(password, duressConfig.salt, duressConfig.kdfVersion)
-            : Promise.resolve(null);
+        // If duress is disabled, we use a dummy salt and the same KDF version as the real key
+        // to ensure the computation takes the same amount of time.
+        const dummySalt = 'Y29uc3RhbnRfdGltaW5nX2R1bW15X3NhbHQ='; // base64 for "constant_timing_dummy_salt"
+        const duressKeyPromise = deriveKey(
+            password,
+            (duressConfig?.enabled && duressConfig.salt) ? duressConfig.salt : dummySalt,
+            (duressConfig?.enabled) ? duressConfig.kdfVersion : realKdfVersion,
+        );
 
-        // Wait for both derivations (parallel execution for constant time)
+        // Wait for both derivations
         const [realKey, duressKey] = await Promise.all([realKeyPromise, duressKeyPromise]);
 
         // Check real password first

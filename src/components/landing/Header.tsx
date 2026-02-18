@@ -9,9 +9,8 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
-import { Shield, Menu, X, Moon, Sun, Download, CreditCard } from 'lucide-react';
+import { Menu, X, Download, CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useTheme } from '@/contexts/ThemeProvider';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 
@@ -23,7 +22,6 @@ interface BeforeInstallPromptEvent extends Event {
 
 export function Header() {
   const { t } = useTranslation();
-  const { resolvedTheme, setTheme } = useTheme();
   const { user } = useAuth();
   const { billingDisabled } = useSubscription();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -68,17 +66,13 @@ export function Header() {
     }
   };
 
-  const toggleTheme = () => {
-    setTheme(resolvedTheme === 'dark' ? 'light' : 'dark');
-  };
-
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-lg">
       <div className="container px-4">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-3 decoration-0">
-            <img src="/singra-icon.png" alt="Singra PW" className="w-8 h-8 rounded-full shadow-lg shadow-primary/20" />
+            <img src="/singra-icon.png" alt="Singra PW" className="w-7 h-7 rounded-full shadow-lg shadow-primary/20 ring-1 ring-border/70" />
             <span className="text-xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/80">
               Singra PW
             </span>
@@ -105,15 +99,6 @@ export function Header() {
 
           {/* Actions */}
           <div className="flex items-center gap-2">
-            {/* Theme Toggle */}
-            <Button variant="ghost" size="icon" onClick={toggleTheme} aria-label="Toggle theme">
-              {resolvedTheme === 'dark' ? (
-                <Sun className="w-5 h-5" />
-              ) : (
-                <Moon className="w-5 h-5" />
-              )}
-            </Button>
-
             {/* PWA Install Button */}
             {isInstallable && (
               <Button

@@ -8,7 +8,7 @@
 
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
-import { Shield, Github, Globe } from 'lucide-react';
+import { Github, Globe } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -29,7 +29,7 @@ export function Footer() {
           {/* Brand */}
           <div className="md:col-span-2">
             <Link to="/" className="flex items-center gap-2 mb-4">
-              <Shield className="w-6 h-6 text-primary" />
+              <img src="/singra-icon.png" alt="Singra PW" className="w-7 h-7 rounded-full ring-1 ring-border/70 shadow-sm shadow-primary/20" />
               <span className="text-xl font-bold">Singra PW</span>
             </Link>
             <p className="text-muted-foreground mb-4 max-w-sm">

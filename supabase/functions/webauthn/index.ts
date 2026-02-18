@@ -63,27 +63,38 @@ Deno.serve(async (req: Request) => {
     }
 
     try {
+        console.log("WebAuthn function called. Method:", req.method);
+
         // 1. Authenticate user via Supabase JWT
         const authHeader = req.headers.get("Authorization");
+        console.log("Auth header provided:", !!authHeader, authHeader ? `(Length: ${authHeader.length})` : "");
+
         if (!authHeader) {
+            console.log("Missing authorization header");
             return jsonResponse({ error: "Missing authorization header" }, 401, corsHeaders);
+        }
+
+        const accessToken = extractBearerToken(authHeader);
+        if (!accessToken) {
+            return jsonResponse({ error: "Missing bearer token" }, 401, corsHeaders);
         }
 
         const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
         const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-        // User-scoped client (respects RLS)
-        const supabaseUser = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
-            global: { headers: { Authorization: authHeader } },
-        });
-
-        const { data: { user }, error: authError } = await supabaseUser.auth.getUser();
-        if (authError || !user) {
-            return jsonResponse({ error: "Unauthorized" }, 401, corsHeaders);
-        }
-
         // Admin client (bypasses RLS for challenge management)
         const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+
+        const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(accessToken);
+
+        if (authError || !user) {
+            console.log("Auth failed in Edge Function:", authError);
+            if (authError) console.log("Auth error message:", authError.message);
+            console.log("User object:", user);
+            return jsonResponse({ error: "Unauthorized", details: authError?.message }, 401, corsHeaders);
+        }
+
+        console.log("User authenticated successfully:", user.id);
 
         // 2. Parse action
         const body = await req.json();
@@ -105,10 +116,10 @@ Deno.serve(async (req: Request) => {
                 return await handleVerifyAuthentication(user, rp, supabaseAdmin, body, corsHeaders);
 
             case "list-credentials":
-                return await handleListCredentials(user, supabaseUser, corsHeaders);
+                return await handleListCredentials(user, supabaseAdmin, corsHeaders);
 
             case "delete-credential":
-                return await handleDeleteCredential(user, supabaseUser, body, corsHeaders);
+                return await handleDeleteCredential(user, supabaseAdmin, body, corsHeaders);
 
             default:
                 return jsonResponse({ error: `Unknown action: ${action}` }, 400, corsHeaders);
@@ -248,6 +259,9 @@ async function handleVerifyRegistration(
 
         if (insertError) {
             console.error("Failed to store credential:", insertError);
+            if (insertError.code === "23505") { // Unique violation
+                return jsonResponse({ error: "Passkey already registered on this device" }, 409, corsHeaders);
+            }
             return jsonResponse({ error: "Failed to store credential" }, 500, corsHeaders);
         }
 
@@ -489,4 +503,13 @@ function jsonResponse(data: unknown, status = 200, corsHeaders: Record<string, s
         status,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
+}
+
+function extractBearerToken(authHeader: string): string | null {
+    if (!authHeader.toLowerCase().startsWith("bearer ")) {
+        return null;
+    }
+
+    const token = authHeader.slice("bearer ".length).trim();
+    return token.length > 0 ? token : null;
 }

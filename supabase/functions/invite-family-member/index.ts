@@ -52,15 +52,20 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    const accessToken = extractBearerToken(authHeader);
+    if (!accessToken) {
+      return new Response(JSON.stringify({ error: "Missing bearer token" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseAnon = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabaseService = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    const client = createClient(supabaseUrl, supabaseAnon, {
-      global: { headers: { Authorization: authHeader } },
-    });
+    const admin = createClient(supabaseUrl, supabaseService);
 
-    const { data: { user }, error: authError } = await client.auth.getUser();
+    const { data: { user }, error: authError } = await admin.auth.getUser(accessToken);
     if (authError || !user) {
       console.warn(`${FUNCTION_NAME}: unauthorized_user`, {
         authError: authError?.message || null,
@@ -83,8 +88,6 @@ Deno.serve(async (req: Request) => {
       });
     }
     inviteEmail = email.trim().toLowerCase();
-
-    const admin = createClient(supabaseUrl, supabaseService);
 
     // =====================================================
     // VALIDATION 1: Check subscription tier
@@ -211,3 +214,12 @@ Deno.serve(async (req: Request) => {
     });
   }
 });
+
+function extractBearerToken(authHeader: string): string | null {
+  if (!authHeader.toLowerCase().startsWith("bearer ")) {
+    return null;
+  }
+
+  const token = authHeader.slice("bearer ".length).trim();
+  return token.length > 0 ? token : null;
+}

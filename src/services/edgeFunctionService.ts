@@ -31,18 +31,36 @@ export async function invokeAuthedFunction<
         throw createEdgeFunctionError('Authentication required', 'AUTH_REQUIRED', 401);
     }
 
-    const { data, error } = await supabase.functions.invoke(functionName, {
-        body: body || {},
-        headers: {
-            Authorization: `Bearer ${accessToken}`,
-        },
-    });
-
-    if (error) {
-        throw await normalizeFunctionError(error);
+    const config = getSupabaseFunctionConfig();
+    if (!config) {
+        throw createEdgeFunctionError(
+            'Supabase configuration missing',
+            'UNKNOWN',
+            500,
+            {
+                hasUrl: Boolean(import.meta.env.VITE_SUPABASE_URL),
+                hasPublishableKey: Boolean(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY),
+            },
+        );
     }
 
-    return data as TResponse;
+    const endpoint = `${config.url}/functions/v1/${functionName}`;
+    const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            apikey: config.publishableKey,
+            Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify(body || {}),
+    });
+
+    if (!response.ok) {
+        throw await normalizeHttpResponseError(response);
+    }
+
+    const payload = await readResponsePayload(response);
+    return (payload || null) as TResponse;
 }
 
 /**
@@ -182,18 +200,10 @@ function decodeJwtPayload(token: string): Record<string, unknown> | null {
     }
 }
 
-async function normalizeFunctionError(error: unknown): Promise<EdgeFunctionServiceError> {
-    const fallbackMessage = extractErrorMessage(error) || 'Edge function request failed';
-
-    const httpContext = getHttpErrorContext(error);
-    if (!httpContext) {
-        return createEdgeFunctionError(fallbackMessage, 'UNKNOWN');
-    }
-
-    const status = httpContext.status;
-    const payload = await readResponsePayload(httpContext);
+async function normalizeHttpResponseError(response: Response): Promise<EdgeFunctionServiceError> {
+    const payload = await readResponsePayload(response);
     const payloadMessage = extractPayloadMessage(payload);
-    const code = mapStatusToCode(status);
+    const code = mapStatusToCode(response.status);
 
     const message = code === 'AUTH_REQUIRED'
         ? 'Authentication required'
@@ -201,37 +211,14 @@ async function normalizeFunctionError(error: unknown): Promise<EdgeFunctionServi
             ? 'Forbidden'
             : code === 'SERVER_ERROR'
                 ? 'Internal server error'
-                : payloadMessage || fallbackMessage;
+                : payloadMessage || 'Edge function request failed';
 
-    return createEdgeFunctionError(message, code, status, payload || undefined);
-}
-
-function extractErrorMessage(error: unknown): string | null {
-    if (error instanceof Error && error.message.trim().length > 0) {
-        return error.message;
-    }
-
-    if (error && typeof error === 'object') {
-        const maybeMessage = (error as { message?: unknown }).message;
-        if (typeof maybeMessage === 'string' && maybeMessage.trim().length > 0) {
-            return maybeMessage;
-        }
-    }
-
-    return null;
-}
-
-function getHttpErrorContext(error: unknown): Response | null {
-    if (!error || typeof error !== 'object') {
-        return null;
-    }
-
-    const maybeContext = (error as { context?: unknown }).context;
-    if (typeof Response === 'undefined' || !(maybeContext instanceof Response)) {
-        return null;
-    }
-
-    return maybeContext;
+    return createEdgeFunctionError(
+        message,
+        code,
+        response.status,
+        payload || undefined,
+    );
 }
 
 async function readResponsePayload(response: Response): Promise<Record<string, unknown> | null> {
@@ -278,6 +265,17 @@ function mapStatusToCode(status?: number): EdgeFunctionErrorCode {
     if (status === 403) return 'FORBIDDEN';
     if (typeof status === 'number' && status >= 500) return 'SERVER_ERROR';
     return 'UNKNOWN';
+}
+
+function getSupabaseFunctionConfig(): { url: string; publishableKey: string } | null {
+    const url = import.meta.env.VITE_SUPABASE_URL;
+    const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+    if (!url || !publishableKey) {
+        return null;
+    }
+
+    return { url, publishableKey };
 }
 
 function createEdgeFunctionError(

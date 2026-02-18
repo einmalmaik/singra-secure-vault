@@ -22,12 +22,12 @@ import {
     verifyRegistrationResponse,
     generateAuthenticationOptions,
     verifyAuthenticationResponse,
-} from "jsr:@simplewebauthn/server";
-import { isoBase64URL } from "jsr:@simplewebauthn/server/helpers";
+} from "jsr:@simplewebauthn/server@13.2.2";
+import { isoBase64URL } from "jsr:@simplewebauthn/server@13.2.2/helpers";
 import type {
     RegistrationResponseJSON,
     AuthenticationResponseJSON,
-} from "jsr:@simplewebauthn/server";
+} from "jsr:@simplewebauthn/server@13.2.2";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { getCorsHeaders } from "../_shared/cors.ts";
 

@@ -3,7 +3,8 @@
 /**
  * @fileoverview Category Dialog Component
  * 
- * Modal for creating and editing categories with emoji or SVG icon support.
+ * Modal for creating and editing categories.
+ * SVG icon input is blocked for security hardening.
  */
 
 import { useState, useEffect } from 'react';
@@ -39,7 +40,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useVault } from '@/contexts/VaultContext';
 import { useToast } from '@/hooks/use-toast';
 import { CategoryIcon } from './CategoryIcon';
-import { sanitizeInlineSvg } from '@/lib/sanitizeSvg';
 import {
     buildCategoryRowFromInsert,
     buildVaultItemRowFromInsert,
@@ -83,6 +83,11 @@ interface CategoryDialogProps {
 const ENCRYPTED_CATEGORY_PREFIX = 'enc:cat:v1:';
 const ENCRYPTED_ITEM_TITLE_PLACEHOLDER = 'Encrypted Item';
 
+function isSvgPayload(value: string): boolean {
+    const trimmed = value.trim();
+    return trimmed.startsWith('<svg') || trimmed.startsWith('<?xml');
+}
+
 export function CategoryDialog({ open, onOpenChange, category, onSave }: CategoryDialogProps) {
     const { t } = useTranslation();
     const { toast } = useToast();
@@ -102,14 +107,11 @@ export function CategoryDialog({ open, onOpenChange, category, onSave }: Categor
     useEffect(() => {
         if (category) {
             setName(category.name);
-            setIcon(category.icon || '');
+            const categoryIcon = category.icon || '';
+            const legacySvgIcon = categoryIcon && isSvgPayload(categoryIcon);
+            setIcon(legacySvgIcon ? '' : categoryIcon);
             setColor(category.color || '#3b82f6');
-            // Detect icon type
-            if (category.icon?.trim().startsWith('<svg') || category.icon?.trim().startsWith('<?xml')) {
-                setIconType('svg');
-            } else {
-                setIconType('emoji');
-            }
+            setIconType('emoji');
         } else {
             setName('');
             setIcon('');
@@ -125,12 +127,16 @@ export function CategoryDialog({ open, onOpenChange, category, onSave }: Categor
         try {
             let normalizedIcon: string | null = icon.trim() || null;
 
-            if (iconType === 'svg' && normalizedIcon) {
-                normalizedIcon = sanitizeInlineSvg(normalizedIcon);
-                if (!normalizedIcon) {
-                    throw new Error('Invalid SVG icon');
-                }
-            } else if (iconType === 'emoji' && normalizedIcon) {
+            if ((iconType === 'svg' && normalizedIcon) || (normalizedIcon && isSvgPayload(normalizedIcon))) {
+                toast({
+                    variant: 'destructive',
+                    title: t('common.error'),
+                    description: t('categories.svgDisabled'),
+                });
+                return;
+            }
+
+            if (iconType === 'emoji' && normalizedIcon) {
                 normalizedIcon = normalizedIcon.replace(/[<>]/g, '').slice(0, 4);
             }
 

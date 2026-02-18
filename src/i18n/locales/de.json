@@ -971,6 +971,7 @@
     "icon": "Symbol",
     "emojiPlaceholder": "Emoji eingeben oder auswÃ¤hlen",
     "svgHint": "FÃ¼ge einen SVG-Code ein (max. 24x24px empfohlen)",
+    "svgDisabled": "SVG-Icons sind aus Sicherheitsgruenden deaktiviert.",
     "color": "Farbe",
     "preview": "Vorschau",
     "created": "Kategorie erstellt",
@@ -1282,3 +1283,4 @@
     "passkeyNote": "Integritätsprüfung ist für Passkey-Entsperrsitzungen nicht verfügbar."
   }
 }
+

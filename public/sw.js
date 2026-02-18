@@ -1,12 +1,14 @@
-const CACHE_NAME = 'singra-pwa-v1';
-const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/favicon.ico', '/singra-icon.png'];
+const CACHE_VERSION = 'v2';
+const CACHE_PREFIX = 'singra-pwa-';
+const CACHE_NAME = `${CACHE_PREFIX}${CACHE_VERSION}`;
+const OFFLINE_URL = '/offline.html';
+const APP_SHELL = [OFFLINE_URL, '/manifest.webmanifest', '/favicon.ico', '/singra-icon.png'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches
       .open(CACHE_NAME)
-      .then((cache) => cache.addAll(APP_SHELL))
-      .then(() => self.skipWaiting()),
+      .then((cache) => cache.addAll(APP_SHELL)),
   );
 });
 
@@ -17,7 +19,7 @@ self.addEventListener('activate', (event) => {
       .then((keys) =>
         Promise.all(
           keys
-            .filter((key) => key !== CACHE_NAME)
+            .filter((key) => key.startsWith(CACHE_PREFIX) && key !== CACHE_NAME)
             .map((key) => caches.delete(key)),
         ),
       )
@@ -27,27 +29,28 @@ self.addEventListener('activate', (event) => {
 
 async function networkFirstNavigation(request) {
   try {
-    const response = await fetch(request);
-    const cache = await caches.open(CACHE_NAME);
-    cache.put('/index.html', response.clone());
-    return response;
+    return await fetch(request);
   } catch {
-    const cached = await caches.match('/index.html');
-    return cached || new Response('Offline', { status: 503, statusText: 'Offline' });
+    const cachedOffline = await caches.match(OFFLINE_URL);
+    return cachedOffline || new Response('Offline', { status: 503, statusText: 'Offline' });
   }
 }
 
-async function staleWhileRevalidate(request) {
+function isCacheableAsset(pathname) {
+  return pathname.startsWith('/assets/');
+}
+
+async function staleWhileRevalidateAsset(request) {
   const cache = await caches.open(CACHE_NAME);
   const cached = await cache.match(request);
   const fetchPromise = fetch(request)
     .then((response) => {
-      if (response && response.status === 200) {
+      if (response && response.status === 200 && response.type === 'basic') {
         cache.put(request, response.clone());
       }
       return response;
     })
-    .catch(() => undefined);
+    .catch(() => null);
 
   if (cached) {
     return cached;
@@ -68,12 +71,19 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  event.respondWith(staleWhileRevalidate(request));
+  if (isCacheableAsset(url.pathname)) {
+    event.respondWith(staleWhileRevalidateAsset(request));
+  }
 });
 
 // ============ Support Reply Notifications ============
 
 self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+    return;
+  }
+
   if (event.data && event.data.type === 'SUPPORT_REPLY_NOTIFICATION') {
     const { title, body, url } = event.data;
     self.registration.showNotification(title || 'Singra PW Support', {

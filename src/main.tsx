@@ -6,9 +6,27 @@ import "./index.css";
 
 if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch((err) => {
-      console.error('Service worker registration failed:', err);
-    });
+    navigator.serviceWorker
+      .register('/sw.js')
+      .then((registration) => {
+        registration.update().catch(() => undefined);
+
+        registration.addEventListener('updatefound', () => {
+          const installing = registration.installing;
+          if (!installing) {
+            return;
+          }
+
+          installing.addEventListener('statechange', () => {
+            if (installing.state === 'installed' && navigator.serviceWorker.controller) {
+              console.info('A new service worker version is waiting to activate.');
+            }
+          });
+        });
+      })
+      .catch((err) => {
+        console.error('Service worker registration failed:', err);
+      });
   });
 }
 

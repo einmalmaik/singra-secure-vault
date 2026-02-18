@@ -60,7 +60,7 @@ Deno.serve(async (req: Request) => {
         const stripe = new Stripe(stripeApiKey, { apiVersion: "2024-12-18.acacia" });
         const portalSession = await stripe.billingPortal.sessions.create({
             customer: subscription.stripe_customer_id,
-            return_url: `${req.headers.get("origin") || Deno.env.get("SITE_URL") || "http://localhost:8080"}/settings`,
+            return_url: `${req.headers.get("origin") || Deno.env.get("SITE_URL") || "https://singrapw.mauntingstudios.de"}/settings`,
         });
 
         return new Response(

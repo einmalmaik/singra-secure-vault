@@ -37,16 +37,16 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 /**
  * Relying Party configuration.
  * rpID must match the domain the user is on.
- * In production this is "singra.pw", in dev "localhost".
+ * In production this is "singrapw.mauntingstudios.de".
  */
 function getRpConfig(req: Request): { rpName: string; rpID: string; origin: string } {
-    const rawOrigin = req.headers.get("origin") || Deno.env.get("SITE_URL") || "http://localhost:8080";
+    const rawOrigin = req.headers.get("origin") || Deno.env.get("SITE_URL") || "https://singrapw.mauntingstudios.de";
     let url: URL;
 
     try {
         url = new URL(rawOrigin);
     } catch {
-        url = new URL("http://localhost:8080");
+        url = new URL("https://singrapw.mauntingstudios.de");
     }
 
     return {

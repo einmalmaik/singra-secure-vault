@@ -125,8 +125,8 @@ Deno.serve(async (req: Request) => {
             customer: stripeCustomerId,
             mode: "subscription",
             line_items: [{ price: planInfo.priceId, quantity: 1 }],
-            success_url: `${req.headers.get("origin") || Deno.env.get("SITE_URL") || "http://localhost:8080"}/settings?checkout=success`,
-            cancel_url: `${req.headers.get("origin") || Deno.env.get("SITE_URL") || "http://localhost:8080"}/pricing?checkout=cancel`,
+            success_url: `${req.headers.get("origin") || Deno.env.get("SITE_URL") || "https://singrapw.mauntingstudios.de"}/settings?checkout=success`,
+            cancel_url: `${req.headers.get("origin") || Deno.env.get("SITE_URL") || "https://singrapw.mauntingstudios.de"}/pricing?checkout=cancel`,
             metadata: {
                 supabase_user_id: user.id,
                 plan_key,

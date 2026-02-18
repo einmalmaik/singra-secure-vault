@@ -189,7 +189,11 @@ async function handleGenerateRegistrationOptions(
     const prfSalt = isoBase64URL.fromBuffer(prfSaltBytes);
 
     // Clean up expired challenges first
-    await supabase.rpc("cleanup_expired_webauthn_challenges").catch(() => { });
+    try {
+        await supabase.rpc("cleanup_expired_webauthn_challenges");
+    } catch (cleanupError) {
+        console.warn("Failed to cleanup expired registration challenges", cleanupError);
+    }
 
     // Store challenge server-side (5 min TTL)
     await supabase.from("webauthn_challenges").insert({
@@ -344,7 +348,11 @@ async function handleGenerateAuthenticationOptions(
     });
 
     // Clean up expired challenges first
-    await supabase.rpc("cleanup_expired_webauthn_challenges").catch(() => { });
+    try {
+        await supabase.rpc("cleanup_expired_webauthn_challenges");
+    } catch (cleanupError) {
+        console.warn("Failed to cleanup expired authentication challenges", cleanupError);
+    }
 
     // Store challenge server-side
     await supabase.from("webauthn_challenges").insert({

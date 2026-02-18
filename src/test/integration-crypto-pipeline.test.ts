@@ -451,7 +451,11 @@ describe("Integration: Core Cryptographic Pipeline", () => {
       const { publicKey, encryptedPrivateKey } =
         await generateUserKeyPair(masterPassword);
       expect(publicKey).toBeTruthy();
-      expect(encryptedPrivateKey).toContain(":"); // salt:encryptedData format
+      expect(encryptedPrivateKey).toContain(":");
+
+      const keyParts = encryptedPrivateKey.split(":");
+      expect(keyParts).toHaveLength(3);
+      expect(Number.parseInt(keyParts[0], 10)).toBe(CURRENT_KDF_VERSION);
 
       // 2. Generate a shared collection key
       const sharedKey = await generateSharedKey();
@@ -495,6 +499,23 @@ describe("Integration: Core Cryptographic Pipeline", () => {
       await expect(
         unwrapKey(wrappedKey, encryptedPrivateKey, "wrong-password")
       ).rejects.toThrow();
+    }, 60000);
+
+    it("should unwrap legacy private key format without kdf version prefix", async () => {
+      const masterPassword = "legacy-password";
+      const { publicKey, encryptedPrivateKey } = await generateUserKeyPair(masterPassword);
+      const [, salt, encrypted] = encryptedPrivateKey.split(":");
+      const legacyEncryptedPrivateKey = `${salt}:${encrypted}`;
+
+      const sharedKey = await generateSharedKey();
+      const wrappedKey = await wrapKey(sharedKey, publicKey);
+
+      const unwrapped = await unwrapKey(
+        wrappedKey,
+        legacyEncryptedPrivateKey,
+        masterPassword
+      );
+      expect(unwrapped).toBe(sharedKey);
     }, 60000);
   });
 

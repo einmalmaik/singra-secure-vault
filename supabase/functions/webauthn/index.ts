@@ -6,6 +6,7 @@
  *   - verify-registration: Verifies the registration response from the browser
  *   - generate-authentication-options: Creates a challenge for passkey authentication
  *   - verify-authentication: Verifies the authentication response
+ *   - activate-prf: Verifies authentication and stores wrapped master key for PRF unlock
  *   - list-credentials: Lists all registered passkeys for a user
  *   - delete-credential: Removes a registered passkey
  *
@@ -121,6 +122,9 @@ Deno.serve(async (req: Request) => {
 
             case "verify-authentication":
                 return await handleVerifyAuthentication(user, rp, supabaseAdmin, body, corsHeaders);
+
+            case "activate-prf":
+                return await handleActivatePrf(user, rp, supabaseAdmin, body, corsHeaders);
 
             case "list-credentials":
                 return await handleListCredentials(user, supabaseAdmin, corsHeaders);
@@ -361,10 +365,17 @@ async function handleGenerateAuthenticationOptions(
         type: "authentication",
     });
 
-    // Build a map of credential_id -> prfSalt for PRF-enabled credentials
+    // Build a map of credential_id -> prfSalt.
+    // Include:
+    // - credentials already marked as PRF-enabled
+    // - a specifically requested credential (credentialId), even if not yet
+    //   marked PRF-enabled, so PRF activation can complete after registration
     const prfSalts: Record<string, string> = {};
     for (const cred of validScopedCredentials) {
-        if (cred.prf_enabled && cred.prf_salt) {
+        const isRequestedCredential = credentialId
+            ? cred.credential_id === credentialId
+            : false;
+        if ((cred.prf_enabled || isRequestedCredential) && cred.prf_salt) {
             prfSalts[cred.credential_id] = cred.prf_salt;
         }
     }
@@ -480,6 +491,121 @@ async function handleVerifyAuthentication(
         }, 200, corsHeaders);
     } catch (err) {
         console.error("Authentication verification error:", err);
+        return jsonResponse({ error: "Verification failed" }, 400, corsHeaders);
+    }
+}
+
+async function handleActivatePrf(
+    user: { id: string },
+    rp: { rpID: string; origin: string },
+    supabase: ReturnType<typeof createClient>,
+    body: Record<string, unknown>,
+    corsHeaders: Record<string, string>,
+) {
+    const { credential, expectedCredentialId, wrappedMasterKey } = body as {
+        credential: unknown;
+        expectedCredentialId?: string;
+        wrappedMasterKey?: string;
+    };
+
+    if (!credential) {
+        return jsonResponse({ error: "Missing credential response" }, 400, corsHeaders);
+    }
+
+    if (!expectedCredentialId) {
+        return jsonResponse({ error: "Missing expectedCredentialId" }, 400, corsHeaders);
+    }
+
+    if (typeof wrappedMasterKey !== "string" || wrappedMasterKey.length === 0) {
+        return jsonResponse({ error: "Missing wrappedMasterKey" }, 400, corsHeaders);
+    }
+
+    const credentialResponse = credential as { id: string };
+    if (credentialResponse.id !== expectedCredentialId) {
+        return jsonResponse({ error: "Unexpected passkey credential used" }, 400, corsHeaders);
+    }
+
+    const { data: challenges } = await supabase
+        .from("webauthn_challenges")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("type", "authentication")
+        .order("created_at", { ascending: false })
+        .limit(1);
+
+    if (!challenges || challenges.length === 0) {
+        return jsonResponse({ error: "No pending authentication challenge" }, 400, corsHeaders);
+    }
+
+    const storedChallenge = challenges[0];
+
+    if (new Date(storedChallenge.expires_at) < new Date()) {
+        await supabase.from("webauthn_challenges").delete().eq("id", storedChallenge.id);
+        return jsonResponse({ error: "Challenge expired" }, 400, corsHeaders);
+    }
+
+    // Challenge sofort löschen — verhindert Replay-Angriffe auch bei Verifikationsfehlern
+    await supabase.from("webauthn_challenges").delete().eq("id", storedChallenge.id);
+
+    const { data: dbCredentials } = await supabase
+        .from("passkey_credentials")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("credential_id", expectedCredentialId);
+
+    if (!dbCredentials || dbCredentials.length === 0) {
+        return jsonResponse({ error: "Credential not found" }, 400, corsHeaders);
+    }
+
+    const dbCredential = dbCredentials[0] as {
+        id: string;
+        credential_id: string;
+        public_key: string;
+        counter: number;
+        transports?: string[];
+    };
+
+    try {
+        const verification = await verifyAuthenticationResponse({
+            response: credential as AuthenticationResponseJSON,
+            expectedChallenge: storedChallenge.challenge,
+            expectedOrigin: rp.origin,
+            expectedRPID: rp.rpID,
+            credential: {
+                id: dbCredential.credential_id,
+                publicKey: isoBase64URL.toBuffer(dbCredential.public_key),
+                counter: dbCredential.counter,
+                transports: dbCredential.transports || undefined,
+            },
+        });
+
+        if (!verification.verified) {
+            return jsonResponse({ error: "Authentication verification failed" }, 400, corsHeaders);
+        }
+
+        const { error: updateError } = await supabase
+            .from("passkey_credentials")
+            .update({
+                counter: verification.authenticationInfo.newCounter,
+                last_used_at: new Date().toISOString(),
+                wrapped_master_key: wrappedMasterKey,
+                prf_enabled: true,
+            })
+            .eq("id", dbCredential.id)
+            .eq("user_id", user.id)
+            .eq("credential_id", dbCredential.credential_id);
+
+        if (updateError) {
+            console.error("Failed to activate PRF credential:", updateError);
+            return jsonResponse({ error: "Failed to save wrapped key" }, 500, corsHeaders);
+        }
+
+        return jsonResponse({
+            activated: true,
+            credentialId: dbCredential.credential_id,
+        }, 200, corsHeaders);
+    } catch (err) {
+        console.error("PRF activation verification error:", err);
         return jsonResponse({ error: "Verification failed" }, 400, corsHeaders);
     }
 }

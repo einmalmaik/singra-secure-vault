@@ -38,7 +38,6 @@ import type {
     RegistrationResponseJSON,
     AuthenticationResponseJSON,
 } from '@simplewebauthn/browser';
-import { supabase } from '@/integrations/supabase/client';
 import { invokeAuthedFunction } from '@/services/edgeFunctionService';
 import { importMasterKey } from '@/services/cryptoService';
 
@@ -327,25 +326,11 @@ export async function activatePasskeyPrf(
         return { success: false, error: err instanceof Error ? err.message : 'Authentication failed' };
     }
 
-    // 3. Verify on server
-    const { data: verifyData, error: verifyError } = await invokeWebauthn<{
-        verified: boolean;
-        credentialId: string;
-    }>({
-        action: 'verify-authentication',
-        credential: authResponse as unknown as Record<string, unknown>,
-        expectedCredentialId,
-    });
-
-    if (verifyError || !verifyData?.verified) {
-        return { success: false, error: verifyError?.message || 'Verification failed' };
+    if ((authResponse as { id?: string }).id !== expectedCredentialId) {
+        return { success: false, error: 'Unexpected passkey credential used' };
     }
 
-    if (verifyData.credentialId !== expectedCredentialId) {
-        return { success: false, error: 'Verification returned an unexpected credential' };
-    }
-
-    // 4. Extract PRF output and wrap the key
+    // 3. Extract PRF output and wrap the key
     const clientExtResults = (authResponse as unknown as AuthenticationResponseWithPrf).clientExtensionResults;
     const prfResults = clientExtResults?.prf?.results;
 
@@ -357,17 +342,22 @@ export async function activatePasskeyPrf(
     try {
         const wrappedKey = await encryptRawKeyBytes(rawKeyBytes, prfOutput);
 
-        // 5. Update the credential with the wrapped key and mark unlock capability
-        const { error: updateError } = await supabase
-            .from('passkey_credentials')
-            .update({ wrapped_master_key: wrappedKey, prf_enabled: true })
-            .eq('credential_id', verifyData.credentialId);
+        // 4. Persist wrapped key server-side (credential ownership + assertion verified in Edge Function)
+        const { data: activationData, error: activationError } = await invokeWebauthn<{
+            activated: boolean;
+            credentialId: string;
+        }>({
+            action: 'activate-prf',
+            credential: authResponse as unknown as Record<string, unknown>,
+            expectedCredentialId,
+            wrappedMasterKey: wrappedKey,
+        });
 
-        if (updateError) {
-            return { success: false, error: 'Failed to save wrapped key' };
+        if (activationError || !activationData?.activated) {
+            return { success: false, error: activationError?.message || 'Failed to save wrapped key' };
         }
 
-        return { success: true, credentialId: verifyData.credentialId };
+        return { success: true, credentialId: activationData.credentialId };
     } finally {
         prfOutput.fill(0);
     }

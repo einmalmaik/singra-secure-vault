@@ -8,7 +8,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 function createChainable(resolvedValue: unknown = { data: null, error: null }) {
   const chain: Record<string, (...args: unknown[]) => unknown> = {};
-  const methods = ["select", "insert", "update", "upsert", "delete", "eq", "in", "single", "maybeSingle", "limit", "order", "or"];
+  const methods = ["select", "insert", "update", "upsert", "delete", "eq", "is", "in", "single", "maybeSingle", "limit", "order", "or"];
 
   for (const method of methods) {
     chain[method] = vi.fn().mockReturnValue(chain);
@@ -97,6 +97,26 @@ describe("ensureUserRsaKeyMaterial()", () => {
       ensureUserRsaKeyMaterial({ userId: "user-1" }),
     ).rejects.toMatchObject({ code: "MASTER_PASSWORD_REQUIRED" });
   });
+
+  it("returns winner key when concurrent insert hits unique conflict", async () => {
+    const readChain = createChainable({ data: null, error: null });
+    const insertChain = createChainable({ data: null, error: { code: "23505" } });
+    const winnerReadChain = createChainable({
+      data: { public_key: "winner-rsa-public" },
+      error: null,
+    });
+    mockSupabase._setChains([readChain, insertChain, winnerReadChain]);
+
+    const result = await ensureUserRsaKeyMaterial({
+      userId: "user-1",
+      masterPassword: "MasterPassword123!",
+    });
+
+    expect(result).toEqual({
+      publicKey: "winner-rsa-public",
+      created: false,
+    });
+  });
 });
 
 describe("ensureUserPqKeyMaterial()", () => {
@@ -141,7 +161,7 @@ describe("ensureHybridKeyMaterial()", () => {
       },
       error: null,
     });
-    const pqUpdate = createChainable({ data: null, error: null });
+    const pqUpdate = createChainable({ data: { pq_public_key: "pq-public" }, error: null });
     mockSupabase._setChains([rsaRead, rsaUpsert, pqRead, pqUpdate]);
 
     const result = await ensureHybridKeyMaterial({
@@ -180,5 +200,45 @@ describe("ensureHybridKeyMaterial()", () => {
     }
 
     expect(isMasterPasswordRequiredError(thrown)).toBe(true);
+  });
+
+  it("keeps the winner PQ key when conditional update loses a race", async () => {
+    const rsaRead = createChainable({ data: { public_key: "existing-rsa-public" }, error: null });
+    const pqRead = createChainable({
+      data: {
+        pq_public_key: null,
+        pq_encrypted_private_key: null,
+        pq_key_version: null,
+        pq_enforced_at: null,
+        security_standard_version: null,
+        legacy_crypto_disabled_at: null,
+      },
+      error: null,
+    });
+    const pqClaimUpdate = createChainable({ data: null, error: null });
+    const pqWinnerRead = createChainable({
+      data: {
+        pq_public_key: "winner-pq-public",
+        pq_encrypted_private_key: "winner-salt:winner-cipher",
+        pq_key_version: 1,
+        pq_enforced_at: "2026-02-17T18:00:00.000Z",
+        security_standard_version: 1,
+        legacy_crypto_disabled_at: "2026-02-17T18:00:00.000Z",
+      },
+      error: null,
+    });
+    mockSupabase._setChains([rsaRead, pqRead, pqClaimUpdate, pqWinnerRead]);
+
+    const result = await ensureHybridKeyMaterial({
+      userId: "user-1",
+      masterPassword: "MasterPassword123!",
+    });
+
+    expect(result).toEqual({
+      rsaPublicKey: "existing-rsa-public",
+      pqPublicKey: "winner-pq-public",
+      createdRsa: false,
+      createdPq: false,
+    });
   });
 });

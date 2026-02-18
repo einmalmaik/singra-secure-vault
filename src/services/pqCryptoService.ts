@@ -20,11 +20,12 @@
  */
 
 import { ml_kem768 } from '@noble/post-quantum/ml-kem.js';
+import { SECURITY_STANDARD_VERSION } from '@/services/securityStandard';
 
 // ============ Constants ============
 
 /** Product security standard version */
-export const SECURITY_STANDARD_VERSION = 1;
+export { SECURITY_STANDARD_VERSION };
 
 /** Current hybrid ciphertext version for Security Standard v1 */
 export const HYBRID_VERSION = 3;
@@ -49,6 +50,9 @@ const ML_KEM_768_SECRET_KEY_SIZE = 2400;
 
 /** ML-KEM-768 shared secret size in bytes */
 const ML_KEM_768_SHARED_SECRET_SIZE = 32;
+
+/** HKDF info prefix for hybrid key combination */
+const HYBRID_KDF_INFO_PREFIX = new TextEncoder().encode('SingraPW-HybridKDF-v1:');
 
 // ============ Key Generation ============
 
@@ -147,13 +151,13 @@ export async function hybridEncrypt(
         rsaPubKey,
         aesKeyBytes
     );
-    
-    // 4. Derive combined key: XOR AES key with PQ shared secret
-    // This ensures both layers must be compromised to recover the key
-    const combinedKey = new Uint8Array(32);
-    for (let i = 0; i < 32; i++) {
-        combinedKey[i] = aesKeyBytes[i] ^ pqSharedSecret[i];
-    }
+
+    const rsaCiphertextBytes = new Uint8Array(rsaCiphertext);
+    const combinedKey = await deriveHybridCombinedKey(
+        pqSharedSecret,
+        aesKeyBytes,
+        rsaCiphertextBytes,
+    );
     
     // 5. Encrypt plaintext with combined AES key
     const aesKey = await crypto.subtle.importKey(
@@ -174,10 +178,10 @@ export async function hybridEncrypt(
     
     // 6. Zero sensitive data
     aesKeyBytes.fill(0);
+    pqSharedSecret.fill(0);
     combinedKey.fill(0);
     
     // 7. Combine: version || pq_ciphertext || rsa_ciphertext || iv || aes_ciphertext
-    const rsaCiphertextBytes = new Uint8Array(rsaCiphertext);
     const aesCiphertextBytes = new Uint8Array(aesCiphertext);
     
     const totalLength = 1 + pqCiphertext.length + rsaCiphertextBytes.length + 
@@ -357,6 +361,45 @@ function base64ToUint8Array(base64: string): Uint8Array {
     return bytes;
 }
 
+function concatUint8Arrays(first: Uint8Array, second: Uint8Array): Uint8Array {
+    const combined = new Uint8Array(first.length + second.length);
+    combined.set(first, 0);
+    combined.set(second, first.length);
+    return combined;
+}
+
+async function deriveHybridCombinedKey(
+    pqSharedSecret: Uint8Array,
+    aesKeyBytes: Uint8Array,
+    rsaCiphertext: Uint8Array,
+): Promise<Uint8Array> {
+    const baseKey = await crypto.subtle.importKey(
+        'raw',
+        pqSharedSecret,
+        'HKDF',
+        false,
+        ['deriveBits'],
+    );
+
+    const info = concatUint8Arrays(HYBRID_KDF_INFO_PREFIX, rsaCiphertext);
+    try {
+        const derivedBits = await crypto.subtle.deriveBits(
+            {
+                name: 'HKDF',
+                hash: 'SHA-256',
+                salt: aesKeyBytes,
+                info,
+            },
+            baseKey,
+            256,
+        );
+
+        return new Uint8Array(derivedBits);
+    } finally {
+        info.fill(0);
+    }
+}
+
 async function decryptHybridCiphertext(
     ciphertextBase64: string,
     pqSecretKey: string,
@@ -404,11 +447,11 @@ async function decryptHybridCiphertext(
         rsaCiphertext
     ));
 
-    // Derive combined key: XOR AES key with PQ shared secret.
-    const combinedKey = new Uint8Array(32);
-    for (let i = 0; i < 32; i++) {
-        combinedKey[i] = aesKeyBytes[i] ^ pqSharedSecret[i];
-    }
+    const combinedKey = await deriveHybridCombinedKey(
+        pqSharedSecret,
+        aesKeyBytes,
+        rsaCiphertext,
+    );
 
     // Decrypt plaintext with combined AES key.
     const aesKey = await crypto.subtle.importKey(
@@ -419,16 +462,19 @@ async function decryptHybridCiphertext(
         ['decrypt']
     );
 
-    const plaintextBytes = await crypto.subtle.decrypt(
-        { name: 'AES-GCM', iv, tagLength: 128 },
-        aesKey,
-        aesCiphertext
-    );
+    try {
+        const plaintextBytes = await crypto.subtle.decrypt(
+            { name: 'AES-GCM', iv, tagLength: 128 },
+            aesKey,
+            aesCiphertext
+        );
 
-    aesKeyBytes.fill(0);
-    combinedKey.fill(0);
-
-    return new TextDecoder().decode(plaintextBytes);
+        return new TextDecoder().decode(plaintextBytes);
+    } finally {
+        aesKeyBytes.fill(0);
+        pqSharedSecret.fill(0);
+        combinedKey.fill(0);
+    }
 }
 
 function parseHybridCiphertext(combined: Uint8Array): ParsedHybridCiphertext {

@@ -3,15 +3,14 @@
 /**
  * @fileoverview Appearance Settings Component
  * 
- * Theme and language settings
+ * Language settings.
  */
 
 import { useTranslation } from 'react-i18next';
-import { Palette, Sun, Moon, Monitor, Languages } from 'lucide-react';
+import { Palette, Languages } from 'lucide-react';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { Button } from '@/components/ui/button';
 import {
     Select,
     SelectContent,
@@ -20,7 +19,6 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 
-import { useTheme } from '@/contexts/ThemeProvider';
 import { useToast } from '@/hooks/use-toast';
 
 const LANGUAGE_OPTIONS = [
@@ -31,7 +29,6 @@ const LANGUAGE_OPTIONS = [
 export function AppearanceSettings() {
     const { t, i18n } = useTranslation();
     const { toast } = useToast();
-    const { theme, setTheme } = useTheme();
 
     const handleLanguageChange = (value: string) => {
         i18n.changeLanguage(value);
@@ -40,15 +37,6 @@ export function AppearanceSettings() {
         toast({
             title: t('common.success'),
             description: t('settings.appearance.languageUpdated'),
-        });
-    };
-
-    const handleThemeChange = (newTheme: 'light' | 'dark' | 'system') => {
-        setTheme(newTheme);
-
-        toast({
-            title: t('common.success'),
-            description: t('settings.appearance.themeUpdated'),
         });
     };
 
@@ -64,42 +52,6 @@ export function AppearanceSettings() {
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-                {/* Theme Selection */}
-                <div className="space-y-3">
-                    <Label className="flex items-center gap-2">
-                        {t('settings.appearance.theme')}
-                    </Label>
-                    <div className="flex flex-wrap gap-2">
-                        <Button
-                            variant={theme === 'light' ? 'default' : 'outline'}
-                            size="sm"
-                            onClick={() => handleThemeChange('light')}
-                            className="flex items-center gap-2"
-                        >
-                            <Sun className="w-4 h-4" />
-                            {t('settings.appearance.themeLight')}
-                        </Button>
-                        <Button
-                            variant={theme === 'dark' ? 'default' : 'outline'}
-                            size="sm"
-                            onClick={() => handleThemeChange('dark')}
-                            className="flex items-center gap-2"
-                        >
-                            <Moon className="w-4 h-4" />
-                            {t('settings.appearance.themeDark')}
-                        </Button>
-                        <Button
-                            variant={theme === 'system' ? 'default' : 'outline'}
-                            size="sm"
-                            onClick={() => handleThemeChange('system')}
-                            className="flex items-center gap-2"
-                        >
-                            <Monitor className="w-4 h-4" />
-                            {t('settings.appearance.themeSystem')}
-                        </Button>
-                    </div>
-                </div>
-
                 {/* Language Selection */}
                 <div className="space-y-2">
                     <Label className="flex items-center gap-2">

@@ -76,7 +76,7 @@ async function resolveAccessToken(): Promise<string | null> {
         );
     }
 
-    if (session?.access_token) {
+    if (isUserAccessToken(session?.access_token)) {
         return session.access_token;
     }
 
@@ -86,10 +86,67 @@ async function resolveAccessToken(): Promise<string | null> {
     } = await supabase.auth.refreshSession();
 
     if (refreshError) {
+        // Fallback: trigger Supabase auth re-hydration from persisted session.
+        // getUser() can recover a valid user-bound access token after app reload.
+        const { error: userError } = await supabase.auth.getUser();
+        if (userError) {
+            return null;
+        }
+
+        const {
+            data: { session: hydratedSession },
+            error: hydratedSessionError,
+        } = await supabase.auth.getSession();
+
+        if (hydratedSessionError) {
+            throw createEdgeFunctionError(
+                'Failed to load session',
+                'UNKNOWN',
+                401,
+                { sessionError: hydratedSessionError.message },
+            );
+        }
+
+        return isUserAccessToken(hydratedSession?.access_token)
+            ? hydratedSession.access_token
+            : null;
+    }
+
+    return isUserAccessToken(refreshData.session?.access_token)
+        ? refreshData.session.access_token
+        : null;
+}
+
+function isUserAccessToken(token: string | null | undefined): token is string {
+    if (!token || token.split('.').length !== 3) {
+        return false;
+    }
+
+    const payload = decodeJwtPayload(token);
+    if (!payload || typeof payload.sub !== 'string' || payload.sub.length === 0) {
+        return false;
+    }
+
+    return true;
+}
+
+function decodeJwtPayload(token: string): Record<string, unknown> | null {
+    const parts = token.split('.');
+    if (parts.length !== 3) {
         return null;
     }
 
-    return refreshData.session?.access_token ?? null;
+    try {
+        const normalized = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+        const padded = normalized + '='.repeat((4 - (normalized.length % 4)) % 4);
+        const decoded = atob(padded);
+        const payload = JSON.parse(decoded);
+        return payload && typeof payload === 'object'
+            ? payload as Record<string, unknown>
+            : null;
+    } catch {
+        return null;
+    }
 }
 
 async function normalizeFunctionError(error: unknown): Promise<EdgeFunctionServiceError> {

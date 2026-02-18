@@ -6,15 +6,25 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockGetSession, mockRefreshSession, mockInvoke, supabaseMock } = vi.hoisted(() => {
+function createToken(payload: Record<string, unknown>): string {
+  return [
+    "header",
+    Buffer.from(JSON.stringify(payload)).toString("base64url"),
+    "signature",
+  ].join(".");
+}
+
+const { mockGetSession, mockRefreshSession, mockGetUser, mockInvoke, supabaseMock } = vi.hoisted(() => {
   const mockInvoke = vi.fn();
   const mockGetSession = vi.fn();
   const mockRefreshSession = vi.fn();
+  const mockGetUser = vi.fn();
 
   const supabaseMock = {
     auth: {
       getSession: mockGetSession,
       refreshSession: mockRefreshSession,
+      getUser: mockGetUser,
     },
     functions: {
       invoke: mockInvoke,
@@ -24,6 +34,7 @@ const { mockGetSession, mockRefreshSession, mockInvoke, supabaseMock } = vi.hois
   return {
     mockGetSession,
     mockRefreshSession,
+    mockGetUser,
     mockInvoke,
     supabaseMock,
   };
@@ -42,7 +53,11 @@ describe("edgeFunctionService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetSession.mockResolvedValue({
-      data: { session: { access_token: "test-token" } },
+      data: { session: { access_token: createToken({ sub: "user-1", role: "authenticated" }) } },
+      error: null,
+    });
+    mockGetUser.mockResolvedValue({
+      data: { user: { id: "user-1" } },
       error: null,
     });
     mockRefreshSession.mockResolvedValue({
@@ -52,6 +67,12 @@ describe("edgeFunctionService", () => {
   });
 
   it("invokes function with explicit bearer token", async () => {
+    const accessToken = createToken({ sub: "user-1", role: "authenticated" });
+    mockGetSession.mockResolvedValueOnce({
+      data: { session: { access_token: accessToken } },
+      error: null,
+    });
+
     mockInvoke.mockResolvedValue({
       data: { success: true },
       error: null,
@@ -63,7 +84,7 @@ describe("edgeFunctionService", () => {
 
     expect(mockInvoke).toHaveBeenCalledWith("invite-family-member", {
       body: { email: "a@example.com" },
-      headers: { Authorization: "Bearer test-token" },
+      headers: { Authorization: `Bearer ${accessToken}` },
     });
     expect(result.success).toBe(true);
   });
@@ -93,7 +114,7 @@ describe("edgeFunctionService", () => {
       error: null,
     });
     mockRefreshSession.mockResolvedValueOnce({
-      data: { session: { access_token: "fresh-token" } },
+      data: { session: { access_token: createToken({ sub: "user-1", role: "authenticated" }) } },
       error: null,
     });
     mockInvoke.mockResolvedValueOnce({
@@ -107,7 +128,32 @@ describe("edgeFunctionService", () => {
 
     expect(mockInvoke).toHaveBeenCalledWith("invite-family-member", {
       body: { email: "a@example.com" },
-      headers: { Authorization: "Bearer fresh-token" },
+      headers: { Authorization: `Bearer ${createToken({ sub: "user-1", role: "authenticated" })}` },
+    });
+  });
+
+  it("rejects anon token payloads without user sub claim", async () => {
+    const anonToken = [
+      "header",
+      Buffer.from(JSON.stringify({ role: "anon" })).toString("base64url"),
+      "signature",
+    ].join(".");
+
+    mockGetSession.mockResolvedValueOnce({
+      data: { session: { access_token: anonToken } },
+      error: null,
+    });
+    mockRefreshSession.mockResolvedValueOnce({
+      data: { session: null },
+      error: null,
+    });
+
+    await expect(
+      invokeAuthedFunction("invite-family-member", { email: "a@example.com" }),
+    ).rejects.toMatchObject({
+      code: "AUTH_REQUIRED",
+      status: 401,
+      message: "Authentication required",
     });
   });
 

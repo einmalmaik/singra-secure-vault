@@ -76,7 +76,7 @@ async function resolveAccessToken(): Promise<string | null> {
         );
     }
 
-    if (isUserAccessToken(session?.access_token)) {
+    if (isUsableUserAccessToken(session)) {
         return session.access_token;
     }
 
@@ -107,23 +107,56 @@ async function resolveAccessToken(): Promise<string | null> {
             );
         }
 
-        return isUserAccessToken(hydratedSession?.access_token)
+        return isUsableUserAccessToken(hydratedSession)
             ? hydratedSession.access_token
             : null;
     }
 
-    return isUserAccessToken(refreshData.session?.access_token)
+    return isUsableUserAccessToken(refreshData.session)
         ? refreshData.session.access_token
         : null;
 }
 
-function isUserAccessToken(token: string | null | undefined): token is string {
+function isUsableUserAccessToken(
+    session: {
+        access_token?: string | null;
+        user?: { id?: string | null } | null;
+    } | null | undefined,
+): session is { access_token: string; user: { id: string } } {
+    const token = session?.access_token;
     if (!token || token.split('.').length !== 3) {
         return false;
     }
 
     const payload = decodeJwtPayload(token);
-    if (!payload || typeof payload.sub !== 'string' || payload.sub.length === 0) {
+    if (!payload) {
+        return false;
+    }
+
+    const tokenSubject = payload.sub;
+    const tokenRole = payload.role;
+    const tokenExpiry = payload.exp;
+    const sessionUserId = session?.user?.id;
+
+    if (typeof sessionUserId !== 'string' || sessionUserId.length === 0) {
+        return false;
+    }
+
+    if (typeof tokenSubject !== 'string' || tokenSubject.length === 0 || tokenSubject !== sessionUserId) {
+        return false;
+    }
+
+    if (tokenRole === 'anon') {
+        return false;
+    }
+
+    if (typeof tokenExpiry !== 'number' || !Number.isFinite(tokenExpiry)) {
+        return false;
+    }
+
+    const nowInSeconds = Math.floor(Date.now() / 1000);
+    const EXPIRY_SKEW_SECONDS = 30;
+    if (tokenExpiry <= nowInSeconds + EXPIRY_SKEW_SECONDS) {
         return false;
     }
 

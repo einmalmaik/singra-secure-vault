@@ -14,6 +14,15 @@ function createToken(payload: Record<string, unknown>): string {
   ].join(".");
 }
 
+function createValidSessionToken(userId = "user-1"): string {
+  const now = Math.floor(Date.now() / 1000);
+  return createToken({
+    sub: userId,
+    role: "authenticated",
+    exp: now + 3600,
+  });
+}
+
 const { mockGetSession, mockRefreshSession, mockGetUser, mockInvoke, supabaseMock } = vi.hoisted(() => {
   const mockInvoke = vi.fn();
   const mockGetSession = vi.fn();
@@ -53,7 +62,12 @@ describe("edgeFunctionService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetSession.mockResolvedValue({
-      data: { session: { access_token: createToken({ sub: "user-1", role: "authenticated" }) } },
+      data: {
+        session: {
+          access_token: createValidSessionToken("user-1"),
+          user: { id: "user-1" },
+        },
+      },
       error: null,
     });
     mockGetUser.mockResolvedValue({
@@ -67,9 +81,9 @@ describe("edgeFunctionService", () => {
   });
 
   it("invokes function with explicit bearer token", async () => {
-    const accessToken = createToken({ sub: "user-1", role: "authenticated" });
+    const accessToken = createValidSessionToken("user-1");
     mockGetSession.mockResolvedValueOnce({
-      data: { session: { access_token: accessToken } },
+      data: { session: { access_token: accessToken, user: { id: "user-1" } } },
       error: null,
     });
 
@@ -114,7 +128,12 @@ describe("edgeFunctionService", () => {
       error: null,
     });
     mockRefreshSession.mockResolvedValueOnce({
-      data: { session: { access_token: createToken({ sub: "user-1", role: "authenticated" }) } },
+      data: {
+        session: {
+          access_token: createValidSessionToken("user-1"),
+          user: { id: "user-1" },
+        },
+      },
       error: null,
     });
     mockInvoke.mockResolvedValueOnce({
@@ -128,19 +147,19 @@ describe("edgeFunctionService", () => {
 
     expect(mockInvoke).toHaveBeenCalledWith("invite-family-member", {
       body: { email: "a@example.com" },
-      headers: { Authorization: `Bearer ${createToken({ sub: "user-1", role: "authenticated" })}` },
+      headers: { Authorization: `Bearer ${createValidSessionToken("user-1")}` },
     });
   });
 
-  it("rejects anon token payloads without user sub claim", async () => {
-    const anonToken = [
-      "header",
-      Buffer.from(JSON.stringify({ role: "anon" })).toString("base64url"),
-      "signature",
-    ].join(".");
+  it("rejects anon-like tokens even when JWT is syntactically valid", async () => {
+    const anonToken = createToken({
+      sub: "anon-subject",
+      role: "anon",
+      exp: Math.floor(Date.now() / 1000) + 3600,
+    });
 
     mockGetSession.mockResolvedValueOnce({
-      data: { session: { access_token: anonToken } },
+      data: { session: { access_token: anonToken, user: { id: "user-1" } } },
       error: null,
     });
     mockRefreshSession.mockResolvedValueOnce({
@@ -154,6 +173,39 @@ describe("edgeFunctionService", () => {
       code: "AUTH_REQUIRED",
       status: 401,
       message: "Authentication required",
+    });
+  });
+
+  it("refreshes when session token is expired", async () => {
+    const now = Math.floor(Date.now() / 1000);
+    const expiredToken = createToken({
+      sub: "user-1",
+      role: "authenticated",
+      exp: now - 60,
+    });
+    const refreshedToken = createValidSessionToken("user-1");
+
+    mockGetSession.mockResolvedValueOnce({
+      data: { session: { access_token: expiredToken, user: { id: "user-1" } } },
+      error: null,
+    });
+    mockRefreshSession.mockResolvedValueOnce({
+      data: { session: { access_token: refreshedToken, user: { id: "user-1" } } },
+      error: null,
+    });
+    mockInvoke.mockResolvedValueOnce({
+      data: { success: true },
+      error: null,
+    });
+
+    await invokeAuthedFunction<{ success: boolean }>("webauthn", {
+      action: "list-credentials",
+    });
+
+    expect(mockRefreshSession).toHaveBeenCalledTimes(1);
+    expect(mockInvoke).toHaveBeenCalledWith("webauthn", {
+      body: { action: "list-credentials" },
+      headers: { Authorization: `Bearer ${refreshedToken}` },
     });
   });
 

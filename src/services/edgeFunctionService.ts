@@ -207,11 +207,13 @@ async function normalizeHttpResponseError(response: Response): Promise<EdgeFunct
 
     const message = code === 'AUTH_REQUIRED'
         ? 'Authentication required'
-        : code === 'FORBIDDEN'
-            ? 'Forbidden'
-            : code === 'SERVER_ERROR'
-                ? 'Internal server error'
-                : payloadMessage || 'Edge function request failed';
+        : payloadMessage || (
+            code === 'FORBIDDEN'
+                ? 'Forbidden'
+                : code === 'SERVER_ERROR'
+                    ? 'Internal server error'
+                    : 'Edge function request failed'
+        );
 
     return createEdgeFunctionError(
         message,

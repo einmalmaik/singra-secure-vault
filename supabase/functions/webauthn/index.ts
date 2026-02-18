@@ -39,12 +39,19 @@ import { getCorsHeaders } from "../_shared/cors.ts";
  * In production this is "singra.pw", in dev "localhost".
  */
 function getRpConfig(req: Request): { rpName: string; rpID: string; origin: string } {
-    const origin = req.headers.get("origin") || Deno.env.get("SITE_URL") || "http://localhost:8080";
-    const url = new URL(origin);
+    const rawOrigin = req.headers.get("origin") || Deno.env.get("SITE_URL") || "http://localhost:8080";
+    let url: URL;
+
+    try {
+        url = new URL(rawOrigin);
+    } catch {
+        url = new URL("http://localhost:8080");
+    }
+
     return {
         rpName: "SingraPW",
         rpID: url.hostname,
-        origin: origin,
+        origin: url.origin,
     };
 }
 
@@ -145,8 +152,11 @@ async function handleGenerateRegistrationOptions(
         .select("credential_id")
         .eq("user_id", user.id);
 
-    const excludeCredentials = (existingCreds || []).map((c: { credential_id: string }) => ({
-        id: c.credential_id,
+    const excludeCredentials = (existingCreds || [])
+        .map((c: { credential_id: string }) => c.credential_id)
+        .filter(isLikelyBase64UrlCredentialId)
+        .map((credentialId: string) => ({
+        id: credentialId,
         transports: undefined,
     }));
 
@@ -307,7 +317,15 @@ async function handleGenerateAuthenticationOptions(
         return jsonResponse({ error: "Requested passkey credential not found" }, 404, corsHeaders);
     }
 
-    const allowCredentials = scopedCredentials.map((c: { credential_id: string; transports?: string[]; prf_salt?: string; prf_enabled?: boolean }) => ({
+    const validScopedCredentials = scopedCredentials.filter((c: { credential_id: string }) =>
+        isLikelyBase64UrlCredentialId(c.credential_id)
+    );
+
+    if (validScopedCredentials.length === 0) {
+        return jsonResponse({ error: "No valid passkey credentials found" }, 404, corsHeaders);
+    }
+
+    const allowCredentials = validScopedCredentials.map((c: { credential_id: string; transports?: string[]; prf_salt?: string; prf_enabled?: boolean }) => ({
         id: c.credential_id,
         transports: c.transports || undefined,
     }));
@@ -330,7 +348,7 @@ async function handleGenerateAuthenticationOptions(
 
     // Build a map of credential_id -> prfSalt for PRF-enabled credentials
     const prfSalts: Record<string, string> = {};
-    for (const cred of scopedCredentials) {
+    for (const cred of validScopedCredentials) {
         if (cred.prf_enabled && cred.prf_salt) {
             prfSalts[cred.credential_id] = cred.prf_salt;
         }
@@ -512,4 +530,10 @@ function extractBearerToken(authHeader: string): string | null {
 
     const token = authHeader.slice("bearer ".length).trim();
     return token.length > 0 ? token : null;
+}
+
+function isLikelyBase64UrlCredentialId(value: string): boolean {
+    return typeof value === "string"
+        && value.length >= 16
+        && /^[A-Za-z0-9_-]+$/.test(value);
 }

@@ -229,7 +229,7 @@ describe("edgeFunctionService", () => {
     ).rejects.toMatchObject({
       code: "FORBIDDEN",
       status: 403,
-      message: "Forbidden",
+      message: "Families subscription required",
     });
   });
 

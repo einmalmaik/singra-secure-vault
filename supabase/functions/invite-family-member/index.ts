@@ -1,6 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-import { corsHeaders } from "../_shared/cors.ts";
+import { getCorsHeaders } from "../_shared/cors.ts";
 
 const FUNCTION_NAME = "invite-family-member";
 
@@ -33,6 +33,7 @@ async function sendResendMail(to: string, subject: string, html: string) {
 Deno.serve(async (req: Request) => {
   let actorUserId: string | null = null;
   let inviteEmail: string | null = null;
+  const corsHeaders = getCorsHeaders(req);
 
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders });
   if (req.method !== "POST") {

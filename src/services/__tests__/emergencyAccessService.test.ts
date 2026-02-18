@@ -39,6 +39,10 @@ const mockSupabase = vi.hoisted(() => {
         data: { session: { access_token: "test-token" } },
         error: null,
       }),
+      refreshSession: vi.fn().mockResolvedValue({
+        data: { session: { access_token: "test-token", user: { id: "user-123" } } },
+        error: null,
+      }),
     },
     functions: { invoke: vi.fn() },
     storage: { from: vi.fn() },
@@ -48,6 +52,10 @@ const mockSupabase = vi.hoisted(() => {
 });
 
 vi.mock("@/integrations/supabase/client", () => ({ supabase: mockSupabase }));
+const mockInvokeAuthedFunction = vi.hoisted(() => vi.fn());
+vi.mock("@/services/edgeFunctionService", () => ({
+  invokeAuthedFunction: mockInvokeAuthedFunction,
+}));
 
 // Mock pqCryptoService
 vi.mock("@/services/pqCryptoService", () => ({
@@ -70,6 +78,7 @@ import * as pqCryptoService from "@/services/pqCryptoService";
 beforeEach(() => {
   vi.clearAllMocks();
   mockSupabase._reset();
+  mockInvokeAuthedFunction.mockReset();
   mockSupabase.auth.getUser.mockResolvedValue({
     data: { user: { id: "user-123", email: "test@example.com" } },
   });
@@ -125,12 +134,12 @@ describe("getGrantors()", () => {
 
 describe("inviteTrustee()", () => {
   it("invokes edge function with correct params", async () => {
-    mockSupabase.functions.invoke.mockResolvedValue({ data: null, error: null });
+    mockInvokeAuthedFunction.mockResolvedValue(undefined);
 
     const result = await emergencyAccessService.inviteTrustee("trustee@e.com", 7);
-    expect(mockSupabase.functions.invoke).toHaveBeenCalledWith("invite-emergency-access", {
-      body: { email: "trustee@e.com", wait_days: 7 },
-      headers: { Authorization: "Bearer test-token" },
+    expect(mockInvokeAuthedFunction).toHaveBeenCalledWith("invite-emergency-access", {
+      email: "trustee@e.com",
+      wait_days: 7,
     });
     expect(result.trusted_email).toBe("trustee@e.com");
     expect(result.wait_days).toBe(7);
@@ -138,13 +147,13 @@ describe("inviteTrustee()", () => {
   });
 
   it("throws on edge function error", async () => {
-    mockSupabase.functions.invoke.mockResolvedValue({ data: null, error: { message: "Failed" } });
+    mockInvokeAuthedFunction.mockRejectedValue(new Error("Failed"));
 
     await expect(emergencyAccessService.inviteTrustee("bad@e.com", 3)).rejects.toMatchObject({ message: "Failed" });
   });
 
   it("throws when session token is missing", async () => {
-    mockSupabase.auth.getSession.mockResolvedValueOnce({ data: { session: null }, error: null });
+    mockInvokeAuthedFunction.mockRejectedValue(new Error("Authentication required"));
 
     await expect(emergencyAccessService.inviteTrustee("trustee@e.com", 3)).rejects.toMatchObject({
       message: "Authentication required",

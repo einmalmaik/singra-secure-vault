@@ -7,7 +7,7 @@
  * and vault stats.
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
     ChevronLeft,
@@ -77,7 +77,7 @@ export function VaultSidebar({
 }: VaultSidebarProps) {
     const { t } = useTranslation();
     const navigate = useNavigate();
-    const { lock, encryptData, decryptData, decryptItem, encryptItem } = useVault();
+    const { lock, encryptData, decryptData, decryptItem, encryptItem, isDuressMode } = useVault();
     const { user } = useAuth();
     const [collapsed, setCollapsed] = useState(false);
 
@@ -88,6 +88,13 @@ export function VaultSidebar({
     // Dialog state
     const [dialogOpen, setDialogOpen] = useState(false);
     const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+    const failedDecryptPayloadByItemIdRef = useRef<Map<string, string>>(new Map());
+    const loggedDecryptFailuresRef = useRef<Set<string>>(new Set());
+
+    useEffect(() => {
+        failedDecryptPayloadByItemIdRef.current.clear();
+        loggedDecryptFailuresRef.current.clear();
+    }, [user?.id, isDuressMode]);
 
     // Fetch categories
     const fetchCategories = useCallback(async () => {
@@ -100,8 +107,17 @@ export function VaultSidebar({
 
             await Promise.all(
                 snapshot.items.map(async (item) => {
+                    const cachedFailedPayload = failedDecryptPayloadByItemIdRef.current.get(item.id);
+                    if (cachedFailedPayload === item.encrypted_data) {
+                        if (item.category_id) {
+                            counts[item.category_id] = (counts[item.category_id] || 0) + 1;
+                        }
+                        return;
+                    }
+
                     try {
                         const decryptedData = await decryptItem(item.encrypted_data);
+                        failedDecryptPayloadByItemIdRef.current.delete(item.id);
                         const resolvedCategoryId = decryptedData.categoryId ?? item.category_id;
                         const resolvedTitle = decryptedData.title || item.title;
                         const resolvedWebsiteUrl = decryptedData.websiteUrl || item.website_url || undefined;
@@ -163,7 +179,16 @@ export function VaultSidebar({
                             counts[resolvedCategoryId] = (counts[resolvedCategoryId] || 0) + 1;
                         }
                     } catch (err) {
-                        console.error('Failed to decrypt vault item for category counts:', item.id, err);
+                        failedDecryptPayloadByItemIdRef.current.set(item.id, item.encrypted_data);
+                        const logKey = `${item.id}:${item.updated_at}`;
+                        if (!loggedDecryptFailuresRef.current.has(logKey)) {
+                            loggedDecryptFailuresRef.current.add(logKey);
+                            if (isDuressMode) {
+                                console.debug('Failed to decrypt vault item for category counts (Duress Mode):', item.id);
+                            } else {
+                                console.error('Failed to decrypt vault item for category counts:', item.id, err);
+                            }
+                        }
                         if (item.category_id) {
                             counts[item.category_id] = (counts[item.category_id] || 0) + 1;
                         }
@@ -184,7 +209,9 @@ export function VaultSidebar({
                         try {
                             resolvedName = await decryptData(cat.name.slice(ENCRYPTED_CATEGORY_PREFIX.length));
                         } catch (err) {
-                            console.error('Failed to decrypt category name:', cat.id, err);
+                            if (!isDuressMode) {
+                                console.error('Failed to decrypt category name:', cat.id, err);
+                            }
                             resolvedName = 'Encrypted Category';
                         }
                     } else if (canPersistMigrations) {
@@ -204,7 +231,9 @@ export function VaultSidebar({
                         try {
                             resolvedIcon = await decryptData(cat.icon.slice(ENCRYPTED_CATEGORY_PREFIX.length));
                         } catch (err) {
-                            console.error('Failed to decrypt category icon:', cat.id, err);
+                            if (!isDuressMode) {
+                                console.error('Failed to decrypt category icon:', cat.id, err);
+                            }
                             resolvedIcon = null;
                         }
                     } else if (cat.icon && canPersistMigrations) {
@@ -224,7 +253,9 @@ export function VaultSidebar({
                         try {
                             resolvedColor = await decryptData(cat.color.slice(ENCRYPTED_CATEGORY_PREFIX.length));
                         } catch (err) {
-                            console.error('Failed to decrypt category color:', cat.id, err);
+                            if (!isDuressMode) {
+                                console.error('Failed to decrypt category color:', cat.id, err);
+                            }
                             resolvedColor = '#3b82f6';
                         }
                     } else if (cat.color && canPersistMigrations) {
@@ -266,7 +297,7 @@ export function VaultSidebar({
         } finally {
             setLoading(false);
         }
-    }, [user, encryptData, decryptData, decryptItem, encryptItem]);
+    }, [user, encryptData, decryptData, decryptItem, encryptItem, isDuressMode]);
 
     useEffect(() => {
         if (compactMode) {
@@ -541,4 +572,3 @@ function SidebarItem({
 
     return content;
 }
-

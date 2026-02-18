@@ -13,18 +13,15 @@
  *   import { corsHeaders } from "../_shared/cors.ts";
  */
 
-const configuredOrigin = Deno.env.get("ALLOWED_ORIGIN") || "*";
-const productionOrigins = configuredOrigin === "*"
-    ? ["*"]
-    : configuredOrigin.split(",").map((o) => o.trim().replace(/\/+$/, ""));
+const configuredOrigin = Deno.env.get("ALLOWED_ORIGIN")?.trim()
+    || "https://singrapw.mauntingstudios.de";
+const productionOrigins = configuredOrigin
+    .split(",")
+    .map((o) => o.trim().replace(/\/+$/, ""))
+    .filter((o) => o.length > 0);
 
 function isAllowedOrigin(origin: string): boolean {
-    if (productionOrigins.includes("*")) return true;
     if (productionOrigins.includes(origin)) return true;
-    if (/^https?:\/\/localhost(:\d+)?$/.test(origin)) {
-        const isDev = Deno.env.get("ENVIRONMENT") === "development";
-        if (isDev) return true;
-    }
     return false;
 }
 

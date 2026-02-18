@@ -2,8 +2,8 @@
 // Licensed under the Business Source License 1.1 — see LICENSE
 import { supabase } from "@/integrations/supabase/client";
 import { invokeAuthedFunction } from '@/services/edgeFunctionService';
-import { 
-    hybridEncrypt, 
+import {
+    hybridEncrypt,
     hybridDecrypt,
     isHybridEncrypted
 } from './pqCryptoService';
@@ -159,12 +159,12 @@ export const emergencyAccessService = {
         return data as unknown as EmergencyAccess;
     },
 
-    // Reject access request (as grantor)
+    // Reject access request (as grantor) — setzt Status auf 'rejected' und löscht den Timer
     async rejectAccess(accessId: string) {
         const { data, error } = await supabase
             .from('emergency_access')
             .update({
-                status: 'accepted',
+                status: 'rejected',
                 requested_at: null
             })
             .eq('id', accessId)
@@ -203,7 +203,7 @@ export const emergencyAccessService = {
      * @returns Updated EmergencyAccess record
      */
     async acceptInviteWithPQ(
-        accessId: string, 
+        accessId: string,
         rsaPublicKeyJwk: string,
         pqPublicKey: string
     ) {

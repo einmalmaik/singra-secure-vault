@@ -161,7 +161,7 @@ async function handleGenerateRegistrationOptions(
     const prfSalt = isoBase64URL.fromBuffer(prfSaltBytes);
 
     // Clean up expired challenges first
-    await supabase.rpc("cleanup_expired_webauthn_challenges").catch(() => {});
+    await supabase.rpc("cleanup_expired_webauthn_challenges").catch(() => { });
 
     // Store challenge server-side (5 min TTL)
     await supabase.from("webauthn_challenges").insert({
@@ -305,7 +305,7 @@ async function handleGenerateAuthenticationOptions(
     });
 
     // Clean up expired challenges first
-    await supabase.rpc("cleanup_expired_webauthn_challenges").catch(() => {});
+    await supabase.rpc("cleanup_expired_webauthn_challenges").catch(() => { });
 
     // Store challenge server-side
     await supabase.from("webauthn_challenges").insert({
@@ -372,6 +372,9 @@ async function handleVerifyAuthentication(
         return jsonResponse({ error: "Challenge expired" }, 400, corsHeaders);
     }
 
+    // Challenge sofort löschen — verhindert Replay-Angriffe auch bei Verifikationsfehlern
+    await supabase.from("webauthn_challenges").delete().eq("id", storedChallenge.id);
+
     // Find the matching credential in DB
     const { data: dbCredentials } = await supabase
         .from("passkey_credentials")
@@ -420,8 +423,7 @@ async function handleVerifyAuthentication(
             })
             .eq("id", dbCredential.id);
 
-        // Clean up the used challenge
-        await supabase.from("webauthn_challenges").delete().eq("id", storedChallenge.id);
+        // Challenge wurde bereits vor der Verifikation gelöscht (Replay-Schutz)
 
         return jsonResponse({
             verified: true,

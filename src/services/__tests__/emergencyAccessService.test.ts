@@ -181,18 +181,18 @@ describe("requestAccess()", () => {
 });
 
 describe("rejectAccess()", () => {
-  it("resets status to accepted", async () => {
+  it("setzt Status auf 'rejected' und löscht den Timer (Anfrage abgelehnt)", async () => {
     const chain = createChainable({
-      data: { id: "ea1", status: "accepted", requested_at: null },
+      data: { id: "ea1", status: "rejected", requested_at: null },
       error: null,
     });
     mockSupabase._setChains([chain]);
 
     const result = await emergencyAccessService.rejectAccess("ea1");
     expect(chain.update).toHaveBeenCalledWith(
-      expect.objectContaining({ status: "accepted", requested_at: null })
+      expect.objectContaining({ status: "rejected", requested_at: null })
     );
-    expect(result.status).toBe("accepted");
+    expect(result.status).toBe("rejected");
   });
 });
 

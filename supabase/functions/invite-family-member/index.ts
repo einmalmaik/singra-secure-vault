@@ -118,17 +118,42 @@ Deno.serve(async (req: Request) => {
       .from("family_members")
       .select("*", { count: "exact", head: true })
       .eq("family_owner_id", user.id)
-      .eq("status", "active");
+      .in("status", ["active", "invited"]);
 
-    if (memberCount !== null && memberCount >= 6) {
+    // Bug-Fix: memberCount kann null sein → null >= 6 wäre false → Limit umgehbar
+    if ((memberCount ?? 0) >= 6) {
       console.warn(`${FUNCTION_NAME}: family_limit_reached`, {
         actorUserId,
         memberCount,
       });
       return new Response(
-        JSON.stringify({ error: "Maximum family size reached (6 members)" }),
+        JSON.stringify({ error: "Maximale Familiengröße erreicht (6 Mitglieder)" }),
         {
           status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    // Verhindere Doppeleinladung derselben E-Mail-Adresse
+    const { data: existingMember } = await admin
+      .from("family_members")
+      .select("id, status")
+      .eq("family_owner_id", user.id)
+      .eq("member_email", inviteEmail)
+      .in("status", ["invited", "active"])
+      .maybeSingle();
+
+    if (existingMember) {
+      console.warn(`${FUNCTION_NAME}: duplicate_invite`, {
+        actorUserId,
+        inviteEmail,
+        existingStatus: existingMember.status,
+      });
+      return new Response(
+        JSON.stringify({ error: "Diese E-Mail-Adresse ist bereits eingeladen oder aktives Mitglied" }),
+        {
+          status: 409,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         }
       );

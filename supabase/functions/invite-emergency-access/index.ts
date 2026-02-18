@@ -82,6 +82,15 @@ Deno.serve(async (req: Request) => {
     }
     inviteEmail = email.trim().toLowerCase();
 
+    // Verhindere Selbsteinladung
+    if (inviteEmail === user.email?.toLowerCase()) {
+      console.warn(`${FUNCTION_NAME}: self_invite_rejected`, { actorUserId });
+      return new Response(JSON.stringify({ error: "Du kannst dich nicht selbst als Notfallkontakt einladen" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const waitDays = Number(wait_days || 7);
     if (!Number.isFinite(waitDays) || waitDays < 1 || waitDays > 90) {
       console.warn(`${FUNCTION_NAME}: invalid_wait_days`, {

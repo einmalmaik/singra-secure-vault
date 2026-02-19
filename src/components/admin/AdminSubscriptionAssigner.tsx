@@ -27,7 +27,9 @@ interface ResolvedUser {
     id: string;
 }
 
-const TIER_OPTIONS: SubscriptionTier[] = ['free', 'premium', 'families', 'self_hosted'];
+// self_hosted intentionally excluded until client feature
+// matrix and subscription typing fully support it
+const TIER_OPTIONS: SubscriptionTier[] = ['free', 'premium', 'families'];
 
 /**
  * Renders a manual subscription assignment panel for admins.

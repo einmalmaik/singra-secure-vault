@@ -945,7 +945,8 @@ export async function wrapKey(sharedKey: string, publicKey: string): Promise<str
  * 
  * @param wrappedKey - Base64-encoded wrapped key
  * @param encryptedPrivateKey - Encrypted private key
- *                              (legacy `salt:encryptedData` or current `kdfVersion:salt:encryptedData`)
+ *                              (legacy `salt:encryptedData`, current `kdfVersion:salt:encryptedData`,
+ *                               or hybrid `pq-v2:kdfVersion:salt:encryptedRsaKey:encryptedPqKey`)
  * @param masterPassword - User's master password
  * @returns JWK string of the shared AES key
  * @throws Error if decryption fails (wrong password or corrupted key)
@@ -961,7 +962,22 @@ export async function unwrapKey(
     let salt: string | null = null;
     let encryptedData: string | null = null;
 
-    if (parts.length === 2) {
+    if (encryptedPrivateKey.startsWith('pq-v2:')) {
+        // Hybrid format: pq-v2:kdfVersion:salt:encryptedRsaKey:encryptedPqKey
+        if (parts.length !== 5) {
+            throw new Error('Invalid encrypted private key format');
+        }
+
+        const parsedVersion = Number.parseInt(parts[1], 10);
+        if (!Number.isInteger(parsedVersion) || parsedVersion < 1) {
+            throw new Error('Invalid encrypted private key KDF version');
+        }
+
+        kdfVersion = parsedVersion;
+        salt = parts[2];
+        // RSA key remains the wrapping key for shared-key decrypt path.
+        encryptedData = parts[3];
+    } else if (parts.length === 2) {
         // Legacy format: salt:encryptedData (implicitly KDF v1)
         salt = parts[0];
         encryptedData = parts[1];

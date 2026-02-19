@@ -70,15 +70,19 @@ export default function AdminPage() {
         if (!access.permissions.includes('support.admin.access')) {
             return false;
         }
+        // support.tickets.read is mandatory — without it AdminSupportPanel
+        // shows no-access state regardless of other permissions
+        if (!access.permissions.includes('support.tickets.read')) {
+            return false;
+        }
         return access.permissions.some((permission) =>
             [
-                'support.tickets.read',
                 'support.tickets.reply',
                 'support.tickets.reply_internal',
                 'support.tickets.status',
                 'support.metrics.read',
-                'subscriptions.read',
                 'subscriptions.manage',
+                'subscriptions.read',
             ].includes(permission),
         );
     }, [access, billingDisabled]);

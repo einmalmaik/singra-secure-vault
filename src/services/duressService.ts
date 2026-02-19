@@ -1,5 +1,5 @@
 // Copyright (c) 2025-2026 Maunting Studios
-// Licensed under the Business Source License 1.1 — see LICENSE
+// Licensed under the Business Source License 1.1 - see LICENSE
 /**
  * @fileoverview Duress (Panic) Password Service for Singra PW
  *
@@ -222,19 +222,13 @@ export async function attemptDualUnlock(
 ): Promise<DuressUnlockResult> {
     try {
         // SECURITY: Constant-time execution to prevent timing attacks
-        // Both KDF paths MUST use the same parameters to ensure identical execution time
+        // Always derive BOTH keys to avoid timing leakage of duress presence.
+        // Use the correct KDF version for each key to avoid breaking unlocks.
 
-        // Determine the highest KDF version to use for BOTH paths
-        // This ensures consistent computation time regardless of configuration
-        const maxKdfVersion = Math.max(
-            realKdfVersion,
-            duressConfig?.kdfVersion || CURRENT_KDF_VERSION,
-            CURRENT_KDF_VERSION
-        );
+        const duressKdfVersion = duressConfig?.kdfVersion ?? realKdfVersion;
 
-        // Always derive both keys in parallel with the SAME KDF version
-        // This prevents timing differences that could reveal duress mode existence
-        const realKeyPromise = deriveKey(password, realSalt, maxKdfVersion);
+        // Always derive the real key with the user's actual KDF version
+        const realKeyPromise = deriveKey(password, realSalt, realKdfVersion);
 
         // For duress: use real salt if enabled, dummy salt if disabled
         // The dummy salt ensures the same computational cost even when duress is disabled
@@ -242,7 +236,7 @@ export async function attemptDualUnlock(
         const duressKeyPromise = deriveKey(
             password,
             duressConfig?.salt || dummySalt,
-            maxKdfVersion // CRITICAL: Use same KDF version as real key
+            duressKdfVersion
         );
 
         // Wait for both derivations to complete

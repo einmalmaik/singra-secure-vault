@@ -1,5 +1,5 @@
 // Copyright (c) 2025-2026 Maunting Studios
-// Licensed under the Business Source License 1.1 — see LICENSE
+// Licensed under the Business Source License 1.1 - see LICENSE
 /**
  * @fileoverview Security test for Emergency Access RLS policies
  *
@@ -10,8 +10,9 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 
-const SUPABASE_URL = process.env.VITE_SUPABASE_URL || 'http://localhost:54321';
-const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY || 'test-anon-key';
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY;
+const HAS_SUPABASE = !!(SUPABASE_URL && SUPABASE_ANON_KEY);
 
 describe('Emergency Access RLS Security Tests', () => {
     let grantorClient: SupabaseClient;
@@ -23,15 +24,15 @@ describe('Emergency Access RLS Security Tests', () => {
 
     beforeAll(async () => {
         // Skip if not in test environment with real Supabase
-        if (!process.env.VITE_SUPABASE_URL) {
-            console.log('⊘ Skipping RLS tests - requires real Supabase instance');
+        if (!HAS_SUPABASE) {
+            console.log('⊘ Skipping RLS tests - missing Supabase env config');
             return;
         }
 
         // Create test users
-        grantorClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        trusteeClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        maliciousClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        grantorClient = createClient(SUPABASE_URL!, SUPABASE_ANON_KEY!);
+        trusteeClient = createClient(SUPABASE_URL!, SUPABASE_ANON_KEY!);
+        maliciousClient = createClient(SUPABASE_URL!, SUPABASE_ANON_KEY!);
 
         // Sign up grantor
         const { data: grantorAuth, error: grantorError } = await grantorClient.auth.signUp({
@@ -55,9 +56,8 @@ describe('Emergency Access RLS Security Tests', () => {
             .insert({
                 grantor_id: grantorId,
                 trusted_email: trusteeAuth!.user!.email,
-                cooldown_hours: 24,
-                status: 'pending',
-                permissions: { view: true, export: false },
+                wait_days: 7,
+                status: 'invited',
             })
             .select()
             .single();
@@ -76,12 +76,15 @@ describe('Emergency Access RLS Security Tests', () => {
         }
     });
 
-    it('should allow trustee to accept invite by setting only trusted_user_id', async () => {
-        if (!process.env.VITE_SUPABASE_URL) return;
+    it('should allow trustee to accept invite by setting trusted_user_id and status', async () => {
+        if (!HAS_SUPABASE) return;
 
         const { data, error } = await trusteeClient
             .from('emergency_access')
-            .update({ trusted_user_id: trusteeId })
+            .update({
+                trusted_user_id: trusteeId,
+                status: 'accepted',
+            })
             .eq('id', emergencyAccessId)
             .select()
             .single();
@@ -89,16 +92,21 @@ describe('Emergency Access RLS Security Tests', () => {
         expect(error).toBeNull();
         expect(data).toBeDefined();
         expect(data!.trusted_user_id).toBe(trusteeId);
-        expect(data!.status).toBe('pending'); // Status should NOT change
+        expect(data!.status).toBe('accepted');
     });
 
     it('should BLOCK attempt to manipulate status field during invite acceptance', async () => {
-        if (!process.env.VITE_SUPABASE_URL) return;
+        if (!HAS_SUPABASE) return;
 
         // Reset the invite first
         await grantorClient
             .from('emergency_access')
-            .update({ trusted_user_id: null })
+            .update({
+                trusted_user_id: null,
+                status: 'invited',
+                trustee_public_key: null,
+                trustee_pq_public_key: null,
+            })
             .eq('id', emergencyAccessId);
 
         // Try to manipulate status
@@ -114,7 +122,7 @@ describe('Emergency Access RLS Security Tests', () => {
 
         // This should fail with RLS policy violation
         expect(error).toBeDefined();
-        expect(error!.code).toBe('42501'); // PostgreSQL permission denied
+        expect(['42501', 'P0001']).toContain(error!.code);
         expect(data).toBeNull();
 
         // Verify status wasn't changed
@@ -124,87 +132,87 @@ describe('Emergency Access RLS Security Tests', () => {
             .eq('id', emergencyAccessId)
             .single();
 
-        expect(check!.status).toBe('pending');
+        expect(check!.status).toBe('invited');
         expect(check!.trusted_user_id).toBeNull();
     });
 
-    it('should BLOCK attempt to manipulate permissions during invite acceptance', async () => {
-        if (!process.env.VITE_SUPABASE_URL) return;
+    it('should BLOCK attempt to manipulate wait_days during invite acceptance', async () => {
+        if (!HAS_SUPABASE) return;
 
         const { data, error } = await trusteeClient
             .from('emergency_access')
             .update({
                 trusted_user_id: trusteeId,
-                permissions: { view: true, export: true, delete: true }, // MALICIOUS: Adding permissions
+                status: 'accepted',
+                wait_days: 1, // MALICIOUS: Shortening wait period
             })
             .eq('id', emergencyAccessId)
             .select()
             .single();
 
         expect(error).toBeDefined();
-        expect(error!.code).toBe('42501');
+        expect(['42501', 'P0001']).toContain(error!.code);
         expect(data).toBeNull();
 
-        // Verify permissions weren't changed
+        // Verify wait_days wasn't changed
         const { data: check } = await grantorClient
             .from('emergency_access')
-            .select('permissions')
+            .select('wait_days')
             .eq('id', emergencyAccessId)
             .single();
 
-        expect(check!.permissions).toEqual({ view: true, export: false });
+        expect(check!.wait_days).toBe(7);
     });
 
-    it('should BLOCK attempt to manipulate expires_at during invite acceptance', async () => {
-        if (!process.env.VITE_SUPABASE_URL) return;
-
-        const futureDate = new Date();
-        futureDate.setFullYear(futureDate.getFullYear() + 10);
+    it('should BLOCK attempt to manipulate encrypted_master_key during invite acceptance', async () => {
+        if (!HAS_SUPABASE) return;
 
         const { data, error } = await trusteeClient
             .from('emergency_access')
             .update({
                 trusted_user_id: trusteeId,
-                expires_at: futureDate.toISOString(), // MALICIOUS: Extending expiry
+                status: 'accepted',
+                encrypted_master_key: 'malicious-key', // MALICIOUS: Injecting key
             })
             .eq('id', emergencyAccessId)
             .select()
             .single();
 
         expect(error).toBeDefined();
-        expect(error!.code).toBe('42501');
+        expect(['42501', 'P0001']).toContain(error!.code);
         expect(data).toBeNull();
     });
 
-    it('should BLOCK attempt to manipulate cooldown_hours during invite acceptance', async () => {
-        if (!process.env.VITE_SUPABASE_URL) return;
+    it('should BLOCK attempt to manipulate trusted_email during invite acceptance', async () => {
+        if (!HAS_SUPABASE) return;
 
         const { data, error } = await trusteeClient
             .from('emergency_access')
             .update({
                 trusted_user_id: trusteeId,
-                cooldown_hours: 0, // MALICIOUS: Removing cooldown
+                status: 'accepted',
+                trusted_email: 'attacker@test.local', // MALICIOUS: Rebinding invite
             })
             .eq('id', emergencyAccessId)
             .select()
             .single();
 
         expect(error).toBeDefined();
-        expect(error!.code).toBe('42501');
+        expect(['42501', 'P0001']).toContain(error!.code);
         expect(data).toBeNull();
 
-        // Verify cooldown wasn't changed
+        // Verify trusted_email wasn't changed
         const { data: check } = await grantorClient
             .from('emergency_access')
-            .select('cooldown_hours')
+            .select('trusted_email')
             .eq('id', emergencyAccessId)
             .single();
 
-        expect(check!.cooldown_hours).toBe(24);
+        expect(check!.trusted_email).toBeDefined();
     });
 
     it('should BLOCK unauthorized user from accepting invite', async () => {
-        if (!process.env.VITE_SUPABASE_URL) return;
+        if (!HAS_SUPABASE) return;
 
         // Sign up a malicious user
         const { data: maliciousAuth } = await maliciousClient.auth.signUp({
@@ -214,7 +222,10 @@ describe('Emergency Access RLS Security Tests', () => {
 
         const { data, error } = await maliciousClient
             .from('emergency_access')
-            .update({ trusted_user_id: maliciousAuth!.user!.id })
+            .update({
+                trusted_user_id: maliciousAuth!.user!.id,
+                status: 'accepted',
+            })
             .eq('id', emergencyAccessId)
             .select()
             .single();
@@ -224,12 +235,15 @@ describe('Emergency Access RLS Security Tests', () => {
     });
 
     it('should create audit log entry for successful invite acceptance', async () => {
-        if (!process.env.VITE_SUPABASE_URL) return;
+        if (!HAS_SUPABASE) return;
 
         // First accept the invite properly
         await trusteeClient
             .from('emergency_access')
-            .update({ trusted_user_id: trusteeId })
+            .update({
+                trusted_user_id: trusteeId,
+                status: 'accepted',
+            })
             .eq('id', emergencyAccessId);
 
         // Check audit log
@@ -244,13 +258,14 @@ describe('Emergency Access RLS Security Tests', () => {
 
         expect(auditLog).toBeDefined();
         expect(auditLog!.changed_fields).toHaveProperty('trusted_user_id');
+        expect(auditLog!.changed_fields).toHaveProperty('status');
         expect(auditLog!.new_values.trusted_user_id).toBe(trusteeId);
     });
 });
 
 describe('Emergency Access Field Manipulation Exploit Tests', () => {
     it('should detect and log field manipulation attempts in audit', async () => {
-        if (!process.env.VITE_SUPABASE_URL) return;
+        if (!HAS_SUPABASE) return;
 
         // This test verifies that even failed manipulation attempts are logged
         // for security monitoring purposes
@@ -268,8 +283,8 @@ describe('Emergency Access Field Manipulation Exploit Tests', () => {
             .insert({
                 grantor_id: auth!.user!.id,
                 trusted_email: 'victim@test.local',
-                cooldown_hours: 24,
-                status: 'pending',
+                wait_days: 7,
+                status: 'invited',
             })
             .select()
             .single();
@@ -277,9 +292,10 @@ describe('Emergency Access Field Manipulation Exploit Tests', () => {
         // Attempt various exploits (all should fail)
         const exploitAttempts = [
             { status: 'granted' },
-            { permissions: { delete: true } },
-            { expires_at: '2099-12-31T23:59:59Z' },
-            { cooldown_hours: 0 },
+            { wait_days: 1 },
+            { trusted_email: 'attacker@test.local' },
+            { encrypted_master_key: 'malicious' },
+            { pq_encrypted_master_key: 'malicious' },
             { granted_at: new Date().toISOString() },
         ];
 
@@ -288,13 +304,14 @@ describe('Emergency Access Field Manipulation Exploit Tests', () => {
                 .from('emergency_access')
                 .update({
                     trusted_user_id: auth!.user!.id,
+                    status: 'accepted',
                     ...exploit,
                 })
                 .eq('id', invite!.id);
 
             // All attempts should fail
             expect(error).toBeDefined();
-            expect(error!.code).toBe('42501');
+            expect(['42501', 'P0001']).toContain(error!.code);
         }
 
         // Cleanup

@@ -1,5 +1,5 @@
 // Copyright (c) 2025-2026 Maunting Studios
-// Licensed under the Business Source License 1.1 — see LICENSE
+// Licensed under the Business Source License 1.1 - see LICENSE
 /**
  * @fileoverview Cryptographic Service for Singra PW
  * 
@@ -28,8 +28,8 @@ export const CURRENT_KDF_VERSION = 2;
 /**
  * KDF parameter sets indexed by version number.
  *
- *   v1: Original (64 MiB) — ~300 ms on modern devices
- *   v2: Enhanced (128 MiB) — ~500-600 ms on modern devices, OWASP 2025 recommended
+ *   v1: Original (64 MiB) - ~300 ms on modern devices
+ *   v2: Enhanced (128 MiB) - ~500-600 ms on modern devices, OWASP 2025 recommended
  *
  * IMPORTANT: Once a version is released, its parameters MUST NEVER be changed.
  * Only add new versions.
@@ -86,7 +86,7 @@ export async function deriveRawKey(
     // Be robust to different return types from mocks/test shims:
     // - Uint8Array (preferred for outputType 'binary')
     // - ArrayBuffer (convert to Uint8Array)
-    // - string (hex) from older mocks — convert to bytes with secure cleanup
+    // - string (hex) from older mocks - convert to bytes with secure cleanup
     if (result instanceof Uint8Array) {
         return result;
     }
@@ -764,7 +764,7 @@ export async function generateUserKeyPair(
 
     // Version 2: Hybrid PQ+RSA mode (NIST-approved post-quantum)
     // Import PQ crypto service for ML-KEM-768
-    const { generateMLKemKeyPair, exportMLKemKeys } = await import('./pqCryptoService');
+    const { generatePQKeyPair } = await import('./pqCryptoService');
 
     // 1. Generate RSA-4096 Key Pair
     const rsaKeyPair = await crypto.subtle.generateKey(
@@ -779,8 +779,8 @@ export async function generateUserKeyPair(
     );
 
     // 2. Generate ML-KEM-768 Key Pair (CRYSTALS-Kyber)
-    const pqKeyPair = generateMLKemKeyPair();
-    const { publicKey: pqPublicKeyBase64, secretKey: pqSecretKeyBase64 } = exportMLKemKeys(pqKeyPair);
+    const pqKeyPair = generatePQKeyPair();
+    const { publicKey: pqPublicKeyBase64, secretKey: pqSecretKeyBase64 } = pqKeyPair;
 
     // 3. Export RSA keys
     const rsaPublicKeyJwk = await crypto.subtle.exportKey('jwk', rsaKeyPair.publicKey);
@@ -853,14 +853,6 @@ export async function migrateToHybridKeyPair(
 
         // Import RSA key to get public key
         const rsaPrivateKeyJwk = JSON.parse(rsaPrivateKey);
-        const rsaPrivateCryptoKey = await crypto.subtle.importKey(
-            'jwk',
-            rsaPrivateKeyJwk,
-            { name: 'RSA-OAEP', hash: 'SHA-256' },
-            true,
-            ['decrypt']
-        );
-
         // Generate corresponding public key (reconstruct from private)
         // Note: In practice, we'd fetch the existing public key from storage
         const rsaPublicKeyJwk = {
@@ -876,9 +868,9 @@ export async function migrateToHybridKeyPair(
         const rsaPublicKey = JSON.stringify(rsaPublicKeyJwk);
 
         // Generate new PQ key pair
-        const { generateMLKemKeyPair, exportMLKemKeys } = await import('./pqCryptoService');
-        const pqKeyPair = generateMLKemKeyPair();
-        const { publicKey: pqPublicKey, secretKey: pqSecretKey } = exportMLKemKeys(pqKeyPair);
+        const { generatePQKeyPair } = await import('./pqCryptoService');
+        const pqKeyPair = generatePQKeyPair();
+        const { publicKey: pqPublicKey, secretKey: pqSecretKey } = pqKeyPair;
 
         // Re-encrypt both keys with latest KDF version
         const newSalt = generateSalt();

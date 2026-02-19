@@ -2,7 +2,7 @@
 -- CRITICAL SECURITY FIX: Emergency Access RLS Policy Hardening
 -- ============================================================================
 -- Problem: The "Trustees can accept invite" policy only restricts trusted_user_id
--- but allows manipulation of other critical fields like status, expires_at, permissions
+-- but allows manipulation of other critical fields like status and wait_days
 --
 -- Solution: Enforce that ONLY trusted_user_id can be set when accepting an invite,
 -- all other fields must remain unchanged
@@ -20,30 +20,15 @@ USING (
   AND trusted_email = current_setting('request.jwt.claim.email', true)
 )
 WITH CHECK (
-  -- CRITICAL: Only allow setting trusted_user_id to claim the invite
+  -- Only allow setting trusted_user_id to claim the invite
   trusted_user_id = auth.uid()
-
-  -- CRITICAL: Ensure ALL other fields remain EXACTLY as they were
-  -- This prevents manipulation of status, permissions, or timing fields
-  AND status = OLD.status
-  AND grantor_id = OLD.grantor_id
-  AND trusted_email = OLD.trusted_email
-  AND cooldown_hours = OLD.cooldown_hours
-  AND encrypted_master_key IS NOT DISTINCT FROM OLD.encrypted_master_key
-  AND pq_encrypted_master_key IS NOT DISTINCT FROM OLD.pq_encrypted_master_key
-  AND requested_at IS NOT DISTINCT FROM OLD.requested_at
-  AND granted_at IS NOT DISTINCT FROM OLD.granted_at
-  AND expires_at IS NOT DISTINCT FROM OLD.expires_at
-  AND permissions IS NOT DISTINCT FROM OLD.permissions
-  AND created_at = OLD.created_at
-  -- updated_at will change automatically via trigger, that's expected
+  AND status = 'accepted'
 );
 
 -- Add explicit comment documenting the security requirements
 COMMENT ON POLICY "Trustees can accept invite - hardened" ON emergency_access IS
-'SECURITY: This policy allows trustees to claim an invite by setting ONLY their user_id.
-ALL other fields must remain unchanged to prevent privilege escalation or status manipulation.
-Any attempt to modify other fields will be rejected.';
+'SECURITY: This policy allows trustees to claim an invite by setting their user_id and status.
+All other field immutability is enforced by validate_emergency_access_transition trigger.';
 
 -- ============================================================================
 -- Additional Protection: Create audit trigger for emergency_access changes
@@ -113,16 +98,22 @@ BEGIN
       new_values := new_values || jsonb_build_object('granted_at', NEW.granted_at);
     END IF;
 
-    IF OLD.expires_at IS DISTINCT FROM NEW.expires_at THEN
-      changed_fields := changed_fields || jsonb_build_object('expires_at', true);
-      old_values := old_values || jsonb_build_object('expires_at', OLD.expires_at);
-      new_values := new_values || jsonb_build_object('expires_at', NEW.expires_at);
+    IF OLD.wait_days IS DISTINCT FROM NEW.wait_days THEN
+      changed_fields := changed_fields || jsonb_build_object('wait_days', true);
+      old_values := old_values || jsonb_build_object('wait_days', OLD.wait_days);
+      new_values := new_values || jsonb_build_object('wait_days', NEW.wait_days);
     END IF;
 
-    IF OLD.permissions IS DISTINCT FROM NEW.permissions THEN
-      changed_fields := changed_fields || jsonb_build_object('permissions', true);
-      old_values := old_values || jsonb_build_object('permissions', OLD.permissions);
-      new_values := new_values || jsonb_build_object('permissions', NEW.permissions);
+    IF OLD.trustee_public_key IS DISTINCT FROM NEW.trustee_public_key THEN
+      changed_fields := changed_fields || jsonb_build_object('trustee_public_key', true);
+      old_values := old_values || jsonb_build_object('trustee_public_key', OLD.trustee_public_key);
+      new_values := new_values || jsonb_build_object('trustee_public_key', NEW.trustee_public_key);
+    END IF;
+
+    IF OLD.trustee_pq_public_key IS DISTINCT FROM NEW.trustee_pq_public_key THEN
+      changed_fields := changed_fields || jsonb_build_object('trustee_pq_public_key', true);
+      old_values := old_values || jsonb_build_object('trustee_pq_public_key', OLD.trustee_pq_public_key);
+      new_values := new_values || jsonb_build_object('trustee_pq_public_key', NEW.trustee_pq_public_key);
     END IF;
   END IF;
 
@@ -173,7 +164,7 @@ EXECUTE FUNCTION audit_emergency_access_changes();
 -- SET trusted_user_id = auth.uid(), status = 'granted'
 -- WHERE trusted_email = 'user@example.com' AND trusted_user_id IS NULL;
 --
--- 3. Try to manipulate permissions (should fail):
+-- 3. Try to manipulate wait_days (should fail):
 -- UPDATE emergency_access
--- SET trusted_user_id = auth.uid(), permissions = '{"view": true, "export": true}'
+-- SET trusted_user_id = auth.uid(), wait_days = 1
 -- WHERE trusted_email = 'user@example.com' AND trusted_user_id IS NULL;

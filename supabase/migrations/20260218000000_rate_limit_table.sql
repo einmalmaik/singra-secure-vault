@@ -2,11 +2,12 @@
 CREATE TABLE IF NOT EXISTS rate_limit_attempts (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     identifier TEXT NOT NULL, -- userId or email
-    action TEXT NOT NULL CHECK (action IN ('unlock', '2fa', 'passkey')),
+    action TEXT NOT NULL CHECK (action IN ('unlock', '2fa', 'passkey', 'emergency')),
     success BOOLEAN NOT NULL DEFAULT false,
     attempted_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     locked_until TIMESTAMPTZ,
     ip_address TEXT,
+    user_agent TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
@@ -27,7 +28,7 @@ CREATE OR REPLACE FUNCTION cleanup_old_rate_limit_attempts()
 RETURNS void AS $$
 BEGIN
     DELETE FROM rate_limit_attempts
-    WHERE attempted_at < now() - interval '24 hours';
+    WHERE attempted_at < now() - interval '7 days';
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 

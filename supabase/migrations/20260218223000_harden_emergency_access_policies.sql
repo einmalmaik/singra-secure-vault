@@ -40,6 +40,22 @@ BEGIN
         IF (NEW.trusted_email IS DISTINCT FROM OLD.trusted_email) THEN
             RAISE EXCEPTION 'Trustees cannot change trusted_email';
         END IF;
+        IF (NEW.encrypted_master_key IS DISTINCT FROM OLD.encrypted_master_key) THEN
+            RAISE EXCEPTION 'Trustees cannot change encrypted_master_key';
+        END IF;
+        IF (NEW.pq_encrypted_master_key IS DISTINCT FROM OLD.pq_encrypted_master_key) THEN
+            RAISE EXCEPTION 'Trustees cannot change pq_encrypted_master_key';
+        END IF;
+
+        -- Prevent changing trustee keys after initial acceptance
+        IF (OLD.trusted_user_id IS NOT NULL) THEN
+            IF (NEW.trustee_public_key IS DISTINCT FROM OLD.trustee_public_key) THEN
+                RAISE EXCEPTION 'Trustees cannot change trustee_public_key after acceptance';
+            END IF;
+            IF (NEW.trustee_pq_public_key IS DISTINCT FROM OLD.trustee_pq_public_key) THEN
+                RAISE EXCEPTION 'Trustees cannot change trustee_pq_public_key after acceptance';
+            END IF;
+        END IF;
 
         -- Status transition logic for Trustee
         IF (NEW.status IS DISTINCT FROM OLD.status) THEN
@@ -47,6 +63,12 @@ BEGIN
             IF (OLD.status = 'invited' AND NEW.status = 'accepted') THEN
                 IF NEW.trusted_user_id IS NULL THEN
                     RAISE EXCEPTION 'Trustee must link their user account when accepting';
+                END IF;
+                IF (NEW.requested_at IS DISTINCT FROM OLD.requested_at) THEN
+                    RAISE EXCEPTION 'Trustees cannot change requested_at during acceptance';
+                END IF;
+                IF (NEW.granted_at IS DISTINCT FROM OLD.granted_at) THEN
+                    RAISE EXCEPTION 'Trustees cannot change granted_at during acceptance';
                 END IF;
                 RETURN NEW;
             
@@ -75,6 +97,14 @@ BEGIN
             
             ELSE
                 RAISE EXCEPTION 'Trustee not allowed to transition status from % to %', OLD.status, NEW.status;
+            END IF;
+        ELSE
+            -- Status unchanged: prevent trustee tampering with timestamps
+            IF (NEW.requested_at IS DISTINCT FROM OLD.requested_at) THEN
+                RAISE EXCEPTION 'Trustees cannot change requested_at without status transition';
+            END IF;
+            IF (NEW.granted_at IS DISTINCT FROM OLD.granted_at) THEN
+                RAISE EXCEPTION 'Trustees cannot change granted_at without status transition';
             END IF;
         END IF;
     END IF;

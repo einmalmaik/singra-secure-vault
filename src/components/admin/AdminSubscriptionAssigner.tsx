@@ -6,7 +6,7 @@
  * Internal admin utility to assign a subscription tier to a user.
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
@@ -48,16 +48,12 @@ export function AdminSubscriptionAssigner({ ticketId, defaultUserId }: AdminSubs
 
     useEffect(() => {
         // Reset on both user AND ticket change to prevent cross-ticket leakage
-        setLookupInput('');
+        setLookupInput(defaultUserId || '');
         setResolvedUser(null);
         setSelectedTier('free');
         setReason('');
         setErrorKey(null);
     }, [defaultUserId, ticketId]);
-
-    const targetUserId = useMemo(() => {
-        return resolvedUser?.id || defaultUserId || lookupInput.trim();
-    }, [defaultUserId, lookupInput, resolvedUser]);
 
     const handleResolveUser = () => {
         const candidate = lookupInput.trim();
@@ -73,12 +69,13 @@ export function AdminSubscriptionAssigner({ ticketId, defaultUserId }: AdminSubs
 
     const handleAssign = async () => {
         const normalizedReason = reason.trim();
-        const normalizedTargetUserId = targetUserId.trim();
-
-        if (!normalizedTargetUserId) {
+        // SECURITY: Only use explicitly resolved user, never fall back
+        // to defaultUserId directly to prevent silent wrong-user assignment
+        if (!resolvedUser?.id) {
             setErrorKey('admin.support.subscriptionAssigner.errorMissingUser');
             return;
         }
+        const normalizedTargetUserId = resolvedUser.id.trim();
 
         if (normalizedReason.length < 3) {
             setErrorKey('admin.support.subscriptionAssigner.errorReasonTooShort');
@@ -132,7 +129,16 @@ export function AdminSubscriptionAssigner({ ticketId, defaultUserId }: AdminSubs
                         <Input
                             id="admin-subscription-user-lookup"
                             value={lookupInput}
-                            onChange={(event) => setLookupInput(event.target.value)}
+                            onChange={(event) => {
+                                setLookupInput(event.target.value);
+                                setResolvedUser(null);
+                            }}
+                            onKeyDown={(event) => {
+                                if (event.key === 'Enter') {
+                                    event.preventDefault();
+                                    handleResolveUser();
+                                }
+                            }}
                             placeholder={t('admin.support.subscriptionAssigner.lookupPlaceholder')}
                         />
                         <Button type="button" variant="outline" onClick={handleResolveUser}>
@@ -144,9 +150,9 @@ export function AdminSubscriptionAssigner({ ticketId, defaultUserId }: AdminSubs
                             ? t('admin.support.subscriptionAssigner.ticketUserHint', { userId: defaultUserId })
                             : t('admin.support.subscriptionAssigner.noTicketUserHint')}
                     </p>
-                    {targetUserId && (
+                    {resolvedUser?.id && (
                         <p className="text-xs text-muted-foreground">
-                            {t('admin.support.subscriptionAssigner.targetUser', { userId: targetUserId })}
+                            {t('admin.support.subscriptionAssigner.targetUser', { userId: resolvedUser.id })}
                         </p>
                     )}
                 </div>
@@ -181,7 +187,7 @@ export function AdminSubscriptionAssigner({ ticketId, defaultUserId }: AdminSubs
 
                 {errorKey && <p className="text-sm text-destructive">{t(errorKey)}</p>}
 
-                <Button onClick={handleAssign} disabled={isAssigning}>
+                <Button onClick={handleAssign} disabled={isAssigning || !resolvedUser}>
                     {isAssigning
                         ? t('admin.support.subscriptionAssigner.assigning')
                         : t('admin.support.subscriptionAssigner.assignAction')}

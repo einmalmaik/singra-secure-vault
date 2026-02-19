@@ -67,16 +67,15 @@ export default function AdminPage() {
         if (!access?.is_admin) {
             return false;
         }
+        // support.admin.access is mandatory gate
+        // support.tickets.read alone is sufficient to show the tab
+        // AdminSupportPanel handles individual feature gating internally
         if (!access.permissions.includes('support.admin.access')) {
-            return false;
-        }
-        // support.tickets.read is mandatory — without it AdminSupportPanel
-        // shows no-access state regardless of other permissions
-        if (!access.permissions.includes('support.tickets.read')) {
             return false;
         }
         return access.permissions.some((permission) =>
             [
+                'support.tickets.read',
                 'support.tickets.reply',
                 'support.tickets.reply_internal',
                 'support.tickets.status',

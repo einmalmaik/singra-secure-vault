@@ -29,11 +29,7 @@ async function run() {
   // singra-icon.png for OG/social (256x256)
   await sharp(src).resize(256, 256).png().toFile(path.join(pub, 'singra-icon.png'));
 
-  // favicon as 48x48 PNG saved as .ico (modern browsers support PNG favicons)
-  const ico16 = await sharp(src).resize(16, 16).png().toBuffer();
-  const ico32 = await sharp(src).resize(32, 32).png().toBuffer();
-  const ico48 = await sharp(src).resize(48, 48).png().toBuffer();
-  // Simple ICO: just use 32x32 PNG as favicon.ico
+  // favicon.ico (32x32 PNG - modern browsers support this)
   await sharp(src).resize(32, 32).png().toFile(path.join(pub, 'favicon.ico'));
 
   console.log('All icons generated successfully!');

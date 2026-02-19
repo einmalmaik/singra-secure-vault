@@ -27,11 +27,13 @@ vi.mock("@/integrations/supabase/client", () => ({
 }));
 
 import {
+  assignUserSubscription,
   getAdminSupportTicket,
   getTeamAccess,
   listAdminSupportTickets,
   listRolePermissions,
   listTeamMembers,
+  lookupAdminUser,
   setRolePermission,
   setTeamMemberRole,
 } from "@/services/adminService";
@@ -196,5 +198,134 @@ describe("adminService", () => {
 
     expect(membersResult.members).toHaveLength(1);
     expect(permissionsResult.permissions).toHaveLength(1);
+  });
+
+  it("looks up a user for subscription assignment", async () => {
+    mockInvoke.mockResolvedValue({
+      data: {
+        success: true,
+        user: {
+          user_id: "user-1",
+          email: "a***@mail.com",
+          tier: "free",
+          status: "active",
+        },
+      },
+      error: null,
+    });
+
+    const result = await lookupAdminUser({ email: "user@mail.com" });
+
+    expect(mockInvoke).toHaveBeenCalledWith("admin-support", {
+      body: {
+        action: "lookup_user",
+        user_id: undefined,
+        email: "user@mail.com",
+      },
+      headers: {
+        Authorization: "Bearer test-token",
+      },
+    });
+    expect(result.error).toBeNull();
+    expect(result.user?.user_id).toBe("user-1");
+  });
+
+  it("assigns a user subscription", async () => {
+    mockInvoke.mockResolvedValue({
+      data: {
+        success: true,
+        subscription: {
+          user_id: "user-1",
+          tier: "premium",
+          status: "active",
+          updated_at: "2026-02-19T00:00:00.000Z",
+        },
+      },
+      error: null,
+    });
+
+    const result = await assignUserSubscription({
+      userId: "user-1",
+      tier: "premium",
+      reason: "Manual upgrade",
+      ticketId: "ticket-1",
+    });
+
+    expect(mockInvoke).toHaveBeenCalledWith("admin-support", {
+      body: {
+        action: "assign_subscription",
+        ticket_id: "ticket-1",
+        user_id: "user-1",
+        tier: "premium",
+        reason: "Manual upgrade",
+      },
+      headers: {
+        Authorization: "Bearer test-token",
+      },
+    });
+    expect(result.error).toBeNull();
+    expect(result.subscription?.tier).toBe("premium");
+  });
+
+  it("returns auth error when session is missing for assign subscription", async () => {
+    mockGetSession.mockResolvedValue({
+      data: {
+        session: null,
+      },
+      error: null,
+    });
+
+    const result = await assignUserSubscription({
+      userId: "user-1",
+      tier: "premium",
+      reason: "Manual upgrade",
+    });
+
+    expect(result.subscription).toBeNull();
+    expect(result.error?.message).toBe("Authentication required");
+    expect(mockInvoke).not.toHaveBeenCalled();
+  });
+
+  it("returns normalized error for lookup invocation failures", async () => {
+    mockInvoke.mockResolvedValue({
+      data: null,
+      error: { message: "lookup failed" },
+    });
+
+    const result = await lookupAdminUser({ userId: "user-1" });
+
+    expect(result.user).toBeNull();
+    expect(result.error?.message).toBe("lookup failed");
+  });
+
+  it("returns auth error when session is missing for lookup", async () => {
+    mockGetSession.mockResolvedValue({
+      data: {
+        session: null,
+      },
+      error: null,
+    });
+
+    const result = await lookupAdminUser({ email: "user@mail.com" });
+
+    expect(result.user).toBeNull();
+    expect(result.error?.message).toBe("Authentication required");
+    expect(mockInvoke).not.toHaveBeenCalled();
+  });
+
+  it("returns normalized error for assign invocation failures", async () => {
+    mockInvoke.mockResolvedValue({
+      data: null,
+      error: { message: "assign failed" },
+    });
+
+    const result = await assignUserSubscription({
+      userId: "user-1",
+      tier: "families",
+      reason: "Manual support action",
+    });
+
+    expect(result.subscription).toBeNull();
+    expect(result.error?.message).toBe("assign failed");
   });
 });

@@ -19,11 +19,15 @@ const ADMIN_ACCESS_PERMISSION_KEYS = [
   "support.tickets.reply_internal",
   "support.tickets.status",
   "support.metrics.read",
+  "subscriptions.read",
+  "subscriptions.manage",
   "team.roles.read",
   "team.roles.manage",
   "team.permissions.read",
   "team.permissions.manage",
 ];
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const PERMISSION_KEY_REGEX = /^[a-z0-9_.]{3,80}$/;
 
 function jsonResponse(
   corsHeaders: Record<string, string>,
@@ -51,6 +55,10 @@ function parsePermissionRole(value: unknown): PermissionRole | null {
     return value;
   }
   return null;
+}
+
+function isValidUuid(value: unknown): value is string {
+  return typeof value === "string" && UUID_REGEX.test(value);
 }
 
 function getPrimaryRole(roles: TeamRole[]): TeamRole {
@@ -188,7 +196,8 @@ async function handleGetAccess(
   const roles = await getUserRoles(client, userId);
   const permissions = await getUserPermissions(client);
   const isAdmin = roles.includes("admin");
-  const canAccessAdmin = isAdmin && permissions.some((permissionKey) =>
+  const isModerator = roles.includes("moderator");
+  const canAccessAdmin = (isAdmin || isModerator) && permissions.some((permissionKey) =>
     ADMIN_ACCESS_PERMISSION_KEYS.includes(permissionKey)
   );
 
@@ -200,6 +209,7 @@ async function handleGetAccess(
         roles,
         permissions,
         is_admin: isAdmin,
+        is_moderator: isModerator,
         can_access_admin: canAccessAdmin,
       },
     },
@@ -320,7 +330,7 @@ async function handleSetMemberRole(
   const targetUserId = typeof body.user_id === "string" ? body.user_id : "";
   const role = parseRole(body.role);
 
-  if (!targetUserId || !role || !VALID_ROLES.has(role)) {
+  if (!isValidUuid(targetUserId) || !role || !VALID_ROLES.has(role)) {
     return jsonResponse(corsHeaders, { error: "Invalid payload" }, 400);
   }
 
@@ -331,7 +341,18 @@ async function handleSetMemberRole(
 
   // Prevent removing the last admin
   if (role !== "admin") {
-    const targetIsAdmin = await hasRole(adminClient, targetUserId, "admin");
+    const { data: targetAdminRole, error: targetAdminRoleError } = await adminClient
+      .from("user_roles")
+      .select("id")
+      .eq("user_id", targetUserId)
+      .eq("role", "admin")
+      .maybeSingle();
+
+    if (targetAdminRoleError) {
+      return jsonResponse(corsHeaders, { error: targetAdminRoleError.message }, 500);
+    }
+
+    const targetIsAdmin = Boolean(targetAdminRole);
     if (targetIsAdmin) {
       const { count, error: countError } = await adminClient
         .from("user_roles")
@@ -401,7 +422,7 @@ async function handleSetMemberRole(
     });
 
   if (auditError) {
-    console.error("Failed to write team access audit log — aborting operation", auditError);
+    console.error("Failed to write team access audit log - aborting operation", auditError);
     // Roll back role change by deleting the newly assigned role
     await adminClient
       .from("user_roles")
@@ -514,9 +535,22 @@ async function handleSetRolePermission(
   const permissionKey = typeof body.permission_key === "string" ? body.permission_key : "";
   const enabled = body.enabled === true;
 
-  if (!role || !permissionKey) {
+  if (!role || !permissionKey || !PERMISSION_KEY_REGEX.test(permissionKey)) {
     return jsonResponse(corsHeaders, { error: "Invalid payload" }, 400);
   }
+
+  const { data: existingRolePermission, error: existingRolePermissionError } = await adminClient
+    .from("role_permissions")
+    .select("id")
+    .eq("role", role)
+    .eq("permission_key", permissionKey)
+    .maybeSingle();
+
+  if (existingRolePermissionError) {
+    return jsonResponse(corsHeaders, { error: existingRolePermissionError.message }, 500);
+  }
+
+  const hadPermission = Boolean(existingRolePermission);
 
   const { data: permissionDef, error: permissionDefError } = await adminClient
     .from("team_permissions")
@@ -565,7 +599,27 @@ async function handleSetRolePermission(
     });
 
   if (auditError) {
-    console.warn("Failed to write team access audit log", auditError);
+    if (hadPermission && !enabled) {
+      const { error: rollbackError } = await adminClient
+        .from("role_permissions")
+        .upsert({ role, permission_key: permissionKey }, { onConflict: "role,permission_key" });
+      if (rollbackError) {
+        console.error("Failed to roll back role permission after audit failure", rollbackError);
+      }
+    }
+
+    if (!hadPermission && enabled) {
+      const { error: rollbackError } = await adminClient
+        .from("role_permissions")
+        .delete()
+        .eq("role", role)
+        .eq("permission_key", permissionKey);
+      if (rollbackError) {
+        console.error("Failed to roll back role permission after audit failure", rollbackError);
+      }
+    }
+
+    return jsonResponse(corsHeaders, { error: "Audit logging failed, operation aborted" }, 500);
   }
 
   return jsonResponse(

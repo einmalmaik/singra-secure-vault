@@ -64,7 +64,7 @@ export default function AdminPage() {
 
     const canSupportTab = useMemo(() => {
         if (billingDisabled) return false; // Self-host: no managed support
-        if (!access?.is_admin) {
+        if (!access?.can_access_admin) {
             return false;
         }
         return access.permissions.some((permission) =>
@@ -75,6 +75,8 @@ export default function AdminPage() {
                 'support.tickets.reply_internal',
                 'support.tickets.status',
                 'support.metrics.read',
+                'subscriptions.read',
+                'subscriptions.manage',
             ].includes(permission),
         );
     }, [access, billingDisabled]);
@@ -107,7 +109,7 @@ export default function AdminPage() {
         return null;
     }
 
-    if (!access?.is_admin || !access?.can_access_admin || (!canSupportTab && !canTeamTab)) {
+    if (!access?.can_access_admin || (!canSupportTab && !canTeamTab)) {
         return (
             <div className="min-h-screen bg-background">
                 <header className="border-b">

@@ -336,6 +336,62 @@ export async function listAdminSupportMetrics(days: number = 30): Promise<{
     return { metrics: (data.metrics || []) as AdminSupportMetric[], error: null };
 }
 
+/**
+ * Looks up a user for support subscription workflows.
+ *
+ * @param input - Lookup input by user id or email
+ * @returns User lookup payload or error
+ */
+export async function lookupAdminUser(input: {
+    userId?: string;
+    email?: string;
+}): Promise<{ user: AdminUserLookupResult | null; error: Error | null }> {
+    const { data, error } = await invokeAdminFunction(ADMIN_SUPPORT_FUNCTION, {
+        action: 'lookup_user',
+        user_id: input.userId,
+        email: input.email,
+    });
+
+    if (error) {
+        return { user: null, error: new Error(error.message || 'Failed to look up user') };
+    }
+
+    if (!data?.success || !data?.user) {
+        return { user: null, error: new Error('Invalid lookup payload') };
+    }
+
+    return { user: data.user as AdminUserLookupResult, error: null };
+}
+
+/**
+ * Assigns a subscription tier manually for a user.
+ *
+ * @param input - Assignment payload
+ * @returns Assigned subscription result or error
+ */
+export async function assignUserSubscription(input: AssignSubscriptionInput): Promise<{
+    subscription: AssignedSubscriptionResult | null;
+    error: Error | null;
+}> {
+    const { data, error } = await invokeAdminFunction(ADMIN_SUPPORT_FUNCTION, {
+        action: 'assign_subscription',
+        ticket_id: input.ticketId,
+        user_id: input.userId,
+        tier: input.tier,
+        reason: input.reason,
+    });
+
+    if (error) {
+        return { subscription: null, error: new Error(error.message || 'Failed to assign subscription') };
+    }
+
+    if (!data?.success || !data?.subscription) {
+        return { subscription: null, error: new Error('Invalid subscription assignment payload') };
+    }
+
+    return { subscription: data.subscription as AssignedSubscriptionResult, error: null };
+}
+
 // ============ Type Definitions ============
 
 export type TeamRole = 'admin' | 'moderator' | 'user';
@@ -345,6 +401,7 @@ export interface TeamAccess {
     roles: TeamRole[];
     permissions: string[];
     is_admin: boolean;
+    is_moderator?: boolean;
     can_access_admin: boolean;
 }
 
@@ -432,4 +489,27 @@ export interface AdminSupportMetric {
     avg_first_response_minutes: number;
     avg_first_response_hours: number;
     sla_hit_rate_percent: number;
+}
+
+export type SubscriptionTier = 'free' | 'premium' | 'families' | 'self_hosted';
+
+export interface AssignSubscriptionInput {
+    ticketId?: string;
+    userId: string;
+    tier: SubscriptionTier;
+    reason: string;
+}
+
+export interface AssignedSubscriptionResult {
+    user_id: string;
+    tier: SubscriptionTier;
+    status: string;
+    updated_at: string;
+}
+
+export interface AdminUserLookupResult {
+    user_id: string;
+    email: string | null;
+    tier: SubscriptionTier;
+    status: string;
 }

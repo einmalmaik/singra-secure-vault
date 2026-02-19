@@ -890,7 +890,30 @@
       "replyPlaceholder": "Write a user reply or internal note...",
       "internalNoteToggle": "Save as internal note",
       "replySending": "Sending...",
-      "replyAction": "Send reply"
+      "replyAction": "Send reply",
+      "subscription": {
+        "title": "Assign subscription manually",
+        "lookupLabel": "Find user (user ID or email)",
+        "lookupPlaceholder": "e.g. 7f6... or user@example.com",
+        "lookupAction": "Find",
+        "lookupError": "Failed to resolve user.",
+        "resolvedUser": "User ID: {{userId}}",
+        "currentTier": "Current tier: {{tier}}",
+        "currentStatus": "Current status: {{status}}",
+        "currentEmail": "Email: {{email}}",
+        "targetTier": "Target tier",
+        "tiers": {
+          "free": "Free",
+          "premium": "Premium",
+          "families": "Families",
+          "self_hosted": "Self-Hosted"
+        },
+        "reasonLabel": "Reason",
+        "reasonPlaceholder": "Why is this subscription changed?",
+        "assignAction": "Assign subscription",
+        "assignError": "Failed to assign subscription.",
+        "assignSuccess": "Subscription assigned successfully."
+      }
     },
     "team": {
       "title": "Team & Permissions",
@@ -923,7 +946,8 @@
       },
       "categories": {
         "support": "Support",
-        "team": "Team"
+        "team": "Team",
+        "subscriptions": "Subscriptions"
       },
       "permissionsUpdateError": "Failed to update permission.",
       "permissionsUpdated": "Permission updated successfully."

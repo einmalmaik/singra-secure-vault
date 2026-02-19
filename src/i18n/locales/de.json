@@ -913,7 +913,30 @@
       "replyPlaceholder": "Antwort fuer den Nutzer oder interne Notiz eingeben...",
       "internalNoteToggle": "Als interne Notiz speichern",
       "replySending": "Wird gesendet...",
-      "replyAction": "Antwort senden"
+      "replyAction": "Antwort senden",
+      "subscription": {
+        "title": "Abonnement manuell zuweisen",
+        "lookupLabel": "Nutzer suchen (User-ID oder E-Mail)",
+        "lookupPlaceholder": "z.B. 7f6... oder user@example.com",
+        "lookupAction": "Suchen",
+        "lookupError": "Nutzer konnte nicht gefunden werden.",
+        "resolvedUser": "Nutzer-ID: {{userId}}",
+        "currentTier": "Aktuelles Abo: {{tier}}",
+        "currentStatus": "Aktueller Status: {{status}}",
+        "currentEmail": "E-Mail: {{email}}",
+        "targetTier": "Neues Abo",
+        "tiers": {
+          "free": "Free",
+          "premium": "Premium",
+          "families": "Families",
+          "self_hosted": "Self-Hosted"
+        },
+        "reasonLabel": "Begruendung",
+        "reasonPlaceholder": "Warum wird das Abo geaendert?",
+        "assignAction": "Abo zuweisen",
+        "assignError": "Abo konnte nicht zugewiesen werden.",
+        "assignSuccess": "Abo erfolgreich zugewiesen."
+      }
     },
     "team": {
       "title": "Team & Rechte",
@@ -946,7 +969,8 @@
       },
       "categories": {
         "support": "Support",
-        "team": "Team"
+        "team": "Team",
+        "subscriptions": "Abonnements"
       },
       "permissionsUpdateError": "Berechtigung konnte nicht aktualisiert werden.",
       "permissionsUpdated": "Berechtigung erfolgreich aktualisiert."

@@ -6,7 +6,7 @@
  * Internal support inbox for moderators/admins.
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BarChart3, Clock3, Loader2, MessageSquare, RefreshCcw, Send } from 'lucide-react';
 
@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { AdminSubscriptionAssigner } from '@/components/admin/AdminSubscriptionAssigner';
 import { useToast } from '@/hooks/use-toast';
 import {
     type AdminSupportMetric,
@@ -58,6 +59,7 @@ export function AdminSupportPanel({ permissions }: AdminSupportPanelProps) {
     const canReadInternal = permissions.includes('support.tickets.reply_internal');
     const canUpdateStatus = permissions.includes('support.tickets.status');
     const canReadMetrics = permissions.includes('support.metrics.read');
+    const canManageSubscriptions = permissions.includes('subscriptions.manage');
 
     const [tickets, setTickets] = useState<AdminSupportTicket[]>([]);
     const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
@@ -77,6 +79,7 @@ export function AdminSupportPanel({ permissions }: AdminSupportPanelProps) {
     const [isLoadingMetrics, setIsLoadingMetrics] = useState(false);
     const [isReplying, setIsReplying] = useState(false);
     const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+    const detailRequestRef = useRef(0);
 
     const aggregateMetric = useMemo(() => {
         return metrics.find((metric) => metric.segment === 'all') || null;
@@ -148,8 +151,14 @@ export function AdminSupportPanel({ permissions }: AdminSupportPanelProps) {
                 return;
             }
 
+            const requestId = detailRequestRef.current + 1;
+            detailRequestRef.current = requestId;
             setIsLoadingTicket(true);
             const { detail, error } = await getAdminSupportTicket(ticketId);
+            if (detailRequestRef.current !== requestId) {
+                return;
+            }
+
             setIsLoadingTicket(false);
 
             if (error || !detail) {
@@ -214,6 +223,7 @@ export function AdminSupportPanel({ permissions }: AdminSupportPanelProps) {
         if (!selectedTicketId || !canReply) {
             return;
         }
+        const activeTicketId = selectedTicketId;
 
         const message = replyMessage.trim();
         if (message.length < 1) {
@@ -222,7 +232,7 @@ export function AdminSupportPanel({ permissions }: AdminSupportPanelProps) {
 
         setIsReplying(true);
         const { error } = await replyToAdminSupportTicket({
-            ticketId: selectedTicketId,
+            ticketId: activeTicketId,
             message,
             isInternal: replyInternal,
         });
@@ -245,16 +255,17 @@ export function AdminSupportPanel({ permissions }: AdminSupportPanelProps) {
             description: t('admin.support.replySent'),
         });
 
-        await Promise.all([loadTickets(), loadTicketDetail(selectedTicketId), loadMetrics()]);
+        await Promise.all([loadTickets(), loadTicketDetail(activeTicketId), loadMetrics()]);
     };
 
     const handleStatusUpdate = async () => {
         if (!selectedTicketId || !canUpdateStatus) {
             return;
         }
+        const activeTicketId = selectedTicketId;
 
         setIsUpdatingStatus(true);
-        const { error } = await updateAdminSupportTicketStatus(selectedTicketId, statusUpdate);
+        const { error } = await updateAdminSupportTicketStatus(activeTicketId, statusUpdate);
         setIsUpdatingStatus(false);
 
         if (error) {
@@ -271,7 +282,7 @@ export function AdminSupportPanel({ permissions }: AdminSupportPanelProps) {
             description: t('admin.support.statusUpdated'),
         });
 
-        await Promise.all([loadTickets(), loadTicketDetail(selectedTicketId), loadMetrics()]);
+        await Promise.all([loadTickets(), loadTicketDetail(activeTicketId), loadMetrics()]);
     };
 
     if (!canReadTickets) {
@@ -539,6 +550,13 @@ export function AdminSupportPanel({ permissions }: AdminSupportPanelProps) {
                                             {isReplying ? t('admin.support.replySending') : t('admin.support.replyAction')}
                                         </Button>
                                     </div>
+                                )}
+
+                                {canManageSubscriptions && (
+                                    <AdminSubscriptionAssigner
+                                        defaultUserId={selectedTicket.ticket.user_id}
+                                        ticketId={selectedTicket.ticket.id}
+                                    />
                                 )}
                             </>
                         )}

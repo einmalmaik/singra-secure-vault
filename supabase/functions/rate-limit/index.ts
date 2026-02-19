@@ -37,14 +37,31 @@ interface RateLimitRequest {
   userId?: string;
   email?: string;
   action: 'unlock' | '2fa' | 'passkey' | 'emergency';
-  success: boolean;
-  ipAddress?: string; // Allow client to pass IP for better tracking
+  success?: boolean; // Deprecated and ignored (cannot be trusted from client)
+  ipAddress?: string; // Deprecated and ignored (cannot be trusted from client)
 }
 
 interface RateLimitResponse {
   allowed: boolean;
   attemptsRemaining: number;
   lockedUntil?: string;
+}
+
+function getTrustedClientIp(req: Request): string {
+  const cfConnectingIp = req.headers.get('CF-Connecting-IP');
+  if (cfConnectingIp && cfConnectingIp.trim().length > 0) {
+    return cfConnectingIp.trim();
+  }
+
+  const xForwardedFor = req.headers.get('X-Forwarded-For');
+  if (xForwardedFor) {
+    const forwardedClientIp = xForwardedFor.split(',')[0]?.trim();
+    if (forwardedClientIp && forwardedClientIp.length > 0) {
+      return forwardedClientIp;
+    }
+  }
+
+  return 'unknown';
 }
 
 serve(async (req) => {
@@ -82,14 +99,7 @@ serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    const { userId, email, action, success, ipAddress }: RateLimitRequest = await req.json();
-
-    if (typeof success !== 'boolean') {
-      return new Response(
-        JSON.stringify({ error: "success must be boolean" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    const { userId, email, action }: RateLimitRequest = await req.json();
 
     // Validate action
     if (!RATE_LIMITS[action]) {
@@ -119,11 +129,8 @@ serve(async (req) => {
     }
     const identifier = user.id;
 
-    // Extract IP address from request or use provided
-    const clientIp = ipAddress ||
-                     req.headers.get('CF-Connecting-IP') ||
-                     req.headers.get('X-Forwarded-For')?.split(',')[0] ||
-                     'unknown';
+    // SECURITY: Derive IP only from trusted proxy headers.
+    const clientIp = getTrustedClientIp(req);
 
     const now = new Date();
     const windowStart = new Date(now.getTime() - limits.window);
@@ -194,8 +201,9 @@ serve(async (req) => {
     const backoffMultiplier = Math.min(Math.pow(2, Math.floor(failedAttempts / limits.maxAttempts)), 8);
     const effectiveLockout = limits.lockout * backoffMultiplier;
 
-    // Record this attempt
-    const lockUntil = (!success && failedAttempts >= limits.maxAttempts - 1)
+    // SECURITY: Each call is treated as a failed attempt. Caller-reported
+    // "success" cannot be trusted for lockout enforcement decisions.
+    const lockUntil = (failedAttempts >= limits.maxAttempts - 1)
       ? new Date(now.getTime() + effectiveLockout).toISOString()
       : null;
 
@@ -204,7 +212,7 @@ serve(async (req) => {
       .insert({
         identifier,
         action,
-        success,
+        success: false,
         attempted_at: now.toISOString(),
         locked_until: lockUntil,
         ip_address: clientIp,
@@ -222,7 +230,7 @@ serve(async (req) => {
       .delete()
       .lt('attempted_at', cleanupTime.toISOString());
 
-    const attemptsRemaining = Math.max(0, limits.maxAttempts - failedAttempts - (success ? 0 : 1));
+    const attemptsRemaining = Math.max(0, limits.maxAttempts - failedAttempts - 1);
 
     return new Response(
       JSON.stringify({

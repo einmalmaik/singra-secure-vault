@@ -547,7 +547,7 @@ describe("resolveDefaultVaultId", () => {
   it("online: fetches vault ID from Supabase and caches it", async () => {
     Object.defineProperty(navigator, "onLine", { value: true, configurable: true });
 
-    const chain = createChainable({ data: { id: VAULT_ID }, error: null });
+    const chain = createChainable({ data: [{ id: VAULT_ID }], error: null });
     mockSupabase._setChains([chain]);
 
     const result = await svc.resolveDefaultVaultId(USER_ID);
@@ -582,6 +582,21 @@ describe("resolveDefaultVaultId", () => {
     Object.defineProperty(navigator, "onLine", { value: false, configurable: true });
 
     const result = await svc.resolveDefaultVaultId("no-cached-user");
+    expect(result).toBeNull();
+  });
+
+  it("normalizes invalid cached vault IDs (empty string) to null", async () => {
+    await svc.saveOfflineSnapshot({
+      userId: USER_ID,
+      vaultId: "",
+      items: [],
+      categories: [],
+      lastSyncedAt: null,
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    });
+
+    Object.defineProperty(navigator, "onLine", { value: false, configurable: true });
+    const result = await svc.resolveDefaultVaultId(USER_ID);
     expect(result).toBeNull();
   });
 });

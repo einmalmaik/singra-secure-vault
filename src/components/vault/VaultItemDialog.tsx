@@ -122,6 +122,14 @@ interface VaultItemDialogProps {
 }
 
 const ENCRYPTED_CATEGORY_PREFIX = 'enc:cat:v1:';
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function sanitizeOptionalUuid(value: string | null | undefined): string | null {
+    if (!value) return null;
+    const trimmed = value.trim();
+    if (trimmed === '') return null;
+    return UUID_PATTERN.test(trimmed) ? trimmed : null;
+}
 
 export function VaultItemDialog({ open, onOpenChange, itemId, onSave, initialType = 'password' }: VaultItemDialogProps) {
     const { t } = useTranslation();
@@ -139,7 +147,8 @@ export function VaultItemDialog({ open, onOpenChange, itemId, onSave, initialTyp
     const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
     const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
 
-    const isEditing = !!itemId;
+    const normalizedItemId = sanitizeOptionalUuid(itemId);
+    const isEditing = !!normalizedItemId;
 
     const form = useForm<ItemFormData>({
         resolver: zodResolver(itemSchema),
@@ -262,12 +271,12 @@ export function VaultItemDialog({ open, onOpenChange, itemId, onSave, initialTyp
     // Load existing item data
     useEffect(() => {
         async function loadItem() {
-            if (!itemId || !open || !user) return;
+            if (!normalizedItemId || !open || !user) return;
 
             setLoading(true);
             try {
                 const { snapshot } = await loadVaultSnapshot(user.id);
-                const item = snapshot.items.find((entry) => entry.id === itemId);
+                const item = snapshot.items.find((entry) => entry.id === normalizedItemId);
                 if (!item) {
                     throw new Error('Item not found');
                 }
@@ -309,7 +318,7 @@ export function VaultItemDialog({ open, onOpenChange, itemId, onSave, initialTyp
         }
 
         loadItem();
-    }, [itemId, open, user, decryptItem, form, toast, t]);
+    }, [normalizedItemId, open, user, decryptItem, form, toast, t]);
 
     // Reset form when dialog closes
     useEffect(() => {
@@ -328,7 +337,7 @@ export function VaultItemDialog({ open, onOpenChange, itemId, onSave, initialTyp
 
         setLoading(true);
         try {
-            let vaultId = await resolveDefaultVaultId(user.id);
+            let vaultId = sanitizeOptionalUuid(await resolveDefaultVaultId(user.id));
             if (!vaultId) {
                 // Create default vault if it doesn't exist
                 const { data: newVault, error: vaultError } = await supabase
@@ -353,7 +362,7 @@ export function VaultItemDialog({ open, onOpenChange, itemId, onSave, initialTyp
                 websiteUrl: normalizeUrl(data.url) || undefined,
                 itemType,
                 isFavorite: data.isFavorite,
-                categoryId: selectedCategoryId,
+                categoryId: sanitizeOptionalUuid(selectedCategoryId),
                 username: data.username,
                 password: data.password,
                 notes: data.notes,
@@ -368,7 +377,7 @@ export function VaultItemDialog({ open, onOpenChange, itemId, onSave, initialTyp
             // Encrypt sensitive data
             const encryptedData = await encryptItem(finalItemData);
 
-            const targetItemId = itemId ?? crypto.randomUUID();
+            const targetItemId = normalizedItemId ?? crypto.randomUUID();
             const itemData = {
                 id: targetItemId,
                 user_id: user.id,
@@ -379,7 +388,7 @@ export function VaultItemDialog({ open, onOpenChange, itemId, onSave, initialTyp
                 item_type: itemType,
                 is_favorite: data.isFavorite,
                 encrypted_data: encryptedData,
-                category_id: selectedCategoryId,
+                category_id: sanitizeOptionalUuid(selectedCategoryId),
             };
 
             let syncedOnline = false;
@@ -438,7 +447,7 @@ export function VaultItemDialog({ open, onOpenChange, itemId, onSave, initialTyp
     };
 
     const handleDelete = async () => {
-        if (!itemId || !user) return;
+        if (!normalizedItemId || !user) return;
 
         setDeleting(true);
         try {
@@ -448,7 +457,7 @@ export function VaultItemDialog({ open, onOpenChange, itemId, onSave, initialTyp
                     const { error } = await supabase
                         .from('vault_items')
                         .delete()
-                        .eq('id', itemId);
+                        .eq('id', normalizedItemId);
 
                     if (error) throw error;
                     syncedOnline = true;
@@ -459,12 +468,12 @@ export function VaultItemDialog({ open, onOpenChange, itemId, onSave, initialTyp
                 }
             }
 
-            await removeOfflineItemRow(user.id, itemId);
+            await removeOfflineItemRow(user.id, normalizedItemId);
             if (!syncedOnline) {
                 await enqueueOfflineMutation({
                     userId: user.id,
                     type: 'delete_item',
-                    payload: { id: itemId },
+                    payload: { id: normalizedItemId },
                 });
             }
 
@@ -680,9 +689,9 @@ export function VaultItemDialog({ open, onOpenChange, itemId, onSave, initialTyp
                             )}
 
                             {/* File Attachments (Premium) */}
-                            {itemId && (
+                            {normalizedItemId && (
                                 <div className="pt-4">
-                                    <FileAttachments vaultItemId={itemId} />
+                                    <FileAttachments vaultItemId={normalizedItemId} />
                                 </div>
                             )}
 

@@ -69,6 +69,13 @@ function nowIso(): string {
   return new Date().toISOString();
 }
 
+function sanitizeOptionalUuid(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (trimmed === '') return null;
+  return trimmed;
+}
+
 function createEmptySnapshot(userId: string): OfflineVaultSnapshot {
   const now = nowIso();
   return {
@@ -335,7 +342,7 @@ export async function resolveDefaultVaultId(userId: string): Promise<string | nu
       if (error) {
         throw error;
       }
-      const resolvedVaultId = data?.[0]?.id ?? null;
+      const resolvedVaultId = sanitizeOptionalUuid(data?.[0]?.id ?? null);
       if (resolvedVaultId) {
         const snapshot = await ensureSnapshot(userId);
         if (snapshot.vaultId !== resolvedVaultId) {
@@ -353,7 +360,7 @@ export async function resolveDefaultVaultId(userId: string): Promise<string | nu
   }
 
   const snapshot = await getOfflineSnapshot(userId);
-  return snapshot?.vaultId ?? null;
+  return sanitizeOptionalUuid(snapshot?.vaultId ?? null);
 }
 
 export async function fetchRemoteOfflineSnapshot(userId: string): Promise<OfflineVaultSnapshot> {
@@ -368,7 +375,7 @@ export async function fetchRemoteOfflineSnapshot(userId: string): Promise<Offlin
     throw vaultError;
   }
 
-  const vaultId = vault?.id ?? null;
+  const vaultId = sanitizeOptionalUuid(vault?.id ?? null);
 
   const { data: categories, error: categoriesError } = await supabase
     .from('categories')

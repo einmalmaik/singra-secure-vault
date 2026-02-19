@@ -1,0 +1,22 @@
+{
+  "extends": "./.eslintrc.json",
+  "rules": {
+    "no-console": ["error", {
+      "allow": []
+    }]
+  },
+  "overrides": [
+    {
+      "files": ["src/lib/logger.ts"],
+      "rules": {
+        "no-console": "off"
+      }
+    },
+    {
+      "files": ["**/*.test.ts", "**/*.test.tsx", "src/test/**/*"],
+      "rules": {
+        "no-console": "off"
+      }
+    }
+  ]
+}

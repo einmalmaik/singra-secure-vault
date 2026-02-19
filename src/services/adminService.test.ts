@@ -34,6 +34,7 @@ import {
   listRolePermissions,
   listTeamMembers,
   lookupAdminUser,
+  replyToAdminSupportTicket,
   setRolePermission,
   setTeamMemberRole,
 } from "@/services/adminService";
@@ -176,6 +177,34 @@ describe("adminService", () => {
     expect(result.detail?.messages).toHaveLength(1);
   });
 
+  it("returns normalized error when reply status update is rejected", async () => {
+    mockInvoke.mockResolvedValue({
+      data: null,
+      error: { message: "Status transition not allowed: closed -> open" },
+    });
+
+    const result = await replyToAdminSupportTicket({
+      ticketId: "ticket-1",
+      message: "We are reopening your ticket",
+      status: "open",
+    });
+
+    expect(mockInvoke).toHaveBeenCalledWith("admin-support", {
+      body: {
+        action: "reply_ticket",
+        ticket_id: "ticket-1",
+        message: "We are reopening your ticket",
+        is_internal: false,
+        status: "open",
+      },
+      headers: {
+        Authorization: "Bearer test-token",
+      },
+    });
+    expect(result.message).toBeNull();
+    expect(result.error?.message).toBe("Status transition not allowed: closed -> open");
+  });
+
   it("loads team lists from their edge functions", async () => {
     mockInvoke
       .mockResolvedValueOnce({
@@ -228,6 +257,36 @@ describe("adminService", () => {
     });
     expect(result.error).toBeNull();
     expect(result.user?.user_id).toBe("user-1");
+  });
+
+  it("handles lookup success for users found beyond legacy pagination windows", async () => {
+    mockInvoke.mockResolvedValue({
+      data: {
+        success: true,
+        user: {
+          user_id: "user-after-page-25",
+          email: "p***@mail.com",
+          tier: "premium",
+          status: "active",
+        },
+      },
+      error: null,
+    });
+
+    const result = await lookupAdminUser({ email: "page25@mail.com" });
+
+    expect(mockInvoke).toHaveBeenCalledWith("admin-support", {
+      body: {
+        action: "lookup_user",
+        user_id: undefined,
+        email: "page25@mail.com",
+      },
+      headers: {
+        Authorization: "Bearer test-token",
+      },
+    });
+    expect(result.error).toBeNull();
+    expect(result.user?.user_id).toBe("user-after-page-25");
   });
 
   it("assigns a user subscription", async () => {

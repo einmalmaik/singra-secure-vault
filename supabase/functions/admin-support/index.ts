@@ -22,6 +22,7 @@ const VALID_SUBSCRIPTION_TIERS = new Set<SubscriptionTier>([
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const MAX_SEARCH_LENGTH = 120;
 const MAX_REASON_LENGTH = 500;
+const MAX_AUTH_USER_PAGES = 500;
 
 const ALLOWED_STATUS_TRANSITIONS: Record<TicketStatus, TicketStatus[]> = {
   open: ["in_progress", "waiting_user", "resolved", "closed"],
@@ -268,6 +269,34 @@ async function updateTicketStatus(
   return { data: data as Record<string, unknown>, error: null };
 }
 
+async function validateTicketStatusUpdate(
+  adminClient: ReturnType<typeof createClient>,
+  ticketId: string,
+  status: TicketStatus,
+): Promise<{ valid: boolean; error: string | null }> {
+  const { data: currentTicket, error: currentTicketError } = await adminClient
+    .from("support_tickets")
+    .select("id, status")
+    .eq("id", ticketId)
+    .single();
+
+  if (currentTicketError || !currentTicket) {
+    return { valid: false, error: currentTicketError?.message || "Ticket not found" };
+  }
+
+  const currentStatus = parseTicketStatus(currentTicket.status);
+  if (!currentStatus) {
+    return { valid: false, error: "Invalid current ticket status" };
+  }
+
+  const { patch: statusPatch, error: patchError } = buildTicketStatusPatch(currentStatus, status);
+  if (patchError || !statusPatch) {
+    return { valid: false, error: patchError || "Invalid status update" };
+  }
+
+  return { valid: true, error: null };
+}
+
 async function checkSupportReplyRateLimit(
   adminClient: ReturnType<typeof createClient>,
   userId: string,
@@ -316,7 +345,7 @@ async function findAuthUserByEmail(
   const perPage = 200;
   const normalizedEmail = email.trim().toLowerCase();
 
-  while (page <= 20) {
+  while (true) {
     const { data, error } = await adminClient.auth.admin.listUsers({ page, perPage });
     if (error) {
       console.error("Failed to list auth users", error);
@@ -334,6 +363,10 @@ async function findAuthUserByEmail(
     if (users.length < perPage) {
       break;
     }
+    if (page >= MAX_AUTH_USER_PAGES) {
+      console.warn("Reached auth user pagination safety cap while searching by email");
+      break;
+    }
     page += 1;
   }
 
@@ -347,7 +380,7 @@ async function findAuthUserById(
   let page = 1;
   const perPage = 200;
 
-  while (page <= 20) {
+  while (true) {
     const { data, error } = await adminClient.auth.admin.listUsers({ page, perPage });
     if (error) {
       console.error("Failed to list auth users", error);
@@ -361,6 +394,10 @@ async function findAuthUserById(
     }
 
     if (users.length < perPage) {
+      break;
+    }
+    if (page >= MAX_AUTH_USER_PAGES) {
+      console.warn("Reached auth user pagination safety cap while searching by id");
       break;
     }
     page += 1;
@@ -581,6 +618,16 @@ async function handleReplyTicket(
     if (!canUpdateStatus) {
       return jsonResponse(corsHeaders, { error: "Insufficient status permissions" }, 403);
     }
+
+    // Validate transition before insert to avoid persisting a reply for an invalid status change.
+    const { valid: isStatusUpdateValid, error: statusValidationError } = await validateTicketStatusUpdate(
+      adminClient,
+      ticketId,
+      statusUpdate,
+    );
+    if (!isStatusUpdateValid) {
+      return jsonResponse(corsHeaders, { error: statusValidationError || "Invalid status update" }, 400);
+    }
   }
 
   const { data: insertedMessage, error: messageError } = await adminClient
@@ -609,6 +656,13 @@ async function handleReplyTicket(
     );
 
     if (statusError) {
+      const { error: rollbackError } = await adminClient
+        .from("support_messages")
+        .delete()
+        .eq("id", insertedMessage.id);
+      if (rollbackError) {
+        console.error("Failed to rollback support reply after status update error", rollbackError);
+      }
       return jsonResponse(corsHeaders, { error: statusError }, 400);
     }
 

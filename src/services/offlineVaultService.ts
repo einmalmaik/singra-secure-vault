@@ -330,18 +330,20 @@ export async function resolveDefaultVaultId(userId: string): Promise<string | nu
         .select('id')
         .eq('user_id', userId)
         .eq('is_default', true)
-        .maybeSingle();
-      if (error && error.code !== 'PGRST116') {
+        .order('created_at', { ascending: true })
+        .limit(1);
+      if (error) {
         throw error;
       }
-      if (data?.id) {
+      const resolvedVaultId = data?.[0]?.id ?? null;
+      if (resolvedVaultId) {
         const snapshot = await ensureSnapshot(userId);
-        if (snapshot.vaultId !== data.id) {
-          snapshot.vaultId = data.id;
+        if (snapshot.vaultId !== resolvedVaultId) {
+          snapshot.vaultId = resolvedVaultId;
           snapshot.updatedAt = nowIso();
           await saveOfflineSnapshot(snapshot);
         }
-        return data.id;
+        return resolvedVaultId;
       }
     } catch (err) {
       if (!isLikelyOfflineError(err)) {

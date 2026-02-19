@@ -62,6 +62,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { FeatureGate } from '@/components/Subscription/FeatureGate';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { useVault } from '@/contexts/VaultContext';
@@ -483,7 +484,11 @@ export default function EmergencyAccessSettings() {
     };
 
     return (
-        <div className="space-y-6">
+        <FeatureGate
+            feature="emergency_access"
+            featureLabel={t('subscription.features.emergency_access')}
+        >
+            <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <div>
                     <h2 className="text-lg font-medium">{t('emergency.title', 'Emergency Access')}</h2>
@@ -694,6 +699,7 @@ export default function EmergencyAccessSettings() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-        </div>
+            </div>
+        </FeatureGate>
     );
 }

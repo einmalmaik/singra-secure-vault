@@ -236,16 +236,17 @@ describe("planConfig", () => {
     }
   });
 
-  it("5 features are free", () => {
+  it("6 features are free", () => {
     const freeFeatures = Object.entries(FEATURE_MATRIX)
       .filter(([, v]) => v.free === true)
       .map(([k]) => k);
-    expect(freeFeatures).toHaveLength(5);
+    expect(freeFeatures).toHaveLength(6);
     expect(freeFeatures).toContain("unlimited_passwords");
     expect(freeFeatures).toContain("device_sync");
     expect(freeFeatures).toContain("password_generator");
     expect(freeFeatures).toContain("secure_notes");
     expect(freeFeatures).toContain("external_2fa");
+    expect(freeFeatures).toContain("post_quantum_encryption");
   });
 
   it("families-only features: premium=false, families=true", () => {

@@ -376,10 +376,10 @@ export function VaultItemDialog({ open, onOpenChange, itemId, onSave, initialTyp
                 title: ENCRYPTED_ITEM_TITLE_PLACEHOLDER,
                 website_url: null,
                 icon_url: null,
-                item_type: 'password' as const,
-                is_favorite: false,
+                item_type: itemType,
+                is_favorite: data.isFavorite,
                 encrypted_data: encryptedData,
-                category_id: null,
+                category_id: selectedCategoryId,
             };
 
             let syncedOnline = false;
@@ -430,7 +430,7 @@ export function VaultItemDialog({ open, onOpenChange, itemId, onSave, initialTyp
             toast({
                 variant: 'destructive',
                 title: t('common.error'),
-                description: 'Failed to save item',
+                description: err instanceof Error ? err.message : 'Failed to save item',
             });
         } finally {
             setLoading(false);
@@ -680,9 +680,11 @@ export function VaultItemDialog({ open, onOpenChange, itemId, onSave, initialTyp
                             )}
 
                             {/* File Attachments (Premium) */}
-                            <div className="pt-4">
-                                <FileAttachments vaultItemId={itemId} />
-                            </div>
+                            {itemId && (
+                                <div className="pt-4">
+                                    <FileAttachments vaultItemId={itemId} />
+                                </div>
+                            )}
 
                             {/* Notes */}
                             <FormField

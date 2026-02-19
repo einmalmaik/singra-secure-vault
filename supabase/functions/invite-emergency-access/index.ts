@@ -76,6 +76,34 @@ Deno.serve(async (req: Request) => {
     }
     actorUserId = user.id;
 
+    const { data: subscription, error: subscriptionError } = await admin
+      .from("subscriptions")
+      .select("tier, status")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (subscriptionError) {
+      console.warn(`${FUNCTION_NAME}: subscription_lookup_failed`, {
+        actorUserId,
+        dbError: subscriptionError.message,
+      });
+      return new Response(JSON.stringify({ error: "Failed to validate subscription" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const hasEmergencyAccessEntitlement = !!subscription
+      && (subscription.tier === "premium" || subscription.tier === "families")
+      && (subscription.status === "active" || subscription.status === "trialing");
+
+    if (!hasEmergencyAccessEntitlement) {
+      return new Response(JSON.stringify({ error: "Emergency access requires an active Premium or Families subscription." }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const { email, wait_days } = await req.json();
     if (!email || typeof email !== "string") {
       console.warn(`${FUNCTION_NAME}: invalid_email_payload`, {

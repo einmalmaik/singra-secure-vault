@@ -36,7 +36,7 @@ function setupMockSubscription(tier: SubscriptionTier, billingDisabled = false) 
         priority_support: { free: false, premium: true, families: true },
         family_members: { free: false, premium: false, families: true },
         shared_collections: { free: false, premium: false, families: true },
-        post_quantum_encryption: { free: false, premium: true, families: true },
+        post_quantum_encryption: { free: true, premium: true, families: true },
         duress_password: { free: false, premium: true, families: true },
     };
     
@@ -152,11 +152,11 @@ describe("useFeatureGate", () => {
             expect(result.current.requiredTier).toBe("families");
         });
 
-        it("denies post_quantum_encryption (requires premium)", () => {
+        it("allows post_quantum_encryption (available on free)", () => {
             const { result } = renderHook(() => useFeatureGate("post_quantum_encryption"));
             
-            expect(result.current.allowed).toBe(false);
-            expect(result.current.requiredTier).toBe("premium");
+            expect(result.current.allowed).toBe(true);
+            expect(result.current.requiredTier).toBe("free");
         });
 
         it("denies duress_password (requires premium)", () => {

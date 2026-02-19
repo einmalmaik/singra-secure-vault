@@ -913,7 +913,32 @@
       "replyPlaceholder": "Antwort fuer den Nutzer oder interne Notiz eingeben...",
       "internalNoteToggle": "Als interne Notiz speichern",
       "replySending": "Wird gesendet...",
-      "replyAction": "Antwort senden"
+      "replyAction": "Antwort senden",
+      "subscriptionAssigner": {
+        "title": "Abo zuweisen",
+        "description": "Weise dem aktuellen Nutzer manuell ein Abo-Tier zu.",
+        "lookupLabel": "Ziel-Nutzer-ID",
+        "lookupPlaceholder": "Nutzer-ID eingeben",
+        "resolveAction": "ID uebernehmen",
+        "ticketUserHint": "Ticket-Nutzer: {{userId}}",
+        "noTicketUserHint": "Kein Ticket-Nutzer vorausgewaehlt.",
+        "targetUser": "Ziel-Nutzer: {{userId}}",
+        "tierLabel": "Tier",
+        "tier": {
+          "free": "Free",
+          "premium": "Premium",
+          "families": "Families",
+          "self_hosted": "Self-hosted"
+        },
+        "reasonLabel": "Begruendung",
+        "reasonPlaceholder": "Begründe kurz, warum die manuelle Zuweisung noetig ist.",
+        "assignAction": "Zuweisen",
+        "assigning": "Wird zugewiesen...",
+        "success": "Abo erfolgreich zugewiesen.",
+        "errorMissingUser": "Bitte gib eine Ziel-Nutzer-ID an.",
+        "errorReasonTooShort": "Die Begruendung muss mindestens 3 Zeichen haben.",
+        "errorAssignFailed": "Abo konnte nicht zugewiesen werden."
+      }
     },
     "team": {
       "title": "Team & Rechte",

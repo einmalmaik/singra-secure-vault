@@ -19,6 +19,8 @@ const ADMIN_ACCESS_PERMISSION_KEYS = [
   "support.tickets.reply_internal",
   "support.tickets.status",
   "support.metrics.read",
+  "subscriptions.read",
+  "subscriptions.manage",
   "team.roles.read",
   "team.roles.manage",
   "team.permissions.read",
@@ -565,7 +567,19 @@ async function handleSetRolePermission(
     });
 
   if (auditError) {
-    console.warn("Failed to write team access audit log", auditError);
+    if (enabled) {
+      await adminClient
+        .from("role_permissions")
+        .delete()
+        .eq("role", role)
+        .eq("permission_key", permissionKey);
+    } else {
+      await adminClient
+        .from("role_permissions")
+        .upsert({ role, permission_key: permissionKey }, { onConflict: "role,permission_key" });
+    }
+
+    return jsonResponse(corsHeaders, { error: "Audit logging failed, operation aborted" }, 500);
   }
 
   return jsonResponse(

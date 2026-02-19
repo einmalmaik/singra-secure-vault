@@ -67,14 +67,18 @@ export default function AdminPage() {
         if (!access?.is_admin) {
             return false;
         }
+        if (!access.permissions.includes('support.admin.access')) {
+            return false;
+        }
         return access.permissions.some((permission) =>
             [
-                'support.admin.access',
                 'support.tickets.read',
                 'support.tickets.reply',
                 'support.tickets.reply_internal',
                 'support.tickets.status',
                 'support.metrics.read',
+                'subscriptions.read',
+                'subscriptions.manage',
             ].includes(permission),
         );
     }, [access, billingDisabled]);

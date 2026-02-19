@@ -17,14 +17,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AdminSupportPanel } from '@/components/admin/AdminSupportPanel';
 import { AdminTeamPermissionsPanel } from '@/components/admin/AdminTeamPermissionsPanel';
 import { useAuth } from '@/contexts/AuthContext';
-import { useSubscription } from '@/contexts/SubscriptionContext';
+
 import { getTeamAccess, type TeamAccess } from '@/services/adminService';
 
 export default function AdminPage() {
     const { t } = useTranslation();
     const navigate = useNavigate();
     const { user, loading } = useAuth();
-    const { billingDisabled } = useSubscription();
+
 
     const [access, setAccess] = useState<TeamAccess | null>(null);
     const [isLoadingAccess, setIsLoadingAccess] = useState(true);
@@ -63,30 +63,20 @@ export default function AdminPage() {
     }, [t, user]);
 
     const canSupportTab = useMemo(() => {
-        if (billingDisabled) return false; // Self-host: no managed support
-        if (!access?.is_admin) {
-            return false;
-        }
-        // support.admin.access is mandatory gate
-        // support.tickets.read alone is sufficient to show the tab
-        // AdminSupportPanel handles individual feature gating internally
-        if (!access.permissions.includes('support.admin.access')) {
-            return false;
-        }
-        return access.permissions.some((permission) =>
-            [
-                'support.tickets.read',
-                'support.tickets.reply',
-                'support.tickets.reply_internal',
-                'support.tickets.status',
-                'support.metrics.read',
-                'subscriptions.manage',
-                'subscriptions.read',
-            ].includes(permission),
-        );
-    }, [access, billingDisabled]);
+        // Subscription permissions are handled in Team tab, not here
+        if (!access?.is_admin) return false;
+        if (!access.permissions.includes('support.admin.access')) return false;
+        return access.permissions.some(p => [
+            'support.tickets.read',
+            'support.tickets.reply',
+            'support.tickets.reply_internal',
+            'support.tickets.status',
+            'support.metrics.read',
+        ].includes(p));
+    }, [access]);
 
     const canTeamTab = useMemo(() => {
+        // Subscription management lives in Team tab
         if (!access?.is_admin) {
             return false;
         }
@@ -96,6 +86,8 @@ export default function AdminPage() {
                 'team.roles.manage',
                 'team.permissions.read',
                 'team.permissions.manage',
+                'subscriptions.read',
+                'subscriptions.manage',
             ].includes(permission),
         );
     }, [access]);

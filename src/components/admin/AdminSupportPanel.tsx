@@ -18,7 +18,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { AdminSubscriptionAssigner } from '@/components/admin/AdminSubscriptionAssigner';
+
 import { useToast } from '@/hooks/use-toast';
 import {
     type AdminSupportMetric,
@@ -59,7 +59,7 @@ export function AdminSupportPanel({ permissions }: AdminSupportPanelProps) {
     const canReadInternal = permissions.includes('support.tickets.reply_internal');
     const canUpdateStatus = permissions.includes('support.tickets.status');
     const canReadMetrics = permissions.includes('support.metrics.read');
-    const canManageSubscriptions = permissions.includes('subscriptions.manage');
+
 
     const [tickets, setTickets] = useState<AdminSupportTicket[]>([]);
     const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
@@ -399,11 +399,10 @@ export function AdminSupportPanel({ permissions }: AdminSupportPanelProps) {
                                     <button
                                         key={ticket.id}
                                         type="button"
-                                        className={`w-full rounded-lg border p-3 text-left transition-colors ${
-                                            selectedTicketId === ticket.id
+                                        className={`w-full rounded-lg border p-3 text-left transition-colors ${selectedTicketId === ticket.id
                                                 ? 'border-primary bg-primary/5'
                                                 : 'hover:bg-muted/40'
-                                        }`}
+                                            }`}
                                         onClick={() => setSelectedTicketId(ticket.id)}
                                     >
                                         <div className="flex items-start justify-between gap-2">
@@ -560,12 +559,7 @@ export function AdminSupportPanel({ permissions }: AdminSupportPanelProps) {
                                     </div>
                                 )}
 
-                                {canManageSubscriptions && (
-                                    <AdminSubscriptionAssigner
-                                        ticketId={selectedTicketId || undefined}
-                                        defaultUserId={selectedTicket.ticket.user_id}
-                                    />
-                                )}
+
                             </>
                         )}
                     </CardContent>

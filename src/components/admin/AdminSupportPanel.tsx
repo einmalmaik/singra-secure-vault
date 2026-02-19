@@ -44,6 +44,13 @@ interface AdminSupportPanelProps {
     permissions: string[];
 }
 
+export function shouldRefreshTicketDetailAfterMutation(
+    activeTicketId: string,
+    selectedTicketId: string | null,
+): boolean {
+    return activeTicketId === selectedTicketId;
+}
+
 /**
  * Internal support inbox panel with ticket detail and reply actions.
  *
@@ -80,6 +87,7 @@ export function AdminSupportPanel({ permissions }: AdminSupportPanelProps) {
     const [isReplying, setIsReplying] = useState(false);
     const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
     const detailRequestRef = useRef(0);
+    const selectedTicketIdRef = useRef<string | null>(null);
 
     const aggregateMetric = useMemo(() => {
         return metrics.find((metric) => metric.segment === 'all') || null;
@@ -206,6 +214,10 @@ export function AdminSupportPanel({ permissions }: AdminSupportPanelProps) {
     }, [loadTicketDetail, selectedTicketId]);
 
     useEffect(() => {
+        selectedTicketIdRef.current = selectedTicketId;
+    }, [selectedTicketId]);
+
+    useEffect(() => {
         void loadMetrics();
     }, [loadMetrics]);
 
@@ -255,7 +267,12 @@ export function AdminSupportPanel({ permissions }: AdminSupportPanelProps) {
             description: t('admin.support.replySent'),
         });
 
-        await Promise.all([loadTickets(), loadTicketDetail(activeTicketId), loadMetrics()]);
+        const detailRefreshPromise =
+            shouldRefreshTicketDetailAfterMutation(activeTicketId, selectedTicketIdRef.current)
+                ? loadTicketDetail(activeTicketId)
+                : Promise.resolve();
+        // Guard: skip refresh if user switched tickets during async mutation
+        await Promise.all([loadTickets(), detailRefreshPromise, loadMetrics()]);
     };
 
     const handleStatusUpdate = async () => {
@@ -282,7 +299,12 @@ export function AdminSupportPanel({ permissions }: AdminSupportPanelProps) {
             description: t('admin.support.statusUpdated'),
         });
 
-        await Promise.all([loadTickets(), loadTicketDetail(activeTicketId), loadMetrics()]);
+        const detailRefreshPromise =
+            shouldRefreshTicketDetailAfterMutation(activeTicketId, selectedTicketIdRef.current)
+                ? loadTicketDetail(activeTicketId)
+                : Promise.resolve();
+        // Guard: skip refresh if user switched tickets during async mutation
+        await Promise.all([loadTickets(), detailRefreshPromise, loadMetrics()]);
     };
 
     if (!canReadTickets) {
@@ -555,7 +577,7 @@ export function AdminSupportPanel({ permissions }: AdminSupportPanelProps) {
                                 {canManageSubscriptions && (
                                     <AdminSubscriptionAssigner
                                         defaultUserId={selectedTicket.ticket.user_id}
-                                        ticketId={selectedTicket.ticket.id}
+                                        ticketId={selectedTicketId || undefined}
                                     />
                                 )}
                             </>

@@ -71,7 +71,7 @@ export function AdminSubscriptionAssigner({ defaultUserId, ticketId }: AdminSubs
     const [isAssigning, setIsAssigning] = useState(false);
 
     useEffect(() => {
-        // Reset all resolved state to prevent cross-ticket assignment
+        // Reset on both user AND ticket change to prevent cross-ticket leakage
         const resetState = getAssignerResetState(defaultUserId);
         setLookupInput(resetState.lookupInput);
         setResolvedUserId(resetState.resolvedUserId);
@@ -80,7 +80,7 @@ export function AdminSubscriptionAssigner({ defaultUserId, ticketId }: AdminSubs
         setCurrentStatus('active');
         setTargetTier(resetState.targetTier);
         setReason(resetState.reason);
-    }, [defaultUserId]);
+    }, [defaultUserId, ticketId]);
 
     const handleLookup = useCallback(async () => {
         const value = lookupInput.trim();

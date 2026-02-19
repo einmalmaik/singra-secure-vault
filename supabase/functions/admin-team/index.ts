@@ -534,6 +534,19 @@ async function handleSetRolePermission(
     return jsonResponse(corsHeaders, { error: "Unknown permission_key" }, 400);
   }
 
+  const { data: existingPermission, error: existingPermissionError } = await adminClient
+    .from("role_permissions")
+    .select("role, permission_key")
+    .eq("role", role)
+    .eq("permission_key", permissionKey)
+    .maybeSingle();
+
+  if (existingPermissionError) {
+    return jsonResponse(corsHeaders, { error: existingPermissionError.message }, 400);
+  }
+
+  const wasEnabled = existingPermission !== null;
+
   if (enabled) {
     const { error: upsertError } = await adminClient
       .from("role_permissions")
@@ -564,19 +577,21 @@ async function handleSetRolePermission(
         permission_key: permissionKey,
         enabled,
       },
-    });
+  });
 
   if (auditError) {
-    if (enabled) {
+    // SECURITY: Rollback must restore exact prior state, not blindly re-insert
+    // to prevent privilege escalation on audit failure
+    if (wasEnabled) {
+      await adminClient
+        .from("role_permissions")
+        .upsert({ role, permission_key: permissionKey }, { onConflict: "role,permission_key" });
+    } else {
       await adminClient
         .from("role_permissions")
         .delete()
         .eq("role", role)
         .eq("permission_key", permissionKey);
-    } else {
-      await adminClient
-        .from("role_permissions")
-        .upsert({ role, permission_key: permissionKey }, { onConflict: "role,permission_key" });
     }
 
     return jsonResponse(corsHeaders, { error: "Audit logging failed, operation aborted" }, 500);

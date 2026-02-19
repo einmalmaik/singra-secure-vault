@@ -6,7 +6,7 @@
  * Internal admin utility to assign a subscription tier to a user.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
@@ -45,9 +45,11 @@ export function AdminSubscriptionAssigner({ ticketId, defaultUserId }: AdminSubs
     const [reason, setReason] = useState('');
     const [isAssigning, setIsAssigning] = useState(false);
     const [errorKey, setErrorKey] = useState<string | null>(null);
+    const assignRequestRef = useRef<string | null>(null);
 
     useEffect(() => {
         // Reset on both user AND ticket change to prevent cross-ticket leakage
+        assignRequestRef.current = null;
         setLookupInput(defaultUserId || '');
         setResolvedUser(null);
         setSelectedTier('free');
@@ -68,7 +70,8 @@ export function AdminSubscriptionAssigner({ ticketId, defaultUserId }: AdminSubs
     };
 
     const handleAssign = async () => {
-        const activeTicketId = ticketId;
+        const requestToken = crypto.randomUUID();
+        assignRequestRef.current = requestToken;
         const normalizedReason = reason.trim();
         // SECURITY: Only use explicitly resolved user, never fall back
         // to defaultUserId directly to prevent silent wrong-user assignment
@@ -93,12 +96,13 @@ export function AdminSubscriptionAssigner({ ticketId, defaultUserId }: AdminSubs
             ticketId,
         });
 
-        // Guard: skip state update if ticket changed during async assignment
-        if (activeTicketId !== ticketId) {
+        setIsAssigning(false);
+
+        // Guard: use request token instead of ticketId comparison
+        // because ticketId is frozen in closure and cannot detect switches
+        if (assignRequestRef.current !== requestToken) {
             return;
         }
-
-        setIsAssigning(false);
 
         if (!success || error) {
             setErrorKey('admin.support.subscriptionAssigner.errorAssignFailed');

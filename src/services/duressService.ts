@@ -71,27 +71,131 @@ export interface DecoyItem {
 /** Marker field added to decoy items (inside encrypted JSON) */
 export const DURESS_MARKER_FIELD = '_duress';
 
-/** Default decoy items created when duress mode is enabled */
-const DEFAULT_DECOY_ITEMS: DecoyItem[] = [
-    {
-        title: 'Gmail',
-        username: 'user@gmail.com',
-        password: 'Summer2024!',
-        website: 'https://mail.google.com',
-    },
-    {
-        title: 'Amazon',
-        username: 'user@gmail.com',
-        password: 'Shopping123!',
-        website: 'https://amazon.com',
-    },
-    {
-        title: 'Netflix',
-        username: 'user@gmail.com',
-        password: 'Streaming456!',
-        website: 'https://netflix.com',
-    },
+/** Generates a random password with 8-16 characters including upper/lowercase, digits, and symbols */
+function generateDecoyPassword(): string {
+    const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const lower = 'abcdefghijklmnopqrstuvwxyz';
+    const digits = '0123456789';
+    const symbols = '!@#$%&*?+-_=';
+    const all = upper + lower + digits + symbols;
+
+    const length = 8 + Math.floor(Math.random() * 9); // 8–16
+    const required = [
+        upper[Math.floor(Math.random() * upper.length)],
+        lower[Math.floor(Math.random() * lower.length)],
+        digits[Math.floor(Math.random() * digits.length)],
+        symbols[Math.floor(Math.random() * symbols.length)],
+    ];
+
+    const rest = Array.from({ length: length - required.length }, () =>
+        all[Math.floor(Math.random() * all.length)]
+    );
+
+    // Shuffle all characters together
+    const chars = [...required, ...rest];
+    for (let i = chars.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [chars[i], chars[j]] = [chars[j], chars[i]];
+    }
+    return chars.join('');
+}
+
+/** Pool of possible decoy services with title, website, and username style */
+const DECOY_SERVICE_POOL: { title: string; website: string; usernameType: 'email' | 'username' }[] = [
+    { title: 'Gmail', website: 'https://mail.google.com', usernameType: 'email' },
+    { title: 'Amazon', website: 'https://amazon.de', usernameType: 'email' },
+    { title: 'Netflix', website: 'https://netflix.com', usernameType: 'email' },
+    { title: 'PayPal', website: 'https://paypal.com', usernameType: 'email' },
+    { title: 'Spotify', website: 'https://spotify.com', usernameType: 'email' },
+    { title: 'Instagram', website: 'https://instagram.com', usernameType: 'username' },
+    { title: 'Deutsche Bank Online', website: 'https://meine.deutsche-bank.de', usernameType: 'email' },
+    { title: 'eBay Kleinanzeigen', website: 'https://www.kleinanzeigen.de', usernameType: 'email' },
+    { title: 'Steam', website: 'https://store.steampowered.com', usernameType: 'username' },
+    { title: 'LinkedIn', website: 'https://linkedin.com', usernameType: 'email' },
+    { title: 'Apple ID', website: 'https://appleid.apple.com', usernameType: 'email' },
+    { title: 'Outlook Mail', website: 'https://outlook.live.com', usernameType: 'email' },
+    { title: 'Twitter / X', website: 'https://x.com', usernameType: 'username' },
+    { title: 'GitHub', website: 'https://github.com', usernameType: 'username' },
+    { title: 'Dropbox', website: 'https://dropbox.com', usernameType: 'email' },
+    { title: 'Discord', website: 'https://discord.com', usernameType: 'email' },
+    { title: 'Reddit', website: 'https://reddit.com', usernameType: 'username' },
+    { title: 'Twitch', website: 'https://twitch.tv', usernameType: 'username' },
+    { title: 'Adobe Creative Cloud', website: 'https://account.adobe.com', usernameType: 'email' },
+    { title: 'Microsoft 365', website: 'https://office.com', usernameType: 'email' },
+    { title: 'Zalando', website: 'https://zalando.de', usernameType: 'email' },
+    { title: 'Otto', website: 'https://otto.de', usernameType: 'email' },
+    { title: 'Disney+', website: 'https://disneyplus.com', usernameType: 'email' },
+    { title: 'Snapchat', website: 'https://snapchat.com', usernameType: 'username' },
+    { title: 'TikTok', website: 'https://tiktok.com', usernameType: 'username' },
+    { title: 'Notion', website: 'https://notion.so', usernameType: 'email' },
+    { title: 'Slack', website: 'https://slack.com', usernameType: 'email' },
+    { title: 'Commerzbank', website: 'https://commerzbank.de', usernameType: 'email' },
+    { title: 'ING DiBa', website: 'https://ing.de', usernameType: 'email' },
+    { title: 'N26', website: 'https://n26.com', usernameType: 'email' },
 ];
+
+const FIRST_NAMES = [
+    'alex', 'chris', 'robin', 'sam', 'max', 'kim', 'luca', 'nico', 'leon', 'mika',
+    'finn', 'noah', 'jamie', 'toni', 'sascha', 'kai', 'jona', 'emery', 'taylor', 'morgan',
+];
+const LAST_NAMES = [
+    'richter', 'weber', 'schmidt', 'fischer', 'meyer', 'wagner', 'becker', 'schulz',
+    'hoffmann', 'koch', 'braun', 'klein', 'wolf', 'lang', 'frank', 'berger', 'peters',
+];
+const EMAIL_DOMAINS = ['gmail.com', 'outlook.de', 'web.de', 'gmx.de', 'yahoo.com', 'protonmail.com'];
+const USERNAME_ADJECTIVES = ['shadow', 'dark', 'cool', 'fast', 'silent', 'lucky', 'wild', 'lazy', 'epic', 'neon'];
+const USERNAME_NOUNS = ['wolf', 'fox', 'hawk', 'tiger', 'panda', 'ninja', 'pixel', 'byte', 'storm', 'flame'];
+
+function pickRandom<T>(arr: T[]): T {
+    return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function generateDecoyIdentity(): { emailMain: string; emailAlt: string } {
+    const first = pickRandom(FIRST_NAMES);
+    const last = pickRandom(LAST_NAMES);
+    const year = 85 + Math.floor(Math.random() * 16); // 85–00
+    const sep = pickRandom(['.', '_', '']);
+    const domainMain = pickRandom(EMAIL_DOMAINS);
+    let domainAlt = pickRandom(EMAIL_DOMAINS);
+    while (domainAlt === domainMain) domainAlt = pickRandom(EMAIL_DOMAINS);
+
+    const emailMain = `${first}${sep}${last}${year}@${domainMain}`;
+    const emailAlt = `${first[0]}.${last}_${year}@${domainAlt}`;
+    return { emailMain, emailAlt };
+}
+
+function generateDecoyUsername(): string {
+    const style = Math.floor(Math.random() * 3);
+    const num = Math.floor(Math.random() * 999);
+    if (style === 0) return `${pickRandom(USERNAME_ADJECTIVES)}_${pickRandom(USERNAME_NOUNS)}${num}`;
+    if (style === 1) return `${pickRandom(FIRST_NAMES)}${pickRandom(USERNAME_NOUNS)}${num}`;
+    return `${pickRandom(USERNAME_NOUNS)}${pickRandom(USERNAME_ADJECTIVES)}${Math.floor(Math.random() * 99)}`;
+}
+
+/** Generates a fully randomized set of decoy items */
+function generateDecoyItems(): DecoyItem[] {
+    const { emailMain, emailAlt } = generateDecoyIdentity();
+    const count = 10 + Math.floor(Math.random() * 5); // 10–14 items
+
+    // Shuffle and pick from pool
+    const shuffled = [...DECOY_SERVICE_POOL].sort(() => Math.random() - 0.5);
+    const selected = shuffled.slice(0, count);
+
+    return selected.map((service) => {
+        let username: string;
+        if (service.usernameType === 'username') {
+            username = generateDecoyUsername();
+        } else {
+            username = Math.random() < 0.6 ? emailMain : emailAlt;
+        }
+        return {
+            title: service.title,
+            username,
+            password: generateDecoyPassword(),
+            website: service.website,
+        };
+    });
+}
 
 // ============ Core Functions ============
 
@@ -454,5 +558,5 @@ export function stripDecoyMarker<T extends Record<string, unknown>>(itemData: T)
  * @returns Array of generic-looking decoy items (deep copy)
  */
 export function getDefaultDecoyItems(): DecoyItem[] {
-    return DEFAULT_DECOY_ITEMS.map(item => ({ ...item }));
+    return generateDecoyItems();
 }

@@ -8,16 +8,36 @@ import { corsHeaders } from "../_shared/cors.ts";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-// Rate limiting configuration
-const MAX_ATTEMPTS = 5;
-const LOCKOUT_DURATION = 15 * 60 * 1000; // 15 minutes in milliseconds
-const ATTEMPT_WINDOW = 10 * 60 * 1000; // 10 minutes window for attempts
+// Rate limiting configuration - HARDENED
+const RATE_LIMITS = {
+  unlock: {
+    maxAttempts: 5,
+    window: 15 * 60 * 1000, // 15 minutes
+    lockout: 15 * 60 * 1000, // 15 minutes
+  },
+  '2fa': {
+    maxAttempts: 3,
+    window: 5 * 60 * 1000, // 5 minutes
+    lockout: 30 * 60 * 1000, // 30 minutes - higher for 2FA brute force protection
+  },
+  passkey: {
+    maxAttempts: 5,
+    window: 10 * 60 * 1000, // 10 minutes
+    lockout: 10 * 60 * 1000, // 10 minutes
+  },
+  emergency: {
+    maxAttempts: 3,
+    window: 60 * 60 * 1000, // 1 hour
+    lockout: 24 * 60 * 60 * 1000, // 24 hours - critical action
+  },
+};
 
 interface RateLimitRequest {
   userId?: string;
   email?: string;
-  action: 'unlock' | '2fa' | 'passkey';
+  action: 'unlock' | '2fa' | 'passkey' | 'emergency';
   success: boolean;
+  ipAddress?: string; // Allow client to pass IP for better tracking
 }
 
 interface RateLimitResponse {
@@ -35,9 +55,19 @@ serve(async (req) => {
   try {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    const { userId, email, action, success }: RateLimitRequest = await req.json();
+    const { userId, email, action, success, ipAddress }: RateLimitRequest = await req.json();
 
-    // Determine identifier (userId or email)
+    // Validate action
+    if (!RATE_LIMITS[action]) {
+      return new Response(
+        JSON.stringify({ error: "Invalid action" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const limits = RATE_LIMITS[action];
+
+    // Determine identifier (userId or email) + IP for dual tracking
     const identifier = userId || email;
     if (!identifier) {
       return new Response(
@@ -46,30 +76,62 @@ serve(async (req) => {
       );
     }
 
+    // Extract IP address from request or use provided
+    const clientIp = ipAddress ||
+                     req.headers.get('CF-Connecting-IP') ||
+                     req.headers.get('X-Forwarded-For')?.split(',')[0] ||
+                     'unknown';
+
     const now = new Date();
-    const windowStart = new Date(now.getTime() - ATTEMPT_WINDOW);
+    const windowStart = new Date(now.getTime() - limits.window);
 
-    // Get recent attempts
-    const { data: attempts, error: fetchError } = await supabase
-      .from('rate_limit_attempts')
-      .select('*')
-      .eq('identifier', identifier)
-      .eq('action', action)
-      .gte('attempted_at', windowStart.toISOString())
-      .order('attempted_at', { ascending: false });
+    // Get recent attempts for BOTH identifier AND IP address
+    const [identifierAttempts, ipAttempts] = await Promise.all([
+      // Check by user identifier
+      supabase
+        .from('rate_limit_attempts')
+        .select('*')
+        .eq('identifier', identifier)
+        .eq('action', action)
+        .gte('attempted_at', windowStart.toISOString())
+        .order('attempted_at', { ascending: false }),
 
-    if (fetchError) {
-      console.error('Error fetching rate limit attempts:', fetchError);
-      // Fail open - allow the attempt if we can't check
+      // Check by IP address (prevent distributed attacks)
+      clientIp !== 'unknown' ? supabase
+        .from('rate_limit_attempts')
+        .select('*')
+        .eq('ip_address', clientIp)
+        .eq('action', action)
+        .gte('attempted_at', windowStart.toISOString())
+        .order('attempted_at', { ascending: false })
+      : { data: [], error: null }
+    ]);
+
+    if (identifierAttempts.error || ipAttempts.error) {
+      console.error('Error fetching rate limit attempts:', identifierAttempts.error || ipAttempts.error);
+      // Fail closed for security - deny if we can't check
       return new Response(
-        JSON.stringify({ allowed: true, attemptsRemaining: MAX_ATTEMPTS }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({
+          allowed: false,
+          attemptsRemaining: 0,
+          error: "Rate limit check failed"
+        }),
+        { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Check if currently locked out
-    const lockedAttempt = attempts?.find(a => a.locked_until && new Date(a.locked_until) > now);
+    // Combine attempts from identifier and IP
+    const allAttempts = [
+      ...(identifierAttempts.data || []),
+      ...(ipAttempts.data || [])
+    ];
+
+    // Check if currently locked out (by identifier OR IP)
+    const lockedAttempt = allAttempts.find(a => a.locked_until && new Date(a.locked_until) > now);
     if (lockedAttempt) {
+      // Log potential attack
+      console.warn(`Rate limit lockout for ${action}: identifier=${identifier}, ip=${clientIp}`);
+
       return new Response(
         JSON.stringify({
           allowed: false,
@@ -80,12 +142,18 @@ serve(async (req) => {
       );
     }
 
-    // Count failed attempts in window
-    const failedAttempts = attempts?.filter(a => !a.success).length || 0;
+    // Count failed attempts in window (use higher count from identifier or IP)
+    const identifierFailed = (identifierAttempts.data?.filter(a => !a.success).length || 0);
+    const ipFailed = (ipAttempts.data?.filter(a => !a.success).length || 0);
+    const failedAttempts = Math.max(identifierFailed, ipFailed);
+
+    // Exponential backoff for repeated failures
+    const backoffMultiplier = Math.min(Math.pow(2, Math.floor(failedAttempts / limits.maxAttempts)), 8);
+    const effectiveLockout = limits.lockout * backoffMultiplier;
 
     // Record this attempt
-    const lockUntil = (!success && failedAttempts >= MAX_ATTEMPTS - 1)
-      ? new Date(now.getTime() + LOCKOUT_DURATION).toISOString()
+    const lockUntil = (!success && failedAttempts >= limits.maxAttempts - 1)
+      ? new Date(now.getTime() + effectiveLockout).toISOString()
       : null;
 
     const { error: insertError } = await supabase
@@ -96,23 +164,22 @@ serve(async (req) => {
         success,
         attempted_at: now.toISOString(),
         locked_until: lockUntil,
-        ip_address: req.headers.get('CF-Connecting-IP') ||
-                    req.headers.get('X-Forwarded-For')?.split(',')[0] ||
-                    'unknown'
+        ip_address: clientIp,
+        user_agent: req.headers.get('user-agent') || 'unknown'
       });
 
     if (insertError) {
       console.error('Error recording rate limit attempt:', insertError);
     }
 
-    // Clean up old attempts (older than 24 hours)
-    const cleanupTime = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    // Clean up old attempts (older than 7 days for audit trail)
+    const cleanupTime = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     await supabase
       .from('rate_limit_attempts')
       .delete()
       .lt('attempted_at', cleanupTime.toISOString());
 
-    const attemptsRemaining = Math.max(0, MAX_ATTEMPTS - failedAttempts - (success ? 0 : 1));
+    const attemptsRemaining = Math.max(0, limits.maxAttempts - failedAttempts - (success ? 0 : 1));
 
     return new Response(
       JSON.stringify({
@@ -125,10 +192,14 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Rate limit error:', error);
-    // Fail open on error
+    // SECURITY: Fail closed on error - deny access if rate limiting fails
     return new Response(
-      JSON.stringify({ allowed: true, attemptsRemaining: MAX_ATTEMPTS }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({
+        allowed: false,
+        attemptsRemaining: 0,
+        error: "Rate limiting service unavailable"
+      }),
+      { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });

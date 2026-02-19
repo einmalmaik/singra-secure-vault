@@ -23,10 +23,31 @@ import {
 } from '@/services/adminService';
 
 const TIER_OPTIONS: SubscriptionTier[] = ['free', 'premium', 'families', 'self_hosted'];
+const DEFAULT_TARGET_TIER: SubscriptionTier = 'free';
 
 interface AdminSubscriptionAssignerProps {
     defaultUserId?: string;
     ticketId?: string;
+}
+
+/**
+ * Builds the reset snapshot when ticket context switches.
+ *
+ * @param defaultUserId - Ticket user id to prefill the lookup input
+ * @returns Reset values for assignment state
+ */
+function getAssignerResetState(defaultUserId?: string): {
+    lookupInput: string;
+    resolvedUserId: string;
+    targetTier: SubscriptionTier;
+    reason: string;
+} {
+    return {
+        lookupInput: defaultUserId || '',
+        resolvedUserId: '',
+        targetTier: DEFAULT_TARGET_TIER,
+        reason: '',
+    };
 }
 
 /**
@@ -42,17 +63,23 @@ export function AdminSubscriptionAssigner({ defaultUserId, ticketId }: AdminSubs
     const [lookupInput, setLookupInput] = useState('');
     const [resolvedUserId, setResolvedUserId] = useState('');
     const [resolvedEmail, setResolvedEmail] = useState<string | null>(null);
-    const [currentTier, setCurrentTier] = useState<SubscriptionTier>('free');
+    const [currentTier, setCurrentTier] = useState<SubscriptionTier>(DEFAULT_TARGET_TIER);
     const [currentStatus, setCurrentStatus] = useState('active');
-    const [targetTier, setTargetTier] = useState<SubscriptionTier>('free');
+    const [targetTier, setTargetTier] = useState<SubscriptionTier>(DEFAULT_TARGET_TIER);
     const [reason, setReason] = useState('');
     const [isLookingUp, setIsLookingUp] = useState(false);
     const [isAssigning, setIsAssigning] = useState(false);
 
     useEffect(() => {
-        if (defaultUserId) {
-            setLookupInput(defaultUserId);
-        }
+        // Reset all resolved state to prevent cross-ticket assignment
+        const resetState = getAssignerResetState(defaultUserId);
+        setLookupInput(resetState.lookupInput);
+        setResolvedUserId(resetState.resolvedUserId);
+        setResolvedEmail(null);
+        setCurrentTier(DEFAULT_TARGET_TIER);
+        setCurrentStatus('active');
+        setTargetTier(resetState.targetTier);
+        setReason(resetState.reason);
     }, [defaultUserId]);
 
     const handleLookup = useCallback(async () => {
@@ -183,4 +210,24 @@ export function AdminSubscriptionAssigner({ defaultUserId, ticketId }: AdminSubs
             )}
         </div>
     );
+}
+
+if (import.meta.vitest) {
+    const { describe, it, expect } = import.meta.vitest;
+
+    describe('getAssignerResetState', () => {
+        it('should reset resolved assignment state when switching ticket default user', () => {
+            const fromUserA = getAssignerResetState('user-a');
+            expect(fromUserA.lookupInput).toBe('user-a');
+            expect(fromUserA.resolvedUserId).toBe('');
+            expect(fromUserA.targetTier).toBe('free');
+            expect(fromUserA.reason).toBe('');
+
+            const toUserB = getAssignerResetState('user-b');
+            expect(toUserB.lookupInput).toBe('user-b');
+            expect(toUserB.resolvedUserId).toBe('');
+            expect(toUserB.targetTier).toBe('free');
+            expect(toUserB.reason).toBe('');
+        });
+    });
 }

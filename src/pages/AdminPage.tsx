@@ -20,6 +20,34 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { getTeamAccess, type TeamAccess } from '@/services/adminService';
 
+const SUPPORT_TAB_PERMISSIONS = [
+    'support.tickets.read',
+    'support.tickets.reply',
+    'support.tickets.reply_internal',
+    'support.tickets.status',
+    'support.metrics.read',
+    'subscriptions.read',
+    'subscriptions.manage',
+];
+
+/**
+ * Checks whether the support tab should be visible.
+ *
+ * @param access - Team access snapshot
+ * @param billingDisabled - Self-hosted billing flag
+ * @returns True when support tab can be used
+ */
+function canShowSupportTab(access: TeamAccess | null, billingDisabled: boolean): boolean {
+    if (billingDisabled) return false; // Self-host: no managed support
+    if (!access?.can_access_admin) {
+        return false;
+    }
+    if (!access.permissions.includes('support.admin.access')) {
+        return false;
+    }
+    return access.permissions.some((permission) => SUPPORT_TAB_PERMISSIONS.includes(permission));
+}
+
 export default function AdminPage() {
     const { t } = useTranslation();
     const navigate = useNavigate();
@@ -63,22 +91,7 @@ export default function AdminPage() {
     }, [t, user]);
 
     const canSupportTab = useMemo(() => {
-        if (billingDisabled) return false; // Self-host: no managed support
-        if (!access?.can_access_admin) {
-            return false;
-        }
-        return access.permissions.some((permission) =>
-            [
-                'support.admin.access',
-                'support.tickets.read',
-                'support.tickets.reply',
-                'support.tickets.reply_internal',
-                'support.tickets.status',
-                'support.metrics.read',
-                'subscriptions.read',
-                'subscriptions.manage',
-            ].includes(permission),
-        );
+        return canShowSupportTab(access, billingDisabled);
     }, [access, billingDisabled]);
 
     const canTeamTab = useMemo(() => {
@@ -195,4 +208,21 @@ export default function AdminPage() {
             </main>
         </div>
     );
+}
+
+if (import.meta.vitest) {
+    const { describe, it, expect } = import.meta.vitest;
+
+    describe('canShowSupportTab', () => {
+        it('should return false when user only has subscriptions.manage without support.admin.access', () => {
+            const access: TeamAccess = {
+                roles: ['moderator'],
+                permissions: ['subscriptions.manage'],
+                is_admin: false,
+                can_access_admin: true,
+            };
+
+            expect(canShowSupportTab(access, false)).toBe(false);
+        });
+    });
 }

@@ -68,6 +68,7 @@ export function AdminSubscriptionAssigner({ ticketId, defaultUserId }: AdminSubs
     };
 
     const handleAssign = async () => {
+        const activeTicketId = ticketId;
         const normalizedReason = reason.trim();
         // SECURITY: Only use explicitly resolved user, never fall back
         // to defaultUserId directly to prevent silent wrong-user assignment
@@ -91,6 +92,11 @@ export function AdminSubscriptionAssigner({ ticketId, defaultUserId }: AdminSubs
             reason: normalizedReason,
             ticketId,
         });
+
+        // Guard: skip state update if ticket changed during async assignment
+        if (activeTicketId !== ticketId) {
+            return;
+        }
 
         setIsAssigning(false);
 

@@ -919,6 +919,7 @@
     },
     "team": {
       "title": "Team & Permissions",
+      "subscriptionTitle": "Assign Subscription",
       "noAccess": "You don't have permission to manage roles or permissions.",
       "membersTitle": "Team members",
       "membersDescription": "Manage internal roles for team members.",

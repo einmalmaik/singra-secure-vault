@@ -212,7 +212,9 @@ export function AdminTeamPermissionsPanel({ permissions }: AdminTeamPermissionsP
         });
     };
 
-    if (!canReadRoles && !canReadPermissions) {
+    const hasAnyAccess = canReadRoles || canReadPermissions || canManageSubscriptions;
+
+    if (!hasAnyAccess) {
         return (
             <Card>
                 <CardHeader>

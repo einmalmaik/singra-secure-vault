@@ -942,6 +942,7 @@
     },
     "team": {
       "title": "Team & Rechte",
+      "subscriptionTitle": "Abonnement zuweisen",
       "noAccess": "Du hast keine Berechtigung fuer Rollen- oder Rechteverwaltung.",
       "membersTitle": "Team-Mitglieder",
       "membersDescription": "Rollen fuer interne Team-Mitglieder verwalten.",
@@ -1308,4 +1309,3 @@
     "passkeyNote": "Integritätsprüfung ist für Passkey-Entsperrsitzungen nicht verfügbar."
   }
 }
-

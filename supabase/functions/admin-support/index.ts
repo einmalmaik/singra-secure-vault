@@ -113,6 +113,18 @@ async function hasPermission(
   return data === true;
 }
 
+async function requireAdminAccess(
+  client: ReturnType<typeof createClient>,
+  userId: string,
+  corsHeaders: Record<string, string>,
+): Promise<Response | null> {
+  const hasAccess = await hasPermission(client, userId, "support.admin.access");
+  if (!hasAccess) {
+    return jsonResponse(corsHeaders, { error: 'Forbidden' }, 403);
+  }
+  return null;
+}
+
 async function hasRole(
   client: ReturnType<typeof createClient>,
   userId: string,
@@ -198,6 +210,9 @@ async function handleListTickets(
   body: Record<string, unknown>,
   corsHeaders: Record<string, string>,
 ): Promise<Response> {
+  const accessCheck = await requireAdminAccess(client, userId, corsHeaders);
+  if (accessCheck) return accessCheck;
+
   const canReadTickets = await hasPermission(client, userId, "support.tickets.read");
   if (!canReadTickets) {
     return jsonResponse(corsHeaders, { error: "Insufficient permissions" }, 403);
@@ -308,6 +323,9 @@ async function handleGetTicket(
   body: Record<string, unknown>,
   corsHeaders: Record<string, string>,
 ): Promise<Response> {
+  const accessCheck = await requireAdminAccess(client, userId, corsHeaders);
+  if (accessCheck) return accessCheck;
+
   const canReadTickets = await hasPermission(client, userId, "support.tickets.read");
   if (!canReadTickets) {
     return jsonResponse(corsHeaders, { error: "Insufficient permissions" }, 403);
@@ -372,6 +390,9 @@ async function handleReplyTicket(
   body: Record<string, unknown>,
   corsHeaders: Record<string, string>,
 ): Promise<Response> {
+  const accessCheck = await requireAdminAccess(client, userId, corsHeaders);
+  if (accessCheck) return accessCheck;
+
   const canReply = await hasPermission(client, userId, "support.tickets.reply");
   if (!canReply) {
     return jsonResponse(corsHeaders, { error: "Insufficient permissions" }, 403);
@@ -484,6 +505,9 @@ async function handleUpdateTicket(
   body: Record<string, unknown>,
   corsHeaders: Record<string, string>,
 ): Promise<Response> {
+  const accessCheck = await requireAdminAccess(client, userId, corsHeaders);
+  if (accessCheck) return accessCheck;
+
   const canUpdateStatus = await hasPermission(client, userId, "support.tickets.status");
   if (!canUpdateStatus) {
     return jsonResponse(corsHeaders, { error: "Insufficient permissions" }, 403);
@@ -523,6 +547,9 @@ async function handleListMetrics(
   body: Record<string, unknown>,
   corsHeaders: Record<string, string>,
 ): Promise<Response> {
+  const accessCheck = await requireAdminAccess(client, userId, corsHeaders);
+  if (accessCheck) return accessCheck;
+
   const canReadMetrics = await hasPermission(client, userId, "support.metrics.read");
   if (!canReadMetrics) {
     return jsonResponse(corsHeaders, { error: "Insufficient permissions" }, 403);
@@ -558,6 +585,9 @@ async function handleAssignSubscription(
   body: Record<string, unknown>,
   corsHeaders: Record<string, string>,
 ): Promise<Response> {
+  const accessCheck = await requireAdminAccess(client, userId, corsHeaders);
+  if (accessCheck) return accessCheck;
+
   const isAdmin = await hasRole(client, userId, "admin");
   const canManageSubscriptions = await hasPermission(client, userId, "subscriptions.manage");
   if (!isAdmin || !canManageSubscriptions) {

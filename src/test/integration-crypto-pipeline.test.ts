@@ -509,6 +509,22 @@ describe("Integration: Core Cryptographic Pipeline", () => {
       ).rejects.toThrow();
     }, 60000);
 
+    it("should unwrap shared keys with hybrid pq-v2 private key format", async () => {
+      const masterPassword = "hybrid-collection-owner-password";
+      const { publicKey, encryptedPrivateKey } = await generateUserKeyPair(masterPassword, 2);
+      expect(encryptedPrivateKey.startsWith("pq-v2:")).toBe(true);
+
+      const sharedKey = await generateSharedKey();
+      const wrappedKey = await wrapKey(sharedKey, publicKey);
+
+      const unwrapped = await unwrapKey(
+        wrappedKey,
+        encryptedPrivateKey,
+        masterPassword
+      );
+      expect(unwrapped).toBe(sharedKey);
+    }, 90000);
+
     it("should unwrap legacy private key format without kdf version prefix", async () => {
       const masterPassword = "legacy-password";
       const { publicKey, encryptedPrivateKey } = await generateUserKeyPair(masterPassword);

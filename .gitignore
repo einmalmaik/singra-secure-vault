@@ -24,12 +24,9 @@ dist-ssr
 *.sw?
 
 .env
-.env.*
-!.env.example
 loadtest/users.txt
 loadtest/tokens.txt
 
-Agent.md
 AGENTS.md
 GEMINI.md
 
@@ -37,4 +34,5 @@ GEMINI.md
 *.gpg
 *gpg-key*
 
-AGENTS.md
+.output.txt
+notizen.md

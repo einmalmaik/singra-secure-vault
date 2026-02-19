@@ -157,15 +157,43 @@ function getSecureRandomInt(min: number, max: number): number {
  *
  * @param code - Plain backup code
  * @param salt - User's encryption_salt (base64) from profile
- * @returns Hex-encoded HMAC-SHA-256 of the code
+ * @returns Versioned hash string for backup code verification
  */
 export async function hashBackupCode(code: string, salt?: string): Promise<string> {
+    const normalizedCode = code.replace(/-/g, '').toUpperCase();
+    void salt;
+
+    // Version 3: Argon2id (new secure standard)
+    // Generate unique salt for this backup code
+    const codeSalt = crypto.getRandomValues(new Uint8Array(16));
+    const saltBase64 = btoa(String.fromCharCode(...codeSalt));
+
+    // Import argon2 for backup codes (lighter params than master password)
+    const { argon2id } = await import('hash-wasm');
+
+    // Use lighter Argon2 params for backup codes (still secure but faster)
+    const hash = await argon2id({
+        password: normalizedCode,
+        salt: codeSalt,
+        parallelism: 1,
+        iterations: 2,
+        memorySize: 16384, // 16 MiB - lighter than master password
+        hashLength: 32,
+        outputType: 'hex',
+    });
+
+    // Return versioned format for new codes
+    return `v3:${saltBase64}:${hash}`;
+}
+
+/**
+ * Legacy hash function for backward compatibility
+ */
+async function hashBackupCodeLegacy(code: string, salt?: string): Promise<string> {
     const normalizedCode = code.replace(/-/g, '').toUpperCase();
     const encoder = new TextEncoder();
     const data = encoder.encode(normalizedCode);
 
-    // If a salt is provided, use HMAC-SHA-256 (new secure path).
-    // Otherwise fall back to plain SHA-256 for legacy verification.
     if (salt) {
         const keyData = encoder.encode(salt);
         const hmacKey = await crypto.subtle.importKey(
@@ -184,6 +212,41 @@ export async function hashBackupCode(code: string, salt?: string): Promise<strin
     const hashBuffer = await crypto.subtle.digest('SHA-256', data);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+/**
+ * Verifies a backup code against stored hashes.
+ * Supports all hash versions for backward compatibility.
+ */
+export async function verifyBackupCodeHash(
+    code: string,
+    storedHash: string,
+    userSalt?: string
+): Promise<boolean> {
+    const normalizedCode = code.replace(/-/g, '').toUpperCase();
+
+    // Check if versioned format (Argon2id)
+    if (storedHash.startsWith('v3:')) {
+        const [, saltBase64, hash] = storedHash.split(':');
+        const salt = new Uint8Array(atob(saltBase64).split('').map(c => c.charCodeAt(0)));
+
+        const { argon2id } = await import('hash-wasm');
+        const computedHash = await argon2id({
+            password: normalizedCode,
+            salt: salt,
+            parallelism: 1,
+            iterations: 2,
+            memorySize: 16384,
+            hashLength: 32,
+            outputType: 'hex',
+        });
+
+        return computedHash === hash;
+    }
+
+    // Legacy verification (HMAC-SHA-256 when salt provided, SHA-256 otherwise)
+    const legacyHash = await hashBackupCodeLegacy(code, userSalt);
+    return legacyHash === storedHash;
 }
 
 // ============ Internal Helpers ============
@@ -325,14 +388,12 @@ export async function enableTwoFactor(
         return { success: false, error: updateError.message };
     }
 
-    // Fetch the user's encryption salt for HMAC-based hashing
-    const salt = await getUserEncryptionSalt(userId);
-
-    // Store hashed backup codes (HMAC-SHA-256 when salt available, SHA-256 fallback)
+    // Store hashed backup codes with Argon2id (v3)
     const hashedCodes = await Promise.all(
         backupCodes.map(async (code) => ({
             user_id: userId,
-            code_hash: await hashBackupCode(code, salt ?? undefined),
+            code_hash: await hashBackupCode(code), // Now uses Argon2id v3 by default
+            hash_version: 3, // Track version for future migrations
         }))
     );
 
@@ -365,53 +426,61 @@ export async function verifyAndConsumeBackupCode(
     userId: string,
     code: string
 ): Promise<boolean> {
-    const salt = await getUserEncryptionSalt(userId);
-
-    // Try HMAC-SHA-256 first (new secure path)
-    const hmacHash = salt ? await hashBackupCode(code, salt) : null;
-    // Also compute legacy unsalted SHA-256 for fallback
-    const legacyHash = await hashBackupCode(code);
-
-    // Build list of candidate hashes to check (HMAC first, then legacy)
-    const candidateHashes: string[] = [];
-    if (hmacHash) candidateHashes.push(hmacHash);
-    if (!hmacHash || hmacHash !== legacyHash) candidateHashes.push(legacyHash);
-
-    // Find unused backup code matching any candidate hash
-    const { data, error } = await supabase
+    // Get all unused backup codes for this user
+    const { data: codes, error: fetchError } = await supabase
         .from('backup_codes')
-        .select('id, code_hash')
+        .select('id, code_hash, hash_version')
         .eq('user_id', userId)
-        .in('code_hash', candidateHashes)
-        .eq('is_used', false)
-        .limit(1)
-        .maybeSingle();
+        .eq('is_used', false);
 
-    if (error || !data) {
+    if (fetchError || !codes || codes.length === 0) {
         return false;
     }
 
-    // Mark as used
-    const { error: updateError } = await supabase
-        .from('backup_codes')
-        .update({
-            is_used: true,
-            used_at: new Date().toISOString(),
-        })
-        .eq('id', data.id);
+    // Get user salt for legacy verification (HMAC path)
+    const salt = await getUserEncryptionSalt(userId);
+    const legacyHmacHash = salt ? await hashBackupCodeLegacy(code, salt) : null;
+    const legacyShaHash = await hashBackupCodeLegacy(code);
 
-    if (updateError) {
-        console.error('Error consuming backup code:', updateError);
-        return false;
+    // Check each code
+    for (const storedCode of codes) {
+        let isMatch = false;
+
+        // Check based on hash version
+        if (storedCode.hash_version === 3 || storedCode.code_hash.startsWith('v3:')) {
+            // Argon2id verification
+            isMatch = await verifyBackupCodeHash(code, storedCode.code_hash);
+        } else {
+            // Legacy verification (HMAC-SHA-256 with salt, SHA-256 fallback)
+            isMatch = storedCode.code_hash === legacyHmacHash || storedCode.code_hash === legacyShaHash;
+        }
+
+        if (isMatch) {
+            // Mark as used
+            const { error: updateError } = await supabase
+                .from('backup_codes')
+                .update({
+                    is_used: true,
+                    used_at: new Date().toISOString(),
+                })
+                .eq('id', storedCode.id);
+
+            if (updateError) {
+                console.error('Error consuming backup code:', updateError);
+                return false;
+            }
+
+            // Update last verified timestamp for audit/UX consistency
+            await supabase
+                .from('user_2fa')
+                .update({ last_verified_at: new Date().toISOString() })
+                .eq('user_id', userId);
+
+            return true;
+        }
     }
 
-    // Update last verified timestamp
-    await supabase
-        .from('user_2fa')
-        .update({ last_verified_at: new Date().toISOString() })
-        .eq('user_id', userId);
-
-    return true;
+    return false;
 }
 
 /**
@@ -504,7 +573,8 @@ export async function regenerateBackupCodes(
     const hashedCodes = await Promise.all(
         newCodes.map(async (code) => ({
             user_id: userId,
-            code_hash: await hashBackupCode(code, salt ?? undefined),
+            code_hash: await hashBackupCode(code),
+            hash_version: 3,
         }))
     );
 

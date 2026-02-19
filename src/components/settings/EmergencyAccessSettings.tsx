@@ -419,18 +419,19 @@ export default function EmergencyAccessSettings() {
                 masterPassword,
             });
 
-            // Fetch profile for salt
+            // Fetch profile for salt and KDF version
             const { data: profile } = await supabase
                 .from('profiles')
-                .select('encryption_salt')
+                .select('encryption_salt, kdf_version')
                 .eq('user_id', currentUser.id)
                 .single()
             ;
 
             if (!profile?.encryption_salt) throw new Error('Salt not found');
+            const kdfVersion = (profile.kdf_version as number) || 1;
 
             // 3. Derive raw key
-            const rawKeyBytes = await deriveRawKey(masterPassword, profile.encryption_salt);
+            const rawKeyBytes = await deriveRawKey(masterPassword, profile.encryption_salt, kdfVersion);
             try {
                 const rawKeyString = JSON.stringify(Array.from(rawKeyBytes)); // Serialize bytes for encryption
 

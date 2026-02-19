@@ -107,6 +107,41 @@ export class SecureBuffer {
     }
 
     /**
+     * Creates a SecureBuffer from a hex string.
+     * SECURITY: The hex string cannot be securely wiped (JS strings are immutable),
+     * but this method minimizes intermediate allocations.
+     *
+     * @param hex - Hexadecimal string (case-insensitive, spaces/dashes allowed)
+     * @returns New SecureBuffer containing the decoded bytes
+     * @throws Error if hex string is invalid
+     */
+    static fromHex(hex: string): SecureBuffer {
+        // Remove any spaces or dashes for flexibility
+        const cleanHex = hex.replace(/[\s-]/g, '');
+
+        if (cleanHex.length % 2 !== 0) {
+            throw new Error('Hex string must have even length');
+        }
+
+        const secure = new SecureBuffer(cleanHex.length / 2);
+
+        for (let i = 0; i < secure.buffer.length; i++) {
+            const hexByte = cleanHex.substr(i * 2, 2);
+            const value = parseInt(hexByte, 16);
+
+            if (isNaN(value)) {
+                // Clear partial data before throwing
+                secure.destroy();
+                throw new Error(`Invalid hex byte at position ${i * 2}: ${hexByte}`);
+            }
+
+            secure.buffer[i] = value;
+        }
+
+        return secure;
+    }
+
+    /**
      * Creates a SecureBuffer filled with cryptographically secure random bytes.
      *
      * @param size - Number of random bytes to generate

@@ -18,6 +18,7 @@ export type Database = {
         Row: {
           code_hash: string
           created_at: string | null
+          hash_version: number | null
           id: string
           is_used: boolean | null
           used_at: string | null
@@ -26,6 +27,7 @@ export type Database = {
         Insert: {
           code_hash: string
           created_at?: string | null
+          hash_version?: number | null
           id?: string
           is_used?: boolean | null
           used_at?: string | null
@@ -34,6 +36,7 @@ export type Database = {
         Update: {
           code_hash?: string
           created_at?: string | null
+          hash_version?: number | null
           id?: string
           is_used?: boolean | null
           used_at?: string | null

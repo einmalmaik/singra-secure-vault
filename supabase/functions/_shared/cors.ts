@@ -29,12 +29,43 @@ function isAllowedOrigin(origin: string): boolean {
  * Returns CORS headers with the correct Access-Control-Allow-Origin
  * based on the incoming request's Origin header.
  *
+ * SECURITY: No fallback for missing Origin header - deny by default
+ *
  * @param req - The incoming request
  * @returns CORS headers record
  */
 export function getCorsHeaders(req: Request): Record<string, string> {
-    const origin = req.headers.get("Origin") || "";
-    const allowed = isAllowedOrigin(origin) ? origin : productionOrigins[0];
+    const origin = req.headers.get("Origin");
+
+    // SECURITY: Reject requests without Origin header (except for whitelisted paths)
+    if (!origin) {
+        // Check if this is a server-to-server request (no Origin expected)
+        const userAgent = req.headers.get("User-Agent") || "";
+        const isServerRequest =
+            userAgent.includes("Supabase") ||
+            userAgent.includes("Deno") ||
+            userAgent.includes("PostmanRuntime");
+
+        if (!isServerRequest) {
+            // Deny CORS for browser requests without Origin
+            return {
+                "Access-Control-Allow-Origin": "null",
+                "Access-Control-Allow-Headers": "none",
+                "Access-Control-Allow-Methods": "none",
+            };
+        }
+
+        // Allow server-to-server requests but with restricted CORS
+        return {
+            "Access-Control-Allow-Origin": productionOrigins[0],
+            "Access-Control-Allow-Headers":
+                "authorization, x-client-info, apikey, content-type",
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+        };
+    }
+
+    // Only allow explicitly whitelisted origins
+    const allowed = isAllowedOrigin(origin) ? origin : "null";
 
     return {
         "Access-Control-Allow-Origin": allowed,

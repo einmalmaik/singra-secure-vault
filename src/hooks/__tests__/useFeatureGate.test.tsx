@@ -201,7 +201,6 @@ describe("useFeatureGate", () => {
         "emergency_access",
         "vault_health_reports",
         "priority_support",
-        "post_quantum_encryption",
         "duress_password",
       ] as const;
 
@@ -210,6 +209,28 @@ describe("useFeatureGate", () => {
         expect(result.current.allowed).toBe(true);
         expect(result.current.requiredTier).toBe("premium");
       });
+    });
+
+    it("should expose post-quantum encryption as a free feature", () => {
+      mockUseSubscription.mockReturnValue({
+        tier: "free" as SubscriptionTier,
+        hasFeature: (feature: string) => {
+          const freeFeatures = [
+            "unlimited_passwords",
+            "device_sync",
+            "password_generator",
+            "secure_notes",
+            "external_2fa",
+            "post_quantum_encryption",
+          ];
+          return freeFeatures.includes(feature);
+        },
+        billingDisabled: false,
+      });
+
+      const { result } = renderHook(() => useFeatureGate("post_quantum_encryption"));
+      expect(result.current.allowed).toBe(true);
+      expect(result.current.requiredTier).toBe("free");
     });
 
     it("should handle families-only features correctly", () => {

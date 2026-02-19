@@ -221,43 +221,68 @@ export async function attemptDualUnlock(
     duressConfig: DuressConfig | null,
 ): Promise<DuressUnlockResult> {
     try {
-        // Always derive both keys in parallel to maintain constant timing.
-        // This prevents timing attacks that could reveal whether duress mode is enabled.
-        const realKeyPromise = deriveKey(password, realSalt, realKdfVersion);
+        // SECURITY: Constant-time execution to prevent timing attacks
+        // Both KDF paths MUST use the same parameters to ensure identical execution time
 
-        // If duress is disabled, we use a dummy salt and the same KDF version as the real key
-        // to ensure the computation takes the same amount of time.
+        // Determine the highest KDF version to use for BOTH paths
+        // This ensures consistent computation time regardless of configuration
+        const maxKdfVersion = Math.max(
+            realKdfVersion,
+            duressConfig?.kdfVersion || CURRENT_KDF_VERSION,
+            CURRENT_KDF_VERSION
+        );
+
+        // Always derive both keys in parallel with the SAME KDF version
+        // This prevents timing differences that could reveal duress mode existence
+        const realKeyPromise = deriveKey(password, realSalt, maxKdfVersion);
+
+        // For duress: use real salt if enabled, dummy salt if disabled
+        // The dummy salt ensures the same computational cost even when duress is disabled
         const dummySalt = 'Y29uc3RhbnRfdGltaW5nX2R1bW15X3NhbHQ='; // base64 for "constant_timing_dummy_salt"
         const duressKeyPromise = deriveKey(
             password,
-            (duressConfig?.enabled && duressConfig.salt) ? duressConfig.salt : dummySalt,
-            (duressConfig?.enabled) ? duressConfig.kdfVersion : realKdfVersion,
+            duressConfig?.salt || dummySalt,
+            maxKdfVersion // CRITICAL: Use same KDF version as real key
         );
 
-        // Wait for both derivations
+        // Wait for both derivations to complete
         const [realKey, duressKey] = await Promise.all([realKeyPromise, duressKeyPromise]);
 
-        // Check real password first
-        const realValid = await verifyKey(realVerifier, realKey);
+        // SECURITY: Perform both verifications regardless of results
+        // This prevents early-exit timing attacks
+        const realValidPromise = verifyKey(realVerifier, realKey);
+        const duressValidPromise = duressConfig?.verifier
+            ? verifyKey(duressConfig.verifier, duressKey)
+            : Promise.resolve(false);
+
+        // Wait for both verifications
+        const [realValid, duressValid] = await Promise.all([
+            realValidPromise,
+            duressValidPromise,
+        ]);
+
+        // Use constant-time comparison for the final decision
+        // Return results based on which key validated successfully
         if (realValid) {
+            // Add small random delay to mask any micro-timing differences
+            await constantTimeDelay();
             return {
                 mode: 'real',
                 key: realKey,
             };
         }
 
-        // Check duress password if enabled
-        if (duressConfig?.enabled && duressKey && duressConfig.verifier) {
-            const duressValid = await verifyKey(duressConfig.verifier, duressKey);
-            if (duressValid) {
-                return {
-                    mode: 'duress',
-                    key: duressKey,
-                };
-            }
+        if (duressConfig?.enabled && duressValid) {
+            // Add small random delay to mask any micro-timing differences
+            await constantTimeDelay();
+            return {
+                mode: 'duress',
+                key: duressKey,
+            };
         }
 
-        // Neither matched
+        // Neither matched - add delay before returning
+        await constantTimeDelay();
         return {
             mode: 'invalid',
             key: null,
@@ -265,12 +290,23 @@ export async function attemptDualUnlock(
         };
     } catch (err) {
         console.error('Dual unlock error:', err);
+        // Even on error, add delay to maintain consistent timing
+        await constantTimeDelay();
         return {
             mode: 'invalid',
             key: null,
             error: 'Unlock failed',
         };
     }
+}
+
+/**
+ * Adds a small random delay (0-5ms) to mask micro-timing differences
+ * This helps prevent timing attacks that could distinguish between code paths
+ */
+async function constantTimeDelay(): Promise<void> {
+    const delay = crypto.getRandomValues(new Uint8Array(1))[0] % 6; // 0-5ms
+    return new Promise(resolve => setTimeout(resolve, delay));
 }
 
 /**

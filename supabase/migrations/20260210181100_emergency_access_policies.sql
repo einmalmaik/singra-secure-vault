@@ -35,6 +35,7 @@ USING (
 );
 
 -- Update: Accept invite (claim by email)
+-- SECURITY: Only allow setting trusted_user_id, no other fields can be modified
 DROP POLICY IF EXISTS "Trustees can accept invite" ON emergency_access;
 CREATE POLICY "Trustees can accept invite"
 ON emergency_access FOR UPDATE
@@ -42,7 +43,17 @@ USING (
   trusted_user_id IS NULL AND trusted_email = current_setting('request.jwt.claim.email', true)
 )
 WITH CHECK (
+  -- Only allow setting trusted_user_id to claim the invite
   trusted_user_id = auth.uid()
+  -- Ensure no other fields are modified during invite acceptance
+  AND status = OLD.status
+  AND grantor_id = OLD.grantor_id
+  AND trusted_email = OLD.trusted_email
+  AND cooldown_hours = OLD.cooldown_hours
+  AND encrypted_master_key = OLD.encrypted_master_key
+  AND pq_encrypted_master_key = OLD.pq_encrypted_master_key
+  AND requested_at IS NOT DISTINCT FROM OLD.requested_at
+  AND granted_at IS NOT DISTINCT FROM OLD.granted_at
 );
 
 -- Update: Request access or other updates (once linked)

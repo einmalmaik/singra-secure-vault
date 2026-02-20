@@ -183,11 +183,12 @@ export function VaultSidebar({
                         const logKey = `${item.id}:${item.updated_at}`;
                         if (!loggedDecryptFailuresRef.current.has(logKey)) {
                             loggedDecryptFailuresRef.current.add(logKey);
-                            if (isDuressMode) {
-                                console.debug('Failed to decrypt vault item for category counts (Duress Mode):', item.id);
-                            } else {
-                                console.error('Failed to decrypt vault item for category counts:', item.id, err);
-                            }
+                            console.debug(
+                                isDuressMode
+                                    ? 'Failed to decrypt vault item for category counts (Duress Mode — expected):'
+                                    : 'Failed to decrypt vault item for category counts (key mismatch or corrupt):',
+                                item.id
+                            );
                         }
                         if (item.category_id) {
                             counts[item.category_id] = (counts[item.category_id] || 0) + 1;
@@ -209,9 +210,12 @@ export function VaultSidebar({
                         try {
                             resolvedName = await decryptData(cat.name.slice(ENCRYPTED_CATEGORY_PREFIX.length));
                         } catch (err) {
-                            if (!isDuressMode) {
-                                console.error('Failed to decrypt category name:', cat.id, err);
-                            }
+                            console.debug(
+                                isDuressMode
+                                    ? 'Failed to decrypt category name (Duress Mode — expected):'
+                                    : 'Failed to decrypt category name (key mismatch or corrupt):',
+                                cat.id
+                            );
                             resolvedName = 'Encrypted Category';
                         }
                     } else if (canPersistMigrations) {
@@ -231,9 +235,12 @@ export function VaultSidebar({
                         try {
                             resolvedIcon = await decryptData(cat.icon.slice(ENCRYPTED_CATEGORY_PREFIX.length));
                         } catch (err) {
-                            if (!isDuressMode) {
-                                console.error('Failed to decrypt category icon:', cat.id, err);
-                            }
+                            console.debug(
+                                isDuressMode
+                                    ? 'Failed to decrypt category icon (Duress Mode — expected):'
+                                    : 'Failed to decrypt category icon (key mismatch or corrupt):',
+                                cat.id
+                            );
                             resolvedIcon = null;
                         }
                     } else if (cat.icon && canPersistMigrations) {
@@ -253,9 +260,12 @@ export function VaultSidebar({
                         try {
                             resolvedColor = await decryptData(cat.color.slice(ENCRYPTED_CATEGORY_PREFIX.length));
                         } catch (err) {
-                            if (!isDuressMode) {
-                                console.error('Failed to decrypt category color:', cat.id, err);
-                            }
+                            console.debug(
+                                isDuressMode
+                                    ? 'Failed to decrypt category color (Duress Mode — expected):'
+                                    : 'Failed to decrypt category color (key mismatch or corrupt):',
+                                cat.id
+                            );
                             resolvedColor = '#3b82f6';
                         }
                     } else if (cat.color && canPersistMigrations) {

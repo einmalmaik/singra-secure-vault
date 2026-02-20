@@ -469,8 +469,8 @@ export function VaultProvider({ children }: VaultProviderProps) {
                     // Duress mode: user entered panic password
                     // Note: No integrity key for duress mode (decoy vault)
                     setEncryptionKey(result.key);
-                    setIsLocked(false);
                     setIsDuressMode(true);
+                    setIsLocked(false);
                     setIntegrityKey(null); // No integrity for duress
                     setLastActivity(Date.now());
 

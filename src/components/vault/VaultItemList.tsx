@@ -172,11 +172,12 @@ export function VaultItemList({
                             const logKey = `${item.id}:${item.updated_at}`;
                             if (!loggedDecryptFailuresRef.current.has(logKey)) {
                                 loggedDecryptFailuresRef.current.add(logKey);
-                                if (isDuressMode) {
-                                    console.debug('Failed to decrypt item in Duress Mode (expected for Real items):', item.id);
-                                } else {
-                                    console.error('Failed to decrypt item:', item.id, err);
-                                }
+                                console.debug(
+                                    isDuressMode
+                                        ? 'Failed to decrypt item in Duress Mode (expected for Real items):'
+                                        : 'Failed to decrypt item (key mismatch or corrupt):',
+                                    item.id
+                                );
                             }
                             return { ...item, decryptedData: undefined };
                         }

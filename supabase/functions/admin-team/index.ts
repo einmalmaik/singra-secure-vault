@@ -157,26 +157,30 @@ async function listUserEmails(
   let page = 1;
   const perPage = 200;
 
-  while (page <= 20 && userIdSet.size > 0) {
-    const { data, error } = await adminClient.auth.admin.listUsers({ page, perPage });
-    if (error) {
-      console.error("Failed to list auth users", error);
-      break;
-    }
-
-    const users = data?.users || [];
-    for (const authUser of users) {
-      if (userIdSet.has(authUser.id)) {
-        emailMap.set(authUser.id, authUser.email || null);
-        userIdSet.delete(authUser.id);
+  try {
+    while (page <= 20 && userIdSet.size > 0) {
+      const { data, error } = await adminClient.auth.admin.listUsers({ page, perPage });
+      if (error) {
+        console.warn("Failed to list auth users, falling back to empty emails", error);
+        break;
       }
-    }
 
-    if (users.length < perPage) {
-      break;
-    }
+      const users = data?.users || [];
+      for (const authUser of users) {
+        if (userIdSet.has(authUser.id)) {
+          emailMap.set(authUser.id, authUser.email || null);
+          userIdSet.delete(authUser.id);
+        }
+      }
 
-    page += 1;
+      if (users.length < perPage) {
+        break;
+      }
+
+      page += 1;
+    }
+  } catch (err) {
+    console.warn("Exception while listing auth users, falling back to empty emails", err);
   }
 
   return emailMap;

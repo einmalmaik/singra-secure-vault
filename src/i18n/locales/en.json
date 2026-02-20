@@ -890,10 +890,36 @@
       "replyPlaceholder": "Write a user reply or internal note...",
       "internalNoteToggle": "Save as internal note",
       "replySending": "Sending...",
-      "replyAction": "Send reply"
+      "replyAction": "Send reply",
+      "subscriptionAssigner": {
+        "title": "Assign subscription",
+        "description": "Manually assign a subscription tier to the current user.",
+        "lookupLabel": "Target user ID",
+        "lookupPlaceholder": "Enter a user ID",
+        "resolveAction": "Use ID",
+        "ticketUserHint": "Ticket user: {{userId}}",
+        "noTicketUserHint": "No ticket user preselected.",
+        "targetUser": "Target user: {{userId}}",
+        "tierLabel": "Tier",
+        "tier": {
+          "free": "Free",
+          "premium": "Premium",
+          "families": "Families",
+          "self_hosted": "Self-hosted"
+        },
+        "reasonLabel": "Reason",
+        "reasonPlaceholder": "Explain why this manual assignment is needed.",
+        "assignAction": "Assign",
+        "assigning": "Assigning...",
+        "success": "Subscription assigned successfully.",
+        "errorMissingUser": "Please provide a target user ID.",
+        "errorReasonTooShort": "Reason must be at least 3 characters.",
+        "errorAssignFailed": "Failed to assign subscription."
+      }
     },
     "team": {
       "title": "Team & Permissions",
+      "subscriptionTitle": "Assign Subscription",
       "noAccess": "You don't have permission to manage roles or permissions.",
       "membersTitle": "Team members",
       "membersDescription": "Manage internal roles for team members.",

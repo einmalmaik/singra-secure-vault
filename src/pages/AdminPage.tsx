@@ -18,6 +18,7 @@ import { AdminSupportPanel } from '@/components/admin/AdminSupportPanel';
 import { AdminTeamPermissionsPanel } from '@/components/admin/AdminTeamPermissionsPanel';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
+
 import { getTeamAccess, type TeamAccess } from '@/services/adminService';
 
 export default function AdminPage() {
@@ -63,24 +64,22 @@ export default function AdminPage() {
     }, [t, user]);
 
     const canSupportTab = useMemo(() => {
-        if (billingDisabled) return false; // Self-host: no managed support
-        if (!access?.is_admin) {
-            return false;
-        }
-        return access.permissions.some((permission) =>
-            [
-                'support.admin.access',
-                'support.tickets.read',
-                'support.tickets.reply',
-                'support.tickets.reply_internal',
-                'support.tickets.status',
-                'support.metrics.read',
-            ].includes(permission),
-        );
+        // Subscription permissions are handled in Team tab, not here
+        if (!access?.can_access_admin) return false;
+        if (!access.permissions.includes('support.admin.access')) return false;
+        if (billingDisabled) return false;
+        return access.permissions.some(p => [
+            'support.tickets.read',
+            'support.tickets.reply',
+            'support.tickets.reply_internal',
+            'support.tickets.status',
+            'support.metrics.read',
+        ].includes(p));
     }, [access, billingDisabled]);
 
     const canTeamTab = useMemo(() => {
-        if (!access?.is_admin) {
+        // Subscription management lives in Team tab
+        if (!access?.can_access_admin) {
             return false;
         }
         return access.permissions.some((permission) =>
@@ -89,6 +88,8 @@ export default function AdminPage() {
                 'team.roles.manage',
                 'team.permissions.read',
                 'team.permissions.manage',
+                'subscriptions.read',
+                'subscriptions.manage',
             ].includes(permission),
         );
     }, [access]);
@@ -107,7 +108,7 @@ export default function AdminPage() {
         return null;
     }
 
-    if (!access?.is_admin || !access?.can_access_admin || (!canSupportTab && !canTeamTab)) {
+    if (!access?.can_access_admin || (!canSupportTab && !canTeamTab)) {
         return (
             <div className="min-h-screen bg-background">
                 <header className="border-b">

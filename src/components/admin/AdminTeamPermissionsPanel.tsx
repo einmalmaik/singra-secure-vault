@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { AdminSubscriptionAssigner } from './AdminSubscriptionAssigner';
 import {
     Table,
     TableBody,
@@ -55,6 +56,7 @@ export function AdminTeamPermissionsPanel({ permissions }: AdminTeamPermissionsP
     const canManageRoles = permissions.includes('team.roles.manage');
     const canReadPermissions = permissions.includes('team.permissions.read');
     const canManagePermissions = permissions.includes('team.permissions.manage');
+    const canManageSubscriptions = permissions.includes('subscriptions.manage');
 
     const [members, setMembers] = useState<TeamMember[]>([]);
     const [permissionRows, setPermissionRows] = useState<RolePermissionMatrixRow[]>([]);
@@ -210,7 +212,9 @@ export function AdminTeamPermissionsPanel({ permissions }: AdminTeamPermissionsP
         });
     };
 
-    if (!canReadRoles && !canReadPermissions) {
+    const hasAnyAccess = canReadRoles || canReadPermissions || canManageSubscriptions;
+
+    if (!hasAnyAccess) {
         return (
             <Card>
                 <CardHeader>
@@ -379,6 +383,19 @@ export function AdminTeamPermissionsPanel({ permissions }: AdminTeamPermissionsP
                                 </div>
                             ))
                         )}
+                    </CardContent>
+                </Card>
+            )}
+
+            {canManageSubscriptions && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle>
+                            {t('admin.team.subscriptionTitle')}
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <AdminSubscriptionAssigner />
                     </CardContent>
                 </Card>
             )}

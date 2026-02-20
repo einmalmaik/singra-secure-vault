@@ -27,6 +27,7 @@ vi.mock("@/integrations/supabase/client", () => ({
 }));
 
 import {
+  assignUserSubscription,
   getAdminSupportTicket,
   getTeamAccess,
   listAdminSupportTickets,
@@ -196,5 +197,36 @@ describe("adminService", () => {
 
     expect(membersResult.members).toHaveLength(1);
     expect(permissionsResult.permissions).toHaveLength(1);
+  });
+
+  it("assigns user subscription via admin-support function", async () => {
+    mockInvoke.mockResolvedValue({
+      data: {
+        success: true,
+      },
+      error: null,
+    });
+
+    const result = await assignUserSubscription({
+      userId: "user-1",
+      tier: "premium",
+      reason: "Manual support upgrade",
+      ticketId: "ticket-1",
+    });
+
+    expect(mockInvoke).toHaveBeenCalledWith("admin-support", {
+      body: {
+        action: "assign_subscription",
+        user_id: "user-1",
+        tier: "premium",
+        reason: "Manual support upgrade",
+        ticket_id: "ticket-1",
+      },
+      headers: {
+        Authorization: "Bearer test-token",
+      },
+    });
+    expect(result.success).toBe(true);
+    expect(result.error).toBeNull();
   });
 });

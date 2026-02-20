@@ -6,7 +6,7 @@
  * Internal support inbox for moderators/admins.
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BarChart3, Clock3, Loader2, MessageSquare, RefreshCcw, Send } from 'lucide-react';
 
@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+
 import { useToast } from '@/hooks/use-toast';
 import {
     type AdminSupportMetric,
@@ -59,6 +60,7 @@ export function AdminSupportPanel({ permissions }: AdminSupportPanelProps) {
     const canUpdateStatus = permissions.includes('support.tickets.status');
     const canReadMetrics = permissions.includes('support.metrics.read');
 
+
     const [tickets, setTickets] = useState<AdminSupportTicket[]>([]);
     const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
     const [selectedTicket, setSelectedTicket] = useState<AdminSupportTicketDetail | null>(null);
@@ -77,6 +79,7 @@ export function AdminSupportPanel({ permissions }: AdminSupportPanelProps) {
     const [isLoadingMetrics, setIsLoadingMetrics] = useState(false);
     const [isReplying, setIsReplying] = useState(false);
     const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+    const selectedTicketIdRef = useRef<string | null>(null);
 
     const aggregateMetric = useMemo(() => {
         return metrics.find((metric) => metric.segment === 'all') || null;
@@ -189,6 +192,10 @@ export function AdminSupportPanel({ permissions }: AdminSupportPanelProps) {
     }, [loadTickets]);
 
     useEffect(() => {
+        selectedTicketIdRef.current = selectedTicketId;
+    }, [selectedTicketId]);
+
+    useEffect(() => {
         if (!selectedTicketId) {
             setSelectedTicket(null);
             return;
@@ -214,6 +221,7 @@ export function AdminSupportPanel({ permissions }: AdminSupportPanelProps) {
         if (!selectedTicketId || !canReply) {
             return;
         }
+        const activeTicketId = selectedTicketId;
 
         const message = replyMessage.trim();
         if (message.length < 1) {
@@ -245,13 +253,19 @@ export function AdminSupportPanel({ permissions }: AdminSupportPanelProps) {
             description: t('admin.support.replySent'),
         });
 
-        await Promise.all([loadTickets(), loadTicketDetail(selectedTicketId), loadMetrics()]);
+        await loadTickets();
+        if (activeTicketId === selectedTicketIdRef.current) {
+            // Guard: skip refresh if user switched tickets during async mutation
+            await loadTicketDetail(activeTicketId);
+        }
+        await loadMetrics();
     };
 
     const handleStatusUpdate = async () => {
         if (!selectedTicketId || !canUpdateStatus) {
             return;
         }
+        const activeTicketId = selectedTicketId;
 
         setIsUpdatingStatus(true);
         const { error } = await updateAdminSupportTicketStatus(selectedTicketId, statusUpdate);
@@ -271,7 +285,12 @@ export function AdminSupportPanel({ permissions }: AdminSupportPanelProps) {
             description: t('admin.support.statusUpdated'),
         });
 
-        await Promise.all([loadTickets(), loadTicketDetail(selectedTicketId), loadMetrics()]);
+        await loadTickets();
+        if (activeTicketId === selectedTicketIdRef.current) {
+            // Guard: skip refresh if user switched tickets during async mutation
+            await loadTicketDetail(activeTicketId);
+        }
+        await loadMetrics();
     };
 
     if (!canReadTickets) {
@@ -380,11 +399,10 @@ export function AdminSupportPanel({ permissions }: AdminSupportPanelProps) {
                                     <button
                                         key={ticket.id}
                                         type="button"
-                                        className={`w-full rounded-lg border p-3 text-left transition-colors ${
-                                            selectedTicketId === ticket.id
+                                        className={`w-full rounded-lg border p-3 text-left transition-colors ${selectedTicketId === ticket.id
                                                 ? 'border-primary bg-primary/5'
                                                 : 'hover:bg-muted/40'
-                                        }`}
+                                            }`}
                                         onClick={() => setSelectedTicketId(ticket.id)}
                                     >
                                         <div className="flex items-start justify-between gap-2">
@@ -540,6 +558,8 @@ export function AdminSupportPanel({ permissions }: AdminSupportPanelProps) {
                                         </Button>
                                     </div>
                                 )}
+
+
                             </>
                         )}
                     </CardContent>

@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { getCorsHeaders } from "../_shared/cors.ts";
 
 type TicketStatus = "open" | "in_progress" | "waiting_user" | "resolved" | "closed";
+type SubscriptionTier = "free" | "premium" | "families" | "self_hosted";
 
 const VALID_STATUSES = new Set<TicketStatus>([
   "open",
@@ -10,6 +11,12 @@ const VALID_STATUSES = new Set<TicketStatus>([
   "waiting_user",
   "resolved",
   "closed",
+]);
+const VALID_SUBSCRIPTION_TIERS = new Set<SubscriptionTier>([
+  "free",
+  "premium",
+  "families",
+  "self_hosted",
 ]);
 
 async function sendResendMail(to: string, subject: string, html: string) {
@@ -75,6 +82,19 @@ function parseTicketStatus(value: unknown): TicketStatus | null {
   return null;
 }
 
+function parseSubscriptionTier(value: unknown): SubscriptionTier | null {
+  if (
+    value === "free" ||
+    value === "premium" ||
+    value === "families" ||
+    value === "self_hosted"
+  ) {
+    return value;
+  }
+
+  return null;
+}
+
 async function hasPermission(
   client: ReturnType<typeof createClient>,
   userId: string,
@@ -91,6 +111,18 @@ async function hasPermission(
   }
 
   return data === true;
+}
+
+async function requireAdminAccess(
+  client: ReturnType<typeof createClient>,
+  userId: string,
+  corsHeaders: Record<string, string>,
+): Promise<Response | null> {
+  const hasAccess = await hasPermission(client, userId, "support.admin.access");
+  if (!hasAccess) {
+    return jsonResponse(corsHeaders, { error: 'Forbidden' }, 403);
+  }
+  return null;
 }
 
 async function hasRole(
@@ -178,6 +210,9 @@ async function handleListTickets(
   body: Record<string, unknown>,
   corsHeaders: Record<string, string>,
 ): Promise<Response> {
+  const accessCheck = await requireAdminAccess(client, userId, corsHeaders);
+  if (accessCheck) return accessCheck;
+
   const canReadTickets = await hasPermission(client, userId, "support.tickets.read");
   if (!canReadTickets) {
     return jsonResponse(corsHeaders, { error: "Insufficient permissions" }, 403);
@@ -288,6 +323,9 @@ async function handleGetTicket(
   body: Record<string, unknown>,
   corsHeaders: Record<string, string>,
 ): Promise<Response> {
+  const accessCheck = await requireAdminAccess(client, userId, corsHeaders);
+  if (accessCheck) return accessCheck;
+
   const canReadTickets = await hasPermission(client, userId, "support.tickets.read");
   if (!canReadTickets) {
     return jsonResponse(corsHeaders, { error: "Insufficient permissions" }, 403);
@@ -352,6 +390,9 @@ async function handleReplyTicket(
   body: Record<string, unknown>,
   corsHeaders: Record<string, string>,
 ): Promise<Response> {
+  const accessCheck = await requireAdminAccess(client, userId, corsHeaders);
+  if (accessCheck) return accessCheck;
+
   const canReply = await hasPermission(client, userId, "support.tickets.reply");
   if (!canReply) {
     return jsonResponse(corsHeaders, { error: "Insufficient permissions" }, 403);
@@ -464,6 +505,9 @@ async function handleUpdateTicket(
   body: Record<string, unknown>,
   corsHeaders: Record<string, string>,
 ): Promise<Response> {
+  const accessCheck = await requireAdminAccess(client, userId, corsHeaders);
+  if (accessCheck) return accessCheck;
+
   const canUpdateStatus = await hasPermission(client, userId, "support.tickets.status");
   if (!canUpdateStatus) {
     return jsonResponse(corsHeaders, { error: "Insufficient permissions" }, 403);
@@ -503,6 +547,9 @@ async function handleListMetrics(
   body: Record<string, unknown>,
   corsHeaders: Record<string, string>,
 ): Promise<Response> {
+  const accessCheck = await requireAdminAccess(client, userId, corsHeaders);
+  if (accessCheck) return accessCheck;
+
   const canReadMetrics = await hasPermission(client, userId, "support.metrics.read");
   if (!canReadMetrics) {
     return jsonResponse(corsHeaders, { error: "Insufficient permissions" }, 403);
@@ -526,6 +573,111 @@ async function handleListMetrics(
     {
       success: true,
       metrics: data || [],
+    },
+    200,
+  );
+}
+
+async function handleAssignSubscription(
+  client: ReturnType<typeof createClient>,
+  adminClient: ReturnType<typeof createClient>,
+  userId: string,
+  body: Record<string, unknown>,
+  corsHeaders: Record<string, string>,
+): Promise<Response> {
+  const canManageSubscriptions = await hasPermission(client, userId, "subscriptions.manage");
+  if (!canManageSubscriptions) {
+    return jsonResponse(corsHeaders, { error: "Insufficient permissions" }, 403);
+  }
+
+  const targetUserId = typeof body.user_id === "string" ? body.user_id.trim() : "";
+  const tier = parseSubscriptionTier(body.tier);
+  const reason = typeof body.reason === "string" ? body.reason.trim() : "";
+  const ticketId = typeof body.ticket_id === "string" ? body.ticket_id : null;
+
+  if (!targetUserId || !tier || !VALID_SUBSCRIPTION_TIERS.has(tier) || reason.length < 3) {
+    return jsonResponse(corsHeaders, { error: "Invalid payload" }, 400);
+  }
+
+  const { data: previousSubscription, error: previousSubscriptionError } = await adminClient
+    .from("subscriptions")
+    .select("id, user_id, tier, status")
+    .eq("user_id", targetUserId)
+    .maybeSingle();
+
+  if (previousSubscriptionError) {
+    return jsonResponse(corsHeaders, { error: previousSubscriptionError.message }, 500);
+  }
+
+  const { data: updatedSubscription, error: updateError } = await adminClient
+    .from("subscriptions")
+    .upsert(
+      {
+        user_id: targetUserId,
+        tier,
+        status: "active",
+      },
+      { onConflict: "user_id" },
+    )
+    .select("id, user_id, tier, status")
+    .single();
+
+  if (updateError || !updatedSubscription) {
+    return jsonResponse(corsHeaders, { error: updateError?.message || "Failed to assign subscription" }, 400);
+  }
+
+  const { error: auditError } = await adminClient
+    .from("team_access_audit_log")
+    .insert({
+      actor_user_id: userId,
+      target_user_id: targetUserId,
+      action: "assign_subscription",
+      payload: {
+        tier,
+        reason,
+        ticketId,
+      },
+    });
+
+  if (auditError) {
+    if (previousSubscription) {
+      await adminClient
+        .from("subscriptions")
+        .update({
+          tier: previousSubscription.tier,
+          status: previousSubscription.status,
+        })
+        .eq("id", updatedSubscription.id);
+    } else {
+      await adminClient
+        .from("subscriptions")
+        .delete()
+        .eq("id", updatedSubscription.id);
+    }
+
+    return jsonResponse(corsHeaders, { error: "Audit logging failed, operation aborted" }, 500);
+  }
+
+  if (ticketId) {
+    const { error: eventError } = await adminClient.from("support_events").insert({
+      ticket_id: ticketId,
+      actor_user_id: userId,
+      event_type: "subscription_assigned",
+      event_payload: {
+        tier,
+      },
+    });
+
+    if (eventError) {
+      console.warn("Failed to create support subscription event", eventError);
+    }
+  }
+
+  return jsonResponse(
+    corsHeaders,
+    {
+      success: true,
+      subscription: updatedSubscription,
     },
     200,
   );
@@ -567,7 +719,8 @@ Deno.serve(async (req: Request) => {
     }
 
     const isAdmin = await hasRole(client, user.id, "admin");
-    if (!isAdmin) {
+    const isModerator = await hasRole(client, user.id, "moderator");
+    if (!isAdmin && !isModerator) {
       return jsonResponse(corsHeaders, { error: "Insufficient permissions" }, 403);
     }
 
@@ -592,6 +745,10 @@ Deno.serve(async (req: Request) => {
 
     if (action === "list_metrics") {
       return handleListMetrics(client, user.id, body, corsHeaders);
+    }
+
+    if (action === "assign_subscription") {
+      return handleAssignSubscription(client, adminClient, user.id, body, corsHeaders);
     }
 
     return jsonResponse(corsHeaders, { error: "Unsupported action" }, 400);

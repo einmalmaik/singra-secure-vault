@@ -336,10 +336,42 @@ export async function listAdminSupportMetrics(days: number = 30): Promise<{
     return { metrics: (data.metrics || []) as AdminSupportMetric[], error: null };
 }
 
+/**
+ * Assigns a subscription tier to a user from the admin support panel.
+ *
+ * @param input - Assignment payload
+ * @returns Success flag or error
+ */
+export async function assignUserSubscription(input: {
+    userId: string;
+    tier: SubscriptionTier;
+    reason: string;
+    ticketId?: string;
+}): Promise<{ success: boolean; error: Error | null }> {
+    const { data, error } = await invokeAdminFunction(ADMIN_SUPPORT_FUNCTION, {
+        action: 'assign_subscription',
+        user_id: input.userId,
+        tier: input.tier,
+        reason: input.reason,
+        ticket_id: input.ticketId,
+    });
+
+    if (error) {
+        return { success: false, error: new Error(error.message || 'Failed to assign subscription') };
+    }
+
+    if (!data?.success) {
+        return { success: false, error: new Error('Invalid assign subscription payload') };
+    }
+
+    return { success: true, error: null };
+}
+
 // ============ Type Definitions ============
 
 export type TeamRole = 'admin' | 'moderator' | 'user';
 export type TeamPermissionRole = 'admin' | 'moderator';
+export type SubscriptionTier = 'free' | 'premium' | 'families' | 'self_hosted';
 
 export interface TeamAccess {
     roles: TeamRole[];

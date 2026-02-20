@@ -13,15 +13,19 @@ describe("admin-support edge function security", () => {
 
         // Count all the handler functions
         const handlerRegex = /async function handle[A-Za-z]+\(/g;
-        const handlerMatches = source.match(handlerRegex);
-        expect(handlerMatches?.length).toBeGreaterThan(0);
+        const handlerMatches = source.match(handlerRegex) || [];
 
-        // Every handler should contain the call to requireAdminAccess near the start
+        // Exclude handleAssignSubscription from the global support.admin.access requirement
+        // because it explicitly only requires subscriptions.manage and isAdmin.
+        const guardedHandlers = handlerMatches.filter((h) => !h.includes("handleAssignSubscription"));
+        expect(guardedHandlers.length).toBeGreaterThan(0);
+
+        // Every guarded handler should contain the call to requireAdminAccess near the start
         const checkRegex = /const accessCheck = await requireAdminAccess\(client, userId, corsHeaders\);\s*if \(accessCheck\) return accessCheck;/g;
-        const checkMatches = source.match(checkRegex);
+        const checkMatches = source.match(checkRegex) || [];
 
-        // Assert we have exactly one check for each handler
-        expect(checkMatches?.length).toBe(handlerMatches?.length);
+        // Assert we have exactly one check for each guarded handler
+        expect(checkMatches.length).toBe(guardedHandlers.length);
     });
 
     it("Scenario 1: Moderator without support.admin.access gets 403 Forbidden", () => {

@@ -17,6 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AdminSupportPanel } from '@/components/admin/AdminSupportPanel';
 import { AdminTeamPermissionsPanel } from '@/components/admin/AdminTeamPermissionsPanel';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSubscription } from '@/contexts/SubscriptionContext';
 
 import { getTeamAccess, type TeamAccess } from '@/services/adminService';
 
@@ -24,7 +25,7 @@ export default function AdminPage() {
     const { t } = useTranslation();
     const navigate = useNavigate();
     const { user, loading } = useAuth();
-
+    const { billingDisabled } = useSubscription();
 
     const [access, setAccess] = useState<TeamAccess | null>(null);
     const [isLoadingAccess, setIsLoadingAccess] = useState(true);
@@ -66,6 +67,7 @@ export default function AdminPage() {
         // Subscription permissions are handled in Team tab, not here
         if (!access?.is_admin) return false;
         if (!access.permissions.includes('support.admin.access')) return false;
+        if (billingDisabled) return false;
         return access.permissions.some(p => [
             'support.tickets.read',
             'support.tickets.reply',
@@ -73,7 +75,7 @@ export default function AdminPage() {
             'support.tickets.status',
             'support.metrics.read',
         ].includes(p));
-    }, [access]);
+    }, [access, billingDisabled]);
 
     const canTeamTab = useMemo(() => {
         // Subscription management lives in Team tab

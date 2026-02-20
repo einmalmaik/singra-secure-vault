@@ -585,9 +585,6 @@ async function handleAssignSubscription(
   body: Record<string, unknown>,
   corsHeaders: Record<string, string>,
 ): Promise<Response> {
-  const accessCheck = await requireAdminAccess(client, userId, corsHeaders);
-  if (accessCheck) return accessCheck;
-
   const isAdmin = await hasRole(client, userId, "admin");
   const canManageSubscriptions = await hasPermission(client, userId, "subscriptions.manage");
   if (!isAdmin || !canManageSubscriptions) {

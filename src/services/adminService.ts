@@ -28,25 +28,8 @@ async function invokeAdminFunction(
     functionName: string,
     body: Record<string, unknown>,
 ): Promise<{ data: Record<string, unknown> | null; error: Error | null }> {
-    const {
-        data: { session },
-        error: sessionError,
-    } = await supabase.auth.getSession();
-
-    if (sessionError) {
-        return { data: null, error: new Error(sessionError.message || 'Failed to load session') };
-    }
-
-    const accessToken = session?.access_token;
-    if (!accessToken) {
-        return { data: null, error: new Error('Authentication required') };
-    }
-
     const { data, error } = await supabase.functions.invoke(functionName, {
         body,
-        headers: {
-            Authorization: `Bearer ${accessToken}`,
-        },
     });
 
     if (error) {

@@ -82,8 +82,8 @@ export default function SettingsPage() {
                 return;
             }
 
-            setIsAdminUser(access.can_access_admin);
-            setShowAdminButton(access.is_admin);
+            setIsAdminUser(access.is_admin);
+            setShowAdminButton(access.can_access_admin);
         };
 
         void loadAdminAccess();

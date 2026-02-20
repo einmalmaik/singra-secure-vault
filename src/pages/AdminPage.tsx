@@ -108,7 +108,7 @@ export default function AdminPage() {
         return null;
     }
 
-    if (!access?.is_admin || !access?.can_access_admin || (!canSupportTab && !canTeamTab)) {
+    if (!access?.can_access_admin || (!canSupportTab && !canTeamTab)) {
         return (
             <div className="min-h-screen bg-background">
                 <header className="border-b">

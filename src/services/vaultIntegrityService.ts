@@ -48,7 +48,7 @@ import { argon2id } from 'hash-wasm';
  * HKDF info string for integrity key derivation.
  * Different from encryption key to ensure domain separation.
  */
-const INTEGRITY_KEY_INFO = 'SingraPW-IntegrityKey-v1';
+const INTEGRITY_KEY_INFO = 'Singra Vault-IntegrityKey-v1';
 
 /**
  * Argon2id parameters for integrity key (lighter than encryption key

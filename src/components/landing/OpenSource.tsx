@@ -3,7 +3,7 @@
 /**
  * @fileoverview Open Source Section
  * 
- * Highlights the open-source nature of Singra PW.
+ * Highlights the open-source nature of Singra Vault.
  */
 
 import { useTranslation } from 'react-i18next';

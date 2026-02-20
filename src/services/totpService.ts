@@ -30,7 +30,7 @@ export function normalizeTOTPSecretInput(secret: string): string {
 export function generateTOTP(secret: string): string {
     try {
         const totp = new OTPAuth.TOTP({
-            issuer: 'Singra PW',
+            issuer: 'Singra Vault',
             algorithm: 'SHA1',
             digits: 6,
             period: 30,

@@ -1,6 +1,6 @@
 # Singra Password Manager
 
-Wilkommen bei **Singra PW**, deinem sicheren, Open-Source Passwort-Manager.
+Wilkommen bei **Singra Vault**, deinem sicheren, Open-Source Passwort-Manager.
 
 **Live-URL**: [singrapw.mauntingstudios.de](https://singrapw.mauntingstudios.de)
 

@@ -10,7 +10,7 @@ Security hardening updates applied on February 18, 2026.
    - `ensureUserRsaKeyMaterial` now uses insert + unique-conflict winner re-read.
    - `ensureUserPqKeyMaterial` now uses conditional update/insert + winner re-read.
 4. RSA private key envelope format updated to `kdfVersion:salt:encryptedData` with legacy `salt:encryptedData` support in `unwrapKey`.
-5. Hybrid key combiner updated from XOR to HKDF-SHA-256 with ciphertext-bound context (`SingraPW-HybridKDF-v1`).
+5. Hybrid key combiner updated from XOR to HKDF-SHA-256 with ciphertext-bound context (`Singra Vault-HybridKDF-v1`).
 6. `SECURITY_STANDARD_VERSION` centralized in `src/services/securityStandard.ts`.
 7. Password verifier format updated to randomised `v2` payloads (legacy verifier format remains readable).
 

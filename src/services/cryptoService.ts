@@ -1,7 +1,7 @@
 // Copyright (c) 2025-2026 Maunting Studios
 // Licensed under the Business Source License 1.1 - see LICENSE
 /**
- * @fileoverview Cryptographic Service for Singra PW
+ * @fileoverview Cryptographic Service for Singra Vault
  * 
  * Implements zero-knowledge client-side encryption using:
  * - Argon2id for key derivation from master password

@@ -1,7 +1,7 @@
 // Copyright (c) 2025-2026 Maunting Studios
 // Licensed under the Business Source License 1.1 — see LICENSE
 /**
- * @fileoverview Passkey Service for SingraPW
+ * @fileoverview Passkey Service for Singra Vault
  *
  * Client-side WebAuthn integration with PRF extension for
  * zero-knowledge vault unlock via passkeys.
@@ -105,13 +105,13 @@ interface AuthenticationResponseWithPrf extends Omit<AuthenticationResponseJSON,
  * HKDF info string for deriving the wrapping key from PRF output.
  * This ensures domain separation even if PRF output were reused.
  */
-const HKDF_INFO = new TextEncoder().encode('SingraPW-PasskeyWrappingKey-v1');
+const HKDF_INFO = new TextEncoder().encode('Singra Vault-PasskeyWrappingKey-v1');
 
 /**
  * Static salt for HKDF. The PRF output already includes the per-credential
  * PRF salt, so the HKDF salt is a fixed domain separator.
  */
-const HKDF_SALT = new TextEncoder().encode('SingraPW-HKDF-Salt-v1');
+const HKDF_SALT = new TextEncoder().encode('Singra Vault-HKDF-Salt-v1');
 
 /** AES-GCM IV length in bytes */
 const IV_LENGTH = 12;

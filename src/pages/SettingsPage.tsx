@@ -210,7 +210,7 @@ export default function SettingsPage() {
                             className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
                         >
                             <Shield className="w-5 h-5" />
-                            <span className="hidden sm:inline font-semibold">Singra PW</span>
+                            <span className="hidden sm:inline font-semibold">Singra Vault</span>
                         </Link>
                     </div>
                 </div>
@@ -255,7 +255,7 @@ export default function SettingsPage() {
 
                 {/* Footer */}
                 <div className="mt-12 text-center text-sm text-muted-foreground">
-                    <p>Singra PW v1.0.0</p>
+                    <p>Singra Vault v1.0.0</p>
                     <p className="mt-1">{t('settings.footer')}</p>
                 </div>
             </main>

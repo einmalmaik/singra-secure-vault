@@ -1,6 +1,6 @@
 # E-Mail Templates
 
-Diese Templates werden für Supabase Auth E-Mails verwendet und sind mit dem Singra PW Branding gestaltet.
+Diese Templates werden für Supabase Auth E-Mails verwendet und sind mit dem Singra Vault Branding gestaltet.
 
 ## Verfügbare Templates
 
@@ -13,7 +13,7 @@ Diese Templates werden für Supabase Auth E-Mails verwendet und sind mit dem Sin
 ## Design-Elemente
 
 - **Header:** Gradient von `#6366f1` zu `#8b5cf6` (Singra Purple)
-- **Logo:** Shield-Icon + "Singra PW" Text
+- **Logo:** Shield-Icon + "Singra Vault" Text
 - **Button:** Gradient-Button mit hover-Effekt
 - **Dark Mode:** Automatische Anpassung via `prefers-color-scheme`
 - **Responsive:** Funktioniert auf Desktop und Mobile

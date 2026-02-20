@@ -2,7 +2,7 @@
 
 ## Overview
 
-Singra PW offers three subscription tiers: **FREE**, **PREMIUM**, and **FAMILIES**. The billing system integrates Stripe for payment processing and complies with German/EU consumer protection laws.
+Singra Vault offers three subscription tiers: **FREE**, **PREMIUM**, and **FAMILIES**. The billing system integrates Stripe for payment processing and complies with German/EU consumer protection laws.
 
 ## Tiers & Features
 

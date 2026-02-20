@@ -3,7 +3,7 @@
 /**
  * @fileoverview Security Whitepaper Page
  *
- * Public-facing, code-backed explanation of Singra PW's security model.
+ * Public-facing, code-backed explanation of Singra Vault's security model.
  * This page is intentionally factual and references concrete implementation
  * details present in the repository.
  */
@@ -258,8 +258,8 @@ export default function SecurityWhitepaper() {
     // Structured data for SEO
     const structuredData = {
         ...createArticleStructuredData({
-            title: 'Security Whitepaper - Singra PW',
-            description: 'Faktenbasierte Beschreibung der Sicherheitsarchitektur von Singra PW – direkt aus dem Code und den DB-Policies abgeleitet.',
+            title: 'Security Whitepaper - Singra Vault',
+            description: 'Faktenbasierte Beschreibung der Sicherheitsarchitektur von Singra Vault – direkt aus dem Code und den DB-Policies abgeleitet.',
             path: '/security',
         }),
         ...createBreadcrumbStructuredData([
@@ -272,7 +272,7 @@ export default function SecurityWhitepaper() {
         <div className="min-h-screen bg-background flex flex-col">
             <SEO
                 title="Security Whitepaper"
-                description="Faktenbasierte Beschreibung der Sicherheitsarchitektur von Singra PW. Zero-Knowledge Verschlüsselung, Argon2id KDF, AES-GCM, Row Level Security und mehr – direkt aus dem Code abgeleitet."
+                description="Faktenbasierte Beschreibung der Sicherheitsarchitektur von Singra Vault. Zero-Knowledge Verschlüsselung, Argon2id KDF, AES-GCM, Row Level Security und mehr – direkt aus dem Code abgeleitet."
                 path="/security"
                 keywords={[
                     'Security Whitepaper',

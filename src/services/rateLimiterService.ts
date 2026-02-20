@@ -1,7 +1,7 @@
 // Copyright (c) 2025-2026 Maunting Studios
 // Licensed under the Business Source License 1.1 — see LICENSE
 /**
- * @fileoverview Client-Side Unlock Rate Limiter for Singra PW
+ * @fileoverview Client-Side Unlock Rate Limiter for Singra Vault
  *
  * Implements exponential backoff after failed master-password
  * attempts to deter brute-force attacks.

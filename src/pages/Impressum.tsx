@@ -11,7 +11,7 @@ const Impressum = () => {
         <div className="min-h-screen bg-background flex flex-col">
             <SEO
                 title="Impressum"
-                description="Impressum und Angaben gemäß § 5 TMG für Singra PW. Kontaktinformationen und rechtliche Hinweise."
+                description="Impressum und Angaben gemäß § 5 TMG für Singra Vault. Kontaktinformationen und rechtliche Hinweise."
                 path="/impressum"
                 keywords={['Impressum', 'Kontakt', 'Rechtliche Hinweise', 'TMG']}
             />

@@ -174,7 +174,7 @@ export function TwoFactorSettings() {
     // Download backup codes
     const downloadBackupCodes = () => {
         const content = [
-            'Singra PW - Backup Codes',
+            'Singra Vault - Backup Codes',
             '========================',
             '',
             'Diese Codes können jeweils einmal verwendet werden, falls du keinen Zugriff auf deine Authenticator-App hast.',

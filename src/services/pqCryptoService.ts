@@ -1,7 +1,7 @@
 // Copyright (c) 2025-2026 Maunting Studios
 // Licensed under the Business Source License 1.1 — see LICENSE
 /**
- * @fileoverview Post-Quantum Cryptography Service for Singra PW.
+ * @fileoverview Post-Quantum Cryptography Service for Singra Vault.
  *
  * Implements hybrid encryption combining:
  * - ML-KEM-768 (FIPS 203) for post-quantum key encapsulation
@@ -52,7 +52,7 @@ const ML_KEM_768_SECRET_KEY_SIZE = 2400;
 const ML_KEM_768_SHARED_SECRET_SIZE = 32;
 
 /** HKDF info prefix for hybrid key combination */
-const HYBRID_KDF_INFO_PREFIX = new TextEncoder().encode('SingraPW-HybridKDF-v1:');
+const HYBRID_KDF_INFO_PREFIX = new TextEncoder().encode('Singra Vault-HybridKDF-v1:');
 
 // ============ Key Generation ============
 

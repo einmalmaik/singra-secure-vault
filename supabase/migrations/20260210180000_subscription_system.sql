@@ -1,5 +1,5 @@
 -- ============================================
--- Singra PW - Subscription System Migration
+-- Singra Vault - Subscription System Migration
 -- Adds subscription columns, feature tables,
 -- and updates handle_new_user trigger
 -- ============================================

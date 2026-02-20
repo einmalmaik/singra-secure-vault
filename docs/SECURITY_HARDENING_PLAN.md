@@ -1,8 +1,8 @@
-# SingraPW Security Hardening Plan
+# Singra Vault Security Hardening Plan
 
 > Erstellt: 2026-02-11
 > Basierend auf: Vollständigem Code-Audit + Recherche zu Bitwarden, LastPass, KeePass, 1Password Schwachstellen
-> Ziel: SingraPW sicherer machen als die Konkurrenz, bekannte Angriffsvektoren eliminieren
+> Ziel: Singra Vault sicherer machen als die Konkurrenz, bekannte Angriffsvektoren eliminieren
 > 
 > **Phase 1: ABGESCHLOSSEN (2026-02-11)**
 > - 1.1 Backup-Codes CSPRNG: `src/services/twoFactorService.ts` - Math.random() durch crypto.getRandomValues() mit Rejection Sampling ersetzt
@@ -14,7 +14,7 @@
 
 ## Phase 0: Aktueller Sicherheitsstatus (IST-Zustand)
 
-### Was SingraPW bereits richtig macht
+### Was Singra Vault bereits richtig macht
 
 | Eigenschaft | Implementierung | Dateien | Bewertung |
 |---|---|---|---|
@@ -359,7 +359,7 @@ Stattdessen wird der Key direkt gewrappt — wie bei Bitwarden.
 
 **Sicherheitsgarantien:**
 - PRF-Output existiert nur im Authenticator (TPM/Secure Enclave) + transient im Browser
-- HKDF-SHA-256 mit Domain-Separation (`SingraPW-PasskeyWrappingKey-v1`)
+- HKDF-SHA-256 mit Domain-Separation (`Singra Vault-PasskeyWrappingKey-v1`)
 - AES-256-GCM für Key-Wrapping (12-byte IV, 128-bit Auth-Tag)
 - Der importierte CryptoKey ist non-extractable (gleich wie passwort-abgeleitet)
 - Server sieht nie den unverschlüsselten Key (Zero-Knowledge)
@@ -616,7 +616,7 @@ ALTER TABLE profiles ADD COLUMN duress_kdf_version INTEGER;
 
 ### Vergleich nach Umsetzung
 
-| Feature | Bitwarden Free | 1Password | SingraPW (nach Plan) |
+| Feature | Bitwarden Free | 1Password | Singra Vault (nach Plan) |
 |---|---|---|---|
 | KDF | PBKDF2 (default) | PBKDF2 650k | Argon2id 128 MiB |
 | Post-Quantum | Nein | Nein | ✅ Hybrid ML-KEM-768 + RSA-4096 |

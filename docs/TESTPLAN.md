@@ -1,4 +1,4 @@
-# Testplan: Vollständige Abdeckung für Singra PW
+# Testplan: Vollständige Abdeckung für Singra Vault
 
 > **Ziel:** Jede exportierte Funktion, jeder Hook, jede Komponente und jede Seite  
 > hat mindestens einen Test. Edge Cases und vollständige E2E-Flows inklusive.  

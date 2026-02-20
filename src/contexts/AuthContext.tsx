@@ -1,7 +1,7 @@
 // Copyright (c) 2025-2026 Maunting Studios
 // Licensed under the Business Source License 1.1 — see LICENSE
 /**
- * @fileoverview Authentication Context for Singra PW
+ * @fileoverview Authentication Context for Singra Vault
  * 
  * Provides authentication state and methods throughout the application.
  * Handles Supabase auth state changes, login, signup, and OAuth flows.

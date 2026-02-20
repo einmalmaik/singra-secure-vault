@@ -3,7 +3,7 @@
 /**
  * @fileoverview Comparison Table Section
  *
- * Compares Singra PW with other password managers.
+ * Compares Singra Vault with other password managers.
  * All competitor data is based on publicly available information
  * from official documentation (verified Feb 2026).
  *
@@ -34,7 +34,7 @@ interface Competitor {
 
 const competitors: Competitor[] = [
     {
-        name: 'Singra PW',
+        name: 'Singra Vault',
         features: {
             openSource: 'yes',
             e2ee: 'yes',
@@ -178,7 +178,7 @@ export function Comparison() {
                                 </TableHead>
                                 {competitors.map((c) => (
                                     <TableHead key={c.name} className="text-center min-w-[120px]">
-                                        <span className={c.name === 'Singra PW' ? 'text-primary font-bold' : ''}>
+                                        <span className={c.name === 'Singra Vault' ? 'text-primary font-bold' : ''}>
                                             {c.name}
                                         </span>
                                     </TableHead>

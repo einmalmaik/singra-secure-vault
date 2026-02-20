@@ -188,7 +188,7 @@ describe("Integration: Core Cryptographic Pipeline", () => {
     });
 
     it("should round-trip a simple string", async () => {
-      const plaintext = "Hello, Singra PW!";
+      const plaintext = "Hello, Singra Vault!";
       const encrypted = await encrypt(plaintext, key);
       const decrypted = await decrypt(encrypted, key);
       expect(decrypted).toBe(plaintext);

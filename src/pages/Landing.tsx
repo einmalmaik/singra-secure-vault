@@ -3,7 +3,7 @@
 /**
  * @fileoverview Landing Page
  * 
- * Public landing page showcasing Singra PW features.
+ * Public landing page showcasing Singra Vault features.
  */
 
 import { Header } from '@/components/landing/Header';
@@ -26,7 +26,7 @@ export default function Landing() {
     <div className="min-h-screen flex flex-col">
       <SEO
         title="Sicherer Zero-Knowledge Passwort-Manager"
-        description="Singra PW ist ein sicherer Zero-Knowledge Passwort Manager mit clientseitiger Verschlüsselung. Kostenlos, Open Source, und mit voller Kontrolle über deine Daten."
+        description="Singra Vault ist ein sicherer Zero-Knowledge Passwort Manager mit clientseitiger Verschlüsselung. Kostenlos, Open Source, und mit voller Kontrolle über deine Daten."
         path="/"
         keywords={[
           'Passwort Manager kostenlos',

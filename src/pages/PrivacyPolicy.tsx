@@ -55,7 +55,7 @@ const PrivacyPolicy = () => {
         <div className="min-h-screen bg-background flex flex-col">
             <SEO
                 title="Datenschutzerklärung"
-                description="Datenschutzerklärung von Singra PW. Erfahre wie wir deine Daten schützen: Zero-Knowledge Architektur, clientseitige Verschlüsselung, keine Weitergabe an Dritte."
+                description="Datenschutzerklärung von Singra Vault. Erfahre wie wir deine Daten schützen: Zero-Knowledge Architektur, clientseitige Verschlüsselung, keine Weitergabe an Dritte."
                 path="/privacy"
                 keywords={[
                     'Datenschutz',

@@ -1,7 +1,7 @@
 {
   "id": "/",
-  "name": "Singra PW",
-  "short_name": "SingraPW",
+  "name": "Singra Vault",
+  "short_name": "Singra Vault",
   "description": "Sicherer Zero-Knowledge Passwort Manager mit Offline-Zugriff.",
   "start_url": "/",
   "scope": "/",

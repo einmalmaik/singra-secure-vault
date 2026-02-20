@@ -30,7 +30,7 @@ export interface SetupData {
 
 // ============ Constants ============
 
-const ISSUER = 'Singra PW';
+const ISSUER = 'Singra Vault';
 const BACKUP_CODE_COUNT = 5;
 const BACKUP_CODE_LENGTH = 8;
 

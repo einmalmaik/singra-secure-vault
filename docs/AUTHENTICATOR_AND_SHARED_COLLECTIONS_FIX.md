@@ -174,7 +174,7 @@ export function parseOTPAuthUri(uri: string): {
 Der integrierte Authenticator ist eine **Premium-Funktion**, die es Benutzern ermöglicht, TOTP-Codes für externe Services (Google, GitHub, Dropbox, etc.) direkt in ihrem Passwort-Tresor zu speichern.
 
 **Unterschied zur Account-2FA:**
-- **Account-2FA** (`/settings` → Sicherheit): Schützt den Singra PW Account selbst
+- **Account-2FA** (`/settings` → Sicherheit): Schützt den Singra Vault Account selbst
 - **Integrierter Authenticator** (`/authenticator`): Generiert Codes für ANDERE Services
 
 **Workflow:**

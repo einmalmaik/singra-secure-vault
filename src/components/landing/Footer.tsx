@@ -29,8 +29,8 @@ export function Footer() {
           {/* Brand */}
           <div className="md:col-span-2">
             <Link to="/" className="flex items-center gap-2 mb-4">
-              <img src="/singra-icon.png" alt="Singra PW" className="w-7 h-7 rounded-full ring-1 ring-border/70 shadow-sm shadow-primary/20" />
-              <span className="text-xl font-bold">Singra PW</span>
+              <img src="/singra-icon.png" alt="Singra Vault" className="w-7 h-7 rounded-full ring-1 ring-border/70 shadow-sm shadow-primary/20" />
+              <span className="text-xl font-bold">Singra Vault</span>
             </Link>
             <p className="text-muted-foreground mb-4 max-w-sm">
               {t('landing.footer.tagline')}

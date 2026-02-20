@@ -360,7 +360,7 @@ describe("Integration: TOTP Service — Code Generation & Validation", () => {
       const original = {
         secret: "JBSWY3DPEHPK3PXP",
         label: "test@example.com",
-        issuer: "Singra PW",
+        issuer: "Singra Vault",
         algorithm: "SHA1",
         digits: 6,
         period: 30,
@@ -373,7 +373,7 @@ describe("Integration: TOTP Service — Code Generation & Validation", () => {
       const parsed = parseTOTPUri(uri);
       expect(parsed).not.toBeNull();
       expect(parsed!.secret).toBe("JBSWY3DPEHPK3PXP");
-      expect(parsed!.issuer).toBe("Singra PW");
+      expect(parsed!.issuer).toBe("Singra Vault");
       expect(parsed!.digits).toBe(6);
       expect(parsed!.period).toBe(30);
     });

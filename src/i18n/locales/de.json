@@ -121,13 +121,13 @@
     "openSource": {
       "title": "Transparent & Open Source",
       "subtitle": "Vertrauen durch Transparenz",
-      "description": "Singra PW ist vollstÃ¤ndig Open Source. Jede Zeile Code kann von der Community Ã¼berprÃ¼ft werden. Keine versteckten HintertÃ¼ren, keine Geheimnisse.",
+      "description": "Singra Vault ist vollstÃ¤ndig Open Source. Jede Zeile Code kann von der Community Ã¼berprÃ¼ft werden. Keine versteckten HintertÃ¼ren, keine Geheimnisse.",
       "cta": "Code auf GitHub ansehen",
       "community": "Teil der Community werden"
     },
     "comparison": {
       "badge": "Ehrlicher Vergleich",
-      "title": "Warum Singra PW?",
+      "title": "Warum Singra Vault?",
       "subtitle": "Ein faktenbasierter Vergleich mit führenden Passwortmanagern. Alle Daten aus offiziellen Quellen verifiziert (Feb. 2026).",
       "featureLabel": "Funktion",
       "features": {
@@ -154,7 +154,7 @@
     "pwa": {
       "badge": "Progressive Web App",
       "title": "Wie funktioniert die PWA?",
-      "subtitle": "Singra PW ist eine Progressive Web App – eine moderne Webanwendung, die wie eine native App funktioniert und auch offline nutzbar ist.",
+      "subtitle": "Singra Vault ist eine Progressive Web App – eine moderne Webanwendung, die wie eine native App funktioniert und auch offline nutzbar ist.",
       "features": {
         "whatIsPwa": {
           "title": "Was ist eine PWA?",
@@ -166,7 +166,7 @@
         },
         "installable": {
           "title": "Installierbar",
-          "description": "Installiere Singra PW auf deinem Startbildschirm für schnellen Zugriff. In Chrome/Edge: Menü → 'App installieren'. Auf iOS: Teilen → 'Zum Home-Bildschirm'."
+          "description": "Installiere Singra Vault auf deinem Startbildschirm für schnellen Zugriff. In Chrome/Edge: Menü → 'App installieren'. Auf iOS: Teilen → 'Zum Home-Bildschirm'."
         },
         "autoSync": {
           "title": "Automatische Synchronisation",
@@ -215,7 +215,7 @@
       "legalHeading": "Rechtliches",
       "imprint": "Impressum",
       "cookies": "Cookie-Einstellungen",
-      "copyright": "© {{year}} Singra PW. Source Available unter BSL 1.1 Lizenz."
+      "copyright": "© {{year}} Singra Vault. Source Available unter BSL 1.1 Lizenz."
     }
   },
   "securityWhitepaper": {
@@ -372,7 +372,7 @@
     "zeroKnowledge": {
       "title": "Zero-Knowledge Architektur",
       "description": "Deine Daten gehÃ¶ren nur dir.",
-      "details": "Singra PW basiert auf einem Zero-Knowledge-Prinzip. Das bedeutet, dass deine Passwörter und sensiblen Daten ausschließlich auf deinem Gerät verschlüsselt werden, bevor sie jemals gespeichert oder übertragen werden. Wir als Betreiber haben technisch keine Möglichkeit, deine entschlüsselten Daten einzusehen. Dein Master-Passwort verlässt niemals dein Gerät.\n\nTransparenz-Hinweis: In der aktuellen Web-Architektur ist eine absolut 100%ige Zero-Knowledge-Umsetzung nicht vollständig möglich, weil einige technische Metadaten serverseitig verarbeitbar bleiben müssen (z.B. IDs, Zeitstempel, Besitz-Zuordnungen sowie Session-/Authentifizierungsstatus). Wir minimieren diese Metadaten, verschlüsseln alle sensiblen Tresorinhalte und zentrale Tresor-Metadaten und reduzieren Klartext kontinuierlich, soweit es technisch sinnvoll möglich ist."
+      "details": "Singra Vault basiert auf einem Zero-Knowledge-Prinzip. Das bedeutet, dass deine Passwörter und sensiblen Daten ausschließlich auf deinem Gerät verschlüsselt werden, bevor sie jemals gespeichert oder übertragen werden. Wir als Betreiber haben technisch keine Möglichkeit, deine entschlüsselten Daten einzusehen. Dein Master-Passwort verlässt niemals dein Gerät.\n\nTransparenz-Hinweis: In der aktuellen Web-Architektur ist eine absolut 100%ige Zero-Knowledge-Umsetzung nicht vollständig möglich, weil einige technische Metadaten serverseitig verarbeitbar bleiben müssen (z.B. IDs, Zeitstempel, Besitz-Zuordnungen sowie Session-/Authentifizierungsstatus). Wir minimieren diese Metadaten, verschlüsseln alle sensiblen Tresorinhalte und zentrale Tresor-Metadaten und reduzieren Klartext kontinuierlich, soweit es technisch sinnvoll möglich ist."
     },
     "general": {
       "title": "Allgemeines",
@@ -863,7 +863,7 @@
   },
   "admin": {
     "title": "Admin-Bereich",
-    "brand": "Singra PW",
+    "brand": "Singra Vault",
     "description": "Interne Verwaltung fuer Support, Rollen und Rechte.",
     "loadError": "Admin-Zugriff konnte nicht geladen werden.",
     "accessDeniedTitle": "Kein Zugriff",

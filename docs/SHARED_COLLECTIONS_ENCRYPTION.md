@@ -2,7 +2,7 @@
 
 ## Übersicht
 
-Dieses Dokument beschreibt die Verschlüsselungs-Architektur für geteilte Sammlungen in Singra PW. Die Implementierung verwendet einen Hybrid-Ansatz aus asymmetrischer (RSA-4096) und symmetrischer (AES-256-GCM) Verschlüsselung, um Zero-Knowledge-Architektur zu wahren.
+Dieses Dokument beschreibt die Verschlüsselungs-Architektur für geteilte Sammlungen in Singra Vault. Die Implementierung verwendet einen Hybrid-Ansatz aus asymmetrischer (RSA-4096) und symmetrischer (AES-256-GCM) Verschlüsselung, um Zero-Knowledge-Architektur zu wahren.
 
 ## Verschlüsselungs-Architektur
 

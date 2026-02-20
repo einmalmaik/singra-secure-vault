@@ -188,7 +188,7 @@ export default function Auth() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-primary/10 p-4">
       <SEO
         title={mode === 'login' ? 'Anmelden' : 'Registrieren'}
-        description="Melde dich bei Singra PW an oder erstelle ein neues Konto. Sicherer Zero-Knowledge Passwort Manager mit clientseitiger Verschlüsselung."
+        description="Melde dich bei Singra Vault an oder erstelle ein neues Konto. Sicherer Zero-Knowledge Passwort Manager mit clientseitiger Verschlüsselung."
         path="/auth"
         noIndex={true}
       />
@@ -196,7 +196,7 @@ export default function Auth() {
         {/* Logo */}
         <Link to="/" className="flex items-center justify-center gap-2 mb-8">
           <Shield className="w-8 h-8 text-primary" />
-          <span className="text-2xl font-bold">Singra PW</span>
+          <span className="text-2xl font-bold">Singra Vault</span>
         </Link>
 
         <Card className="shadow-xl">

@@ -2,7 +2,7 @@
 
 ## Overview
 
-Singra PW includes an in-app support system with SLA targets by plan tier:
+Singra Vault includes an in-app support system with SLA targets by plan tier:
 
 - **FREE**: standard support, usually within **72h**
 - **PREMIUM**: priority support, usually within **24h**

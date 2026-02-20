@@ -85,7 +85,7 @@ export default function PricingPage() {
         <div className="min-h-screen flex flex-col bg-gradient-to-br from-primary/5 via-background to-primary/10">
             <SEO
                 title="Preise & Pläne"
-                description="Wähle den passenden Plan für Singra PW: Kostenlos für Einzelnutzer, Premium für erweiterte Sicherheitsfunktionen, oder Families für bis zu 6 Personen."
+                description="Wähle den passenden Plan für Singra Vault: Kostenlos für Einzelnutzer, Premium für erweiterte Sicherheitsfunktionen, oder Families für bis zu 6 Personen."
                 path="/pricing"
                 keywords={[
                     'Passwort Manager Preise',

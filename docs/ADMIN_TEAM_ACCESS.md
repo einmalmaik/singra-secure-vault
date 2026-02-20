@@ -2,7 +2,7 @@
 
 ## Overview
 
-Singra PW now includes an internal admin area for support operations and team-rights management.
+Singra Vault now includes an internal admin area for support operations and team-rights management.
 
 Scope is intentionally **internal-team only**:
 

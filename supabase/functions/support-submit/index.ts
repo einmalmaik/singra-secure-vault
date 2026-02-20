@@ -153,7 +153,7 @@ Deno.serve(async (req: Request) => {
       try {
         await sendResendMail(
           user.email,
-          `Dein Support-Ticket bei Singra PW (#${ticket.id.slice(0, 8)})`,
+          `Dein Support-Ticket bei Singra Vault (#${ticket.id.slice(0, 8)})`,
           `
           <div style="font-family:Arial,sans-serif;line-height:1.6;color:#111">
             <h2>Support-Ticket erstellt</h2>

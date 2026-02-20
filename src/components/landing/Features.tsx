@@ -3,7 +3,7 @@
 /**
  * @fileoverview Features Section
  * 
- * Displays all main features of Singra PW.
+ * Displays all main features of Singra Vault.
  */
 
 import { useTranslation } from 'react-i18next';

@@ -1,7 +1,7 @@
 // Copyright (c) 2025-2026 Maunting Studios
 // Licensed under the Business Source License 1.1 — see LICENSE
 /**
- * @fileoverview Secure Clipboard Service for Singra PW
+ * @fileoverview Secure Clipboard Service for Singra Vault
  *
  * Provides a secure clipboard write with automatic clearing after a
  * configurable timeout (default 30 seconds).  Only clears if the

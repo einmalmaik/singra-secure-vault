@@ -72,9 +72,9 @@ export function Header() {
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-3 decoration-0">
-            <img src="/singra-icon.png" alt="Singra PW" className="w-7 h-7 rounded-full shadow-lg shadow-primary/20 ring-1 ring-border/70" />
+            <img src="/singra-icon.png" alt="Singra Vault" className="w-7 h-7 rounded-full shadow-lg shadow-primary/20 ring-1 ring-border/70" />
             <span className="text-xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/80">
-              Singra PW
+              Singra Vault
             </span>
           </Link>
 

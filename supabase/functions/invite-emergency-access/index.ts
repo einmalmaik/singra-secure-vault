@@ -159,12 +159,12 @@ Deno.serve(async (req: Request) => {
     }
 
     const siteUrl = Deno.env.get("SITE_URL") || "https://singrapw.mauntingstudios.de";
-    const subject = "Notfallzugang-Einladung für Singra PW";
+    const subject = "Notfallzugang-Einladung für Singra Vault";
     const html = `
       <div style="font-family:Arial,sans-serif;line-height:1.6;color:#111">
         <h2>Du wurdest als Notfallkontakt eingeladen</h2>
         <p>Hallo,</p>
-        <p><strong>${user.email}</strong> hat dich als Notfallkontakt in Singra PW eingeladen.</p>
+        <p><strong>${user.email}</strong> hat dich als Notfallkontakt in Singra Vault eingeladen.</p>
         <p>Um die Einladung zu bestätigen, melde dich mit dieser E-Mail-Adresse an und öffne die Einstellungen:</p>
         <p><a href="${siteUrl}/settings" style="display:inline-block;padding:10px 16px;background:#111;color:#fff;text-decoration:none;border-radius:8px">Einladung bestätigen</a></p>
         <p>Wartezeit für Notfallzugriff: <strong>${waitDays} Tage</strong>.</p>

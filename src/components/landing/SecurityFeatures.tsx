@@ -3,7 +3,7 @@
 /**
  * @fileoverview Security Features Section
  *
- * Displays the core security features of Singra PW,
+ * Displays the core security features of Singra Vault,
  * including new post-quantum, passkey, duress, and vault integrity capabilities.
  */
 

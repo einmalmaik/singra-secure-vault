@@ -50,7 +50,7 @@ function getRpConfig(req: Request): { rpName: string; rpID: string; origin: stri
     }
 
     return {
-        rpName: "SingraPW",
+        rpName: "Singra Vault",
         rpID: url.hostname,
         origin: url.origin,
     };

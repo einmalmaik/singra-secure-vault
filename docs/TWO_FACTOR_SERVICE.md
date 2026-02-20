@@ -27,7 +27,7 @@ Setup → QR-Code/Secret anzeigen → Code verifizieren → Backup-Codes speiche
 
 | Konstante | Wert | Bedeutung |
 |---|---|---|
-| `ISSUER` | `'Singra PW'` | Anzeigename in Authenticator-Apps |
+| `ISSUER` | `'Singra Vault'` | Anzeigename in Authenticator-Apps |
 | `BACKUP_CODE_COUNT` | `5` | Anzahl generierter Backup-Codes |
 | `BACKUP_CODE_LENGTH` | `8` | Zeichen pro Backup-Code |
 
@@ -55,7 +55,7 @@ Erzeugt die `otpauth://` URI für Authenticator-Apps.
 | `secret` | `string` | Base32 Secret |
 | `email` | `string` | E-Mail des Nutzers (als Label) |
 
-**Ablauf:** Erstellt `OTPAuth.TOTP` mit `issuer: 'Singra PW'`, `SHA1`, `6 digits`, `30s period` → `.toString()`
+**Ablauf:** Erstellt `OTPAuth.TOTP` mit `issuer: 'Singra Vault'`, `SHA1`, `6 digits`, `30s period` → `.toString()`
 
 ---
 

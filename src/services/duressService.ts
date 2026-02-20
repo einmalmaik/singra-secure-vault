@@ -1,7 +1,7 @@
 // Copyright (c) 2025-2026 Maunting Studios
 // Licensed under the Business Source License 1.1 - see LICENSE
 /**
- * @fileoverview Duress (Panic) Password Service for Singra PW
+ * @fileoverview Duress (Panic) Password Service for Singra Vault
  *
  * Implements a plausible deniability feature where a secondary "duress" password
  * unlocks a decoy vault instead of the real vault. This protects users who may be

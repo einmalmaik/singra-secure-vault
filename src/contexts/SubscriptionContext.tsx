@@ -1,7 +1,7 @@
 // Copyright (c) 2025-2026 Maunting Studios
 // Licensed under the Business Source License 1.1 — see LICENSE
 /**
- * @fileoverview Subscription Context for Singra PW
+ * @fileoverview Subscription Context for Singra Vault
  *
  * Provides subscription state throughout the application.
  * Loads user's subscription tier and status from Supabase.

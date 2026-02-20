@@ -10,7 +10,7 @@
 
 import { Helmet } from 'react-helmet-async';
 
-const SITE_NAME = 'Singra PW';
+const SITE_NAME = 'Singra Vault';
 const BASE_URL = 'https://singrapw.mauntingstudios.de';
 const DEFAULT_OG_IMAGE = '/singra-icon.png';
 
@@ -57,7 +57,7 @@ export function SEO({
     const fullOgImage = ogImage.startsWith('http') ? ogImage : `${BASE_URL}${ogImage}`;
 
     const baseKeywords = [
-        'Singra PW',
+        'Singra Vault',
         'Passwort Manager',
         'Passwortmanager',
         'Password Manager',
@@ -94,7 +94,7 @@ export function SEO({
 
             {/* Twitter Card */}
             <meta name="twitter:card" content="summary_large_image" />
-            <meta name="twitter:site" content="@SingraPW" />
+            <meta name="twitter:site" content="@Singra Vault" />
             <meta name="twitter:title" content={fullTitle} />
             <meta name="twitter:description" content={description} />
             <meta name="twitter:image" content={fullOgImage} />

@@ -2,7 +2,7 @@
 
 ## Übersicht
 
-Diese Analyse prüft die Logik und Implementierung der Familien-Organisation und geteilten Sammlungen in Singra PW.
+Diese Analyse prüft die Logik und Implementierung der Familien-Organisation und geteilten Sammlungen in Singra Vault.
 
 ## Datenbank-Struktur
 

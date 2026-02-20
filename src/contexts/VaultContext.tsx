@@ -1,7 +1,7 @@
 // Copyright (c) 2025-2026 Maunting Studios
 // Licensed under the Business Source License 1.1 — see LICENSE
 /**
- * @fileoverview Vault Context for Singra PW
+ * @fileoverview Vault Context for Singra Vault
  * 
  * Manages vault encryption state including:
  * - Master password unlock status

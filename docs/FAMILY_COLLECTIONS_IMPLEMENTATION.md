@@ -2,7 +2,7 @@
 
 ## Übersicht
 
-Diese Dokumentation beschreibt die Implementierung der vollständigen Funktionalität für Familien-Organisation und geteilte Sammlungen in Singra PW.
+Diese Dokumentation beschreibt die Implementierung der vollständigen Funktionalität für Familien-Organisation und geteilte Sammlungen in Singra Vault.
 
 **Datum:** 2026-02-11  
 **Status:** In Entwicklung  

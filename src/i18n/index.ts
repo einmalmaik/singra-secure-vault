@@ -1,7 +1,7 @@
 // Copyright (c) 2025-2026 Maunting Studios
 // Licensed under the Business Source License 1.1 — see LICENSE
 /**
- * @fileoverview i18n Configuration for Singra PW
+ * @fileoverview i18n Configuration for Singra Vault
  *
  * This module sets up internationalization using i18next and react-i18next.
  * Currently supports German (default) and English.

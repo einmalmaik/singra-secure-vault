@@ -121,13 +121,13 @@
     "openSource": {
       "title": "Transparent & Open Source",
       "subtitle": "Trust through transparency",
-      "description": "Singra PW is fully open source. Every line of code can be reviewed by the community. No hidden backdoors, no secrets.",
+      "description": "Singra Vault is fully open source. Every line of code can be reviewed by the community. No hidden backdoors, no secrets.",
       "cta": "View code on GitHub",
       "community": "Join the community"
     },
     "comparison": {
       "badge": "Honest Comparison",
-      "title": "Why Singra PW?",
+      "title": "Why Singra Vault?",
       "subtitle": "A fact-based comparison with leading password managers. All data verified from official sources (Feb 2026).",
       "featureLabel": "Feature",
       "features": {
@@ -154,7 +154,7 @@
     "pwa": {
       "badge": "Progressive Web App",
       "title": "How Does the PWA Work?",
-      "subtitle": "Singra PW is a Progressive Web App – a modern web application that works like a native app and is also available offline.",
+      "subtitle": "Singra Vault is a Progressive Web App – a modern web application that works like a native app and is also available offline.",
       "features": {
         "whatIsPwa": {
           "title": "What is a PWA?",
@@ -166,7 +166,7 @@
         },
         "installable": {
           "title": "Installable",
-          "description": "Install Singra PW on your home screen for quick access. In Chrome/Edge: Menu → 'Install app'. On iOS: Share → 'Add to Home Screen'."
+          "description": "Install Singra Vault on your home screen for quick access. In Chrome/Edge: Menu → 'Install app'. On iOS: Share → 'Add to Home Screen'."
         },
         "autoSync": {
           "title": "Automatic Sync",
@@ -215,7 +215,7 @@
       "legalHeading": "Legal",
       "imprint": "Imprint",
       "cookies": "Cookie Settings",
-      "copyright": "© {{year}} Singra PW. Source Available under BSL 1.1 License."
+      "copyright": "© {{year}} Singra Vault. Source Available under BSL 1.1 License."
     }
   },
   "securityWhitepaper": {
@@ -372,7 +372,7 @@
     "zeroKnowledge": {
       "title": "Zero-Knowledge Architecture",
       "description": "Your data belongs only to you.",
-      "details": "Singra PW is built on a Zero-Knowledge principle. This means your passwords and sensitive data are encrypted exclusively on your device before ever being stored or transmitted. We as operators have technically no way to view your decrypted data. Your Master Password never leaves your device.\n\nTransparency note: In the current web architecture, 100% absolute Zero-Knowledge is not fully possible because some technical metadata must remain processable on the server (for example IDs, timestamps, ownership references, and session/authentication state). We minimize this metadata, encrypt all sensitive vault content and major vault metadata, and continuously reduce plaintext wherever technically feasible."
+      "details": "Singra Vault is built on a Zero-Knowledge principle. This means your passwords and sensitive data are encrypted exclusively on your device before ever being stored or transmitted. We as operators have technically no way to view your decrypted data. Your Master Password never leaves your device.\n\nTransparency note: In the current web architecture, 100% absolute Zero-Knowledge is not fully possible because some technical metadata must remain processable on the server (for example IDs, timestamps, ownership references, and session/authentication state). We minimize this metadata, encrypt all sensitive vault content and major vault metadata, and continuously reduce plaintext wherever technically feasible."
     },
     "general": {
       "title": "General",
@@ -840,7 +840,7 @@
   },
   "admin": {
     "title": "Admin Area",
-    "brand": "Singra PW",
+    "brand": "Singra Vault",
     "description": "Internal operations for support, team roles, and permission management.",
     "loadError": "Failed to load admin access.",
     "accessDeniedTitle": "Access denied",

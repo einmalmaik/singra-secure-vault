@@ -345,7 +345,7 @@ Deno.serve(async (req) => {
   
   // Sende E-Mail
   await resend.emails.send({
-    from: 'Singra PW <noreply@singra.de>',
+    from: 'Singra Vault <noreply@singra.de>',
     to: invitation.trustee_email,
     subject: 'Emergency Access Einladung',
     html: `

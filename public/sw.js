@@ -1,5 +1,5 @@
 const CACHE_VERSION = 'v2';
-const CACHE_PREFIX = 'singra-pwa-';
+const CACHE_PREFIX = 'singra-vaulta-';
 const CACHE_NAME = `${CACHE_PREFIX}${CACHE_VERSION}`;
 const OFFLINE_URL = '/offline.html';
 const APP_SHELL = [OFFLINE_URL, '/manifest.webmanifest', '/favicon.ico', '/singra-icon.png'];
@@ -86,7 +86,7 @@ self.addEventListener('message', (event) => {
 
   if (event.data && event.data.type === 'SUPPORT_REPLY_NOTIFICATION') {
     const { title, body, url } = event.data;
-    self.registration.showNotification(title || 'Singra PW Support', {
+    self.registration.showNotification(title || 'Singra Vault Support', {
       body: body || 'Du hast eine neue Support-Antwort.',
       icon: '/singra-icon.png',
       badge: '/singra-icon.png',

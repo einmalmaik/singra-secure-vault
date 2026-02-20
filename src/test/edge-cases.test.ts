@@ -1,7 +1,7 @@
 // Copyright (c) 2025-2026 Maunting Studios
 // Licensed under the Business Source License 1.1 — see LICENSE
 /**
- * @fileoverview Edge-Case Tests for Singra PW
+ * @fileoverview Edge-Case Tests for Singra Vault
  * 
  * Phase 5: Tests extreme edge cases, boundary values, XSS vectors, and corrupt data
  * across all services. These tests ensure robustness and security under unusual conditions.

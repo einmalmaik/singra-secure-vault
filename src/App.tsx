@@ -3,7 +3,7 @@
 /**
  * @fileoverview Main App Component
  * 
- * Sets up providers and routing for Singra PW.
+ * Sets up providers and routing for Singra Vault.
  */
 
 import { HelmetProvider } from "react-helmet-async";

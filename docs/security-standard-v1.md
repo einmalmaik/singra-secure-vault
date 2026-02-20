@@ -6,7 +6,7 @@ Security Standard v1 enforces hybrid key exchange for shared and emergency flows
 
 1. ML-KEM-768 (post-quantum KEM)
 2. RSA-4096 (classical asymmetric layer)
-3. HKDF-SHA-256 key combination with ciphertext binding (`SingraPW-HybridKDF-v1`)
+3. HKDF-SHA-256 key combination with ciphertext binding (`Singra Vault-HybridKDF-v1`)
 
 Vault payload encryption remains AES-256-GCM with Argon2id-derived keys.
 

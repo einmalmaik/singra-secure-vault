@@ -199,13 +199,13 @@ Deno.serve(async (req: Request) => {
     }
 
     const siteUrl = Deno.env.get("SITE_URL") || "https://singrapw.mauntingstudios.de";
-    const subject = "Einladung zur Familien-Organisation bei Singra PW";
+    const subject = "Einladung zur Familien-Organisation bei Singra Vault";
     const html = `
       <div style="font-family:Arial,sans-serif;line-height:1.6;color:#111">
         <h2>Du wurdest zur Familien-Organisation eingeladen</h2>
         <p>Hallo,</p>
-        <p><strong>${user.email}</strong> hat dich zur Familien-Organisation in Singra PW eingeladen.</p>
-        <p>Öffne Singra PW und melde dich an, um die Einladung anzunehmen:</p>
+        <p><strong>${user.email}</strong> hat dich zur Familien-Organisation in Singra Vault eingeladen.</p>
+        <p>Öffne Singra Vault und melde dich an, um die Einladung anzunehmen:</p>
         <p><a href="${siteUrl}/settings" style="display:inline-block;padding:10px 16px;background:#111;color:#fff;text-decoration:none;border-radius:8px">Zu den Einstellungen</a></p>
         <p>Falls du kein Konto hast, registriere dich zuerst mit dieser E-Mail-Adresse.</p>
       </div>

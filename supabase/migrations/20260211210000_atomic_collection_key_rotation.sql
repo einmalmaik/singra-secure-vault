@@ -11,7 +11,7 @@ RETURNS void
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
-AS $$
+AS $func$
 DECLARE
     item_record JSONB;
     key_record JSONB;
@@ -56,7 +56,7 @@ BEGIN
 
     -- If any statement above fails, the entire transaction rolls back automatically.
 END;
-$$;
+$func$;
 
 -- Only authenticated users can call this function
 REVOKE ALL ON FUNCTION rotate_collection_key_atomic(UUID, JSONB, JSONB) FROM PUBLIC;

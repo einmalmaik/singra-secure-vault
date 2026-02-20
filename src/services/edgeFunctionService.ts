@@ -33,7 +33,7 @@ export async function invokeAuthedFunction<
     });
 
     if (error) {
-        throw normalizeSupabaseFunctionError(error);
+        throw await normalizeSupabaseFunctionError(error);
     }
 
     return (data || null) as TResponse;
@@ -55,7 +55,7 @@ export function isEdgeFunctionServiceError(error: unknown): error is EdgeFunctio
 
 // ============ Internal Helpers ============
 
-function normalizeSupabaseFunctionError(error: any): EdgeFunctionServiceError {
+async function normalizeSupabaseFunctionError(error: any): Promise<EdgeFunctionServiceError> {
     let status: number | undefined;
     let code: EdgeFunctionErrorCode = 'UNKNOWN';
     let details: Record<string, unknown> | undefined;
@@ -68,14 +68,18 @@ function normalizeSupabaseFunctionError(error: any): EdgeFunctionServiceError {
             if (context.status) {
                 status = context.status;
             }
-            if (context.json) {
-                const json = context.json as any;
-                if (json) {
-                    details = { ...json };
-                    const detailMessage = json.details || json.error || json.message;
-                    if (detailMessage && typeof detailMessage === 'string') {
-                        message = detailMessage;
+            if (typeof context.json === 'function') {
+                try {
+                    const json = await context.json();
+                    if (json) {
+                        details = { ...json };
+                        const detailMessage = json.details || json.error || json.message;
+                        if (detailMessage && typeof detailMessage === 'string') {
+                            message = detailMessage;
+                        }
                     }
+                } catch {
+                    // fallback auf generische Message
                 }
             }
         }

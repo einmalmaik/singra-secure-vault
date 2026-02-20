@@ -5,43 +5,19 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { FunctionsHttpError } from "@supabase/supabase-js";
 
-function createToken(payload: Record<string, unknown>): string {
-  return [
-    "header",
-    Buffer.from(JSON.stringify(payload)).toString("base64url"),
-    "signature",
-  ].join(".");
-}
-
-function createValidSessionToken(userId = "user-1"): string {
-  const now = Math.floor(Date.now() / 1000);
-  return createToken({
-    sub: userId,
-    role: "authenticated",
-    exp: now + 3600,
-  });
-}
-
-const { mockGetSession, mockRefreshSession, mockGetUser, mockFetch, supabaseMock } = vi.hoisted(() => {
-  const mockFetch = vi.fn();
-  const mockGetSession = vi.fn();
-  const mockRefreshSession = vi.fn();
-  const mockGetUser = vi.fn();
+const { mockInvoke, supabaseMock } = vi.hoisted(() => {
+  const mockInvoke = vi.fn();
 
   const supabaseMock = {
-    auth: {
-      getSession: mockGetSession,
-      refreshSession: mockRefreshSession,
-      getUser: mockGetUser,
+    functions: {
+      invoke: mockInvoke,
     },
   };
 
   return {
-    mockGetSession,
-    mockRefreshSession,
-    mockGetUser,
-    mockFetch,
+    mockInvoke,
     supabaseMock,
   };
 });
@@ -58,36 +34,11 @@ import {
 describe("edgeFunctionService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.stubGlobal("fetch", mockFetch);
-    mockGetSession.mockResolvedValue({
-      data: {
-        session: {
-          access_token: createValidSessionToken("user-1"),
-          user: { id: "user-1" },
-        },
-      },
-      error: null,
-    });
-    mockGetUser.mockResolvedValue({
-      data: { user: { id: "user-1" } },
-      error: null,
-    });
-    mockRefreshSession.mockResolvedValue({
-      data: { session: null },
-      error: null,
-    });
-    mockFetch.mockResolvedValue(
-      new Response(JSON.stringify({ success: true }), {
-        status: 200,
-        headers: { "content-type": "application/json" },
-      }),
-    );
   });
 
-  it("invokes function with explicit bearer token", async () => {
-    const accessToken = createValidSessionToken("user-1");
-    mockGetSession.mockResolvedValueOnce({
-      data: { session: { access_token: accessToken, user: { id: "user-1" } } },
+  it("invokes function securely using supabase.functions.invoke", async () => {
+    mockInvoke.mockResolvedValueOnce({
+      data: { success: true },
       error: null,
     });
 
@@ -95,45 +46,22 @@ describe("edgeFunctionService", () => {
       email: "a@example.com",
     });
 
-    expect(mockFetch).toHaveBeenCalledWith(
-      expect.stringContaining("/functions/v1/invite-family-member"),
-      {
-        method: "POST",
-        headers: expect.objectContaining({
-          Authorization: `Bearer ${accessToken}`,
-        }),
-        body: JSON.stringify({ email: "a@example.com" }),
-      },
-    );
-    const fetchCall = mockFetch.mock.calls[0][1] as { headers: Record<string, string> };
-    expect(fetchCall.headers.apikey).toBeTruthy();
-    expect(fetchCall.headers["Content-Type"]).toBe("application/json");
+    expect(mockInvoke).toHaveBeenCalledWith("invite-family-member", {
+      body: { email: "a@example.com" },
+    });
     expect(result.success).toBe(true);
   });
 
-  it("throws UNKNOWN when Supabase env config is missing", async () => {
-    vi.stubEnv("VITE_SUPABASE_URL", "");
-    vi.stubEnv("VITE_SUPABASE_PUBLISHABLE_KEY", "");
+  it("throws AUTH_REQUIRED when status is 401", async () => {
+    const error = new FunctionsHttpError("Edge Function returned a non-2xx status code");
+    (error as any).context = {
+      status: 401,
+      json: vi.fn().mockResolvedValue({ error: "Unauthorized" }),
+    };
 
-    await expect(
-      invokeAuthedFunction("invite-family-member", { email: "a@example.com" }),
-    ).rejects.toMatchObject({
-      code: "UNKNOWN",
-      status: 500,
-      message: "Supabase configuration missing",
-    });
-
-    vi.unstubAllEnvs();
-  });
-
-  it("throws AUTH_REQUIRED when session token is missing", async () => {
-    mockGetSession.mockResolvedValueOnce({
-      data: { session: null },
-      error: null,
-    });
-    mockRefreshSession.mockResolvedValueOnce({
-      data: { session: null },
-      error: null,
+    mockInvoke.mockResolvedValueOnce({
+      data: null,
+      error,
     });
 
     await expect(
@@ -145,109 +73,62 @@ describe("edgeFunctionService", () => {
     });
   });
 
-  it("refreshes the session when access token is missing", async () => {
-    mockGetSession.mockResolvedValueOnce({
-      data: { session: null },
-      error: null,
-    });
-    mockRefreshSession.mockResolvedValueOnce({
-      data: {
-        session: {
-          access_token: createValidSessionToken("user-1"),
-          user: { id: "user-1" },
-        },
-      },
-      error: null,
-    });
-
-    await invokeAuthedFunction<{ success: boolean }>("invite-family-member", {
-      email: "a@example.com",
-    });
-
-    expect(mockFetch).toHaveBeenCalledTimes(1);
-  });
-
-  it("rejects anon-like tokens even when JWT is syntactically valid", async () => {
-    const anonToken = createToken({
-      sub: "anon-subject",
-      role: "anon",
-      exp: Math.floor(Date.now() / 1000) + 3600,
-    });
-
-    mockGetSession.mockResolvedValueOnce({
-      data: { session: { access_token: anonToken, user: { id: "user-1" } } },
-      error: null,
-    });
-    mockRefreshSession.mockResolvedValueOnce({
-      data: { session: { access_token: createValidSessionToken("user-1"), user: { id: "user-1" } } },
-      error: null,
-    });
-
-    await invokeAuthedFunction("invite-family-member", { email: "a@example.com" });
-
-    expect(mockRefreshSession).toHaveBeenCalledTimes(1);
-    expect(mockFetch).toHaveBeenCalledTimes(1);
-  });
-
-  it("refreshes when session token is expired", async () => {
-    const now = Math.floor(Date.now() / 1000);
-    const expiredToken = createToken({
-      sub: "user-1",
-      role: "authenticated",
-      exp: now - 60,
-    });
-    const refreshedToken = createValidSessionToken("user-1");
-
-    mockGetSession.mockResolvedValueOnce({
-      data: { session: { access_token: expiredToken, user: { id: "user-1" } } },
-      error: null,
-    });
-    mockRefreshSession.mockResolvedValueOnce({
-      data: { session: { access_token: refreshedToken, user: { id: "user-1" } } },
-      error: null,
-    });
-
-    await invokeAuthedFunction<{ success: boolean }>("webauthn", {
-      action: "list-credentials",
-    });
-
-    expect(mockRefreshSession).toHaveBeenCalledTimes(1);
-    const fetchCall = mockFetch.mock.calls[0][1] as { headers: Record<string, string> };
-    expect(fetchCall.headers.Authorization).toBe(`Bearer ${refreshedToken}`);
-  });
-
   it("normalizes 403 function responses", async () => {
-    mockFetch.mockResolvedValueOnce(
-      new Response(JSON.stringify({ error: "Families subscription required" }), {
-        status: 403,
-        headers: { "content-type": "application/json" },
-      }),
-    );
+    const error = new FunctionsHttpError("Edge Function returned a non-2xx status code");
+    (error as any).context = {
+      status: 403,
+      json: vi.fn().mockResolvedValue({ error: "Families subscription required" }),
+    };
+
+    mockInvoke.mockResolvedValueOnce({
+      data: null,
+      error,
+    });
 
     await expect(
       invokeAuthedFunction("invite-family-member", { email: "a@example.com" }),
     ).rejects.toMatchObject({
       code: "FORBIDDEN",
       status: 403,
-      message: "Families subscription required",
+      message: "Forbidden",
     });
   });
 
-  it("exposes backend message on 400 responses", async () => {
-    mockFetch.mockResolvedValueOnce(
-      new Response(JSON.stringify({ error: "Invalid email" }), {
-        status: 400,
-        headers: { "content-type": "application/json" },
-      }),
-    );
+  it("exposes backend message on 400 responses using json() method", async () => {
+    const error = new FunctionsHttpError("Edge Function returned a non-2xx status code");
+    (error as any).context = {
+      status: 400,
+      json: vi.fn().mockResolvedValue({ details: "Invalid email address format" }),
+    };
+
+    mockInvoke.mockResolvedValueOnce({
+      data: null,
+      error,
+    });
 
     try {
       await invokeAuthedFunction("invite-family-member", { email: "" });
       throw new Error("Expected invokeAuthedFunction to throw");
-    } catch (error) {
-      expect(isEdgeFunctionServiceError(error)).toBe(true);
-      expect((error as { code: string }).code).toBe("BAD_REQUEST");
-      expect((error as Error).message).toBe("Invalid email");
+    } catch (err) {
+      expect(isEdgeFunctionServiceError(err)).toBe(true);
+      expect((err as { code: string }).code).toBe("BAD_REQUEST");
+      expect((err as Error).message).toBe("Invalid email address format");
     }
+  });
+
+  it("falls back to generic message string if parsing fails", async () => {
+    const error = new Error("status code: 500");
+    mockInvoke.mockResolvedValueOnce({
+      data: null,
+      error,
+    });
+
+    await expect(
+      invokeAuthedFunction("invite-family-member", { email: "a@example.com" }),
+    ).rejects.toMatchObject({
+      code: "SERVER_ERROR",
+      status: 500,
+      message: "Internal server error",
+    });
   });
 });

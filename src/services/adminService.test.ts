@@ -70,9 +70,6 @@ describe("adminService", () => {
       body: {
         action: "get_access",
       },
-      headers: {
-        Authorization: "Bearer test-token",
-      },
     });
     expect(result.error).toBeNull();
     expect(result.access?.can_access_admin).toBe(true);
@@ -99,9 +96,6 @@ describe("adminService", () => {
         status: "open",
         search: "Issue",
         limit: 10,
-      },
-      headers: {
-        Authorization: "Bearer test-token",
       },
     });
     expect(result.error).toBeNull();
@@ -137,9 +131,6 @@ describe("adminService", () => {
         permission_key: "support.tickets.status",
         enabled: true,
       },
-      headers: {
-        Authorization: "Bearer test-token",
-      },
     });
     expect(result.success).toBe(true);
     expect(result.error).toBeNull();
@@ -166,9 +157,6 @@ describe("adminService", () => {
       body: {
         action: "get_ticket",
         ticket_id: "ticket-1",
-      },
-      headers: {
-        Authorization: "Bearer test-token",
       },
     });
     expect(result.error).toBeNull();
@@ -221,9 +209,6 @@ describe("adminService", () => {
         tier: "premium",
         reason: "Manual support upgrade",
         ticket_id: "ticket-1",
-      },
-      headers: {
-        Authorization: "Bearer test-token",
       },
     });
     expect(result.success).toBe(true);

@@ -582,58 +582,145 @@ export function VaultProvider({ children }: VaultProviderProps) {
                             .from('vault_items')
                             .select('id, encrypted_data')
                             .eq('user_id', user.id)
-                            .limit(1);
+                            .order('created_at', { ascending: true })
+                            .limit(5);
 
-                        if (probeItems && probeItems.length > 0) {
-                            try {
-                                await decryptVaultItem(probeItems[0].encrypted_data, activeKey);
-                            } catch {
-                                console.warn('Detected broken KDF upgrade (duress path). Starting repair...');
-                                for (let oldVersion = kdfVersion - 1; oldVersion >= 1; oldVersion--) {
-                                    try {
-                                        const oldKey = await deriveKey(masterPassword, salt, oldVersion);
-                                        await decryptVaultItem(probeItems[0].encrypted_data, oldKey);
+                        const { data: probeCategories } = await supabase
+                            .from('categories')
+                            .select('id, name, icon, color')
+                            .eq('user_id', user.id)
+                            .order('created_at', { ascending: true })
+                            .limit(5);
 
-                                        const { data: allItems } = await supabase
-                                            .from('vault_items')
-                                            .select('id, encrypted_data')
-                                            .eq('user_id', user.id);
+                        const ENCRYPTED_CATEGORY_PREFIX = 'enc:cat:v1:';
+                        let needsFullRepair = false;
 
-                                        const { data: allCategories } = await supabase
-                                            .from('categories')
-                                            .select('id, name, icon, color')
-                                            .eq('user_id', user.id);
+                        if (probeItems) {
+                            for (const item of probeItems) {
+                                try {
+                                    await decryptVaultItem(item.encrypted_data, activeKey);
+                                } catch {
+                                    needsFullRepair = true;
+                                    break;
+                                }
+                            }
+                        }
 
-                                        const repairResult = await reEncryptVault(
-                                            allItems || [],
-                                            allCategories || [],
-                                            oldKey,
-                                            activeKey,
-                                        );
+                        if (!needsFullRepair && probeCategories) {
+                            for (const cat of probeCategories) {
+                                try {
+                                    if (cat.name.startsWith(ENCRYPTED_CATEGORY_PREFIX)) {
+                                        await decrypt(cat.name.slice(ENCRYPTED_CATEGORY_PREFIX.length), activeKey);
+                                    }
+                                    if (cat.icon && cat.icon.startsWith(ENCRYPTED_CATEGORY_PREFIX)) {
+                                        await decrypt(cat.icon.slice(ENCRYPTED_CATEGORY_PREFIX.length), activeKey);
+                                    }
+                                    if (cat.color && cat.color.startsWith(ENCRYPTED_CATEGORY_PREFIX)) {
+                                        await decrypt(cat.color.slice(ENCRYPTED_CATEGORY_PREFIX.length), activeKey);
+                                    }
+                                } catch {
+                                    needsFullRepair = true;
+                                    break;
+                                }
+                            }
+                        }
 
-                                        for (const itemUpdate of repairResult.itemUpdates) {
-                                            await supabase
-                                                .from('vault_items')
-                                                .update({ encrypted_data: itemUpdate.encrypted_data })
-                                                .eq('id', itemUpdate.id)
-                                                .eq('user_id', user.id);
+                        if (needsFullRepair) {
+                            console.warn('Detected broken KDF upgrade in sample (duress path). Starting full vault scan and repair...');
+
+                            const { data: allItems } = await supabase
+                                .from('vault_items')
+                                .select('id, encrypted_data')
+                                .eq('user_id', user.id);
+
+                            const { data: allCategories } = await supabase
+                                .from('categories')
+                                .select('id, name, icon, color')
+                                .eq('user_id', user.id);
+
+                            if ((allItems && allItems.length > 0) || (allCategories && allCategories.length > 0)) {
+                                const brokenItems = [];
+                                const brokenCategories = [];
+
+                                if (allItems) {
+                                    for (const item of allItems) {
+                                        try {
+                                            await decryptVaultItem(item.encrypted_data, activeKey);
+                                        } catch {
+                                            brokenItems.push(item);
                                         }
+                                    }
+                                }
 
-                                        for (const catUpdate of repairResult.categoryUpdates) {
-                                            await supabase
-                                                .from('categories')
-                                                .update({ name: catUpdate.name, icon: catUpdate.icon, color: catUpdate.color })
-                                                .eq('id', catUpdate.id)
-                                                .eq('user_id', user.id);
+                                if (allCategories) {
+                                    for (const cat of allCategories) {
+                                        try {
+                                            if (cat.name.startsWith(ENCRYPTED_CATEGORY_PREFIX)) {
+                                                await decrypt(cat.name.slice(ENCRYPTED_CATEGORY_PREFIX.length), activeKey);
+                                            }
+                                            if (cat.icon && cat.icon.startsWith(ENCRYPTED_CATEGORY_PREFIX)) {
+                                                await decrypt(cat.icon.slice(ENCRYPTED_CATEGORY_PREFIX.length), activeKey);
+                                            }
+                                            if (cat.color && cat.color.startsWith(ENCRYPTED_CATEGORY_PREFIX)) {
+                                                await decrypt(cat.color.slice(ENCRYPTED_CATEGORY_PREFIX.length), activeKey);
+                                            }
+                                        } catch {
+                                            brokenCategories.push(cat);
                                         }
+                                    }
+                                }
 
-                                        console.info(
-                                            `KDF repair (duress path) complete: re-encrypted ${repairResult.itemsReEncrypted} items ` +
-                                            `and ${repairResult.categoriesReEncrypted} categories.`
-                                        );
-                                        break;
-                                    } catch {
-                                        continue;
+                                if (brokenItems.length > 0 || brokenCategories.length > 0) {
+                                    console.warn(`Detected broken KDF upgrade (duress path): ${brokenItems.length} items, ${brokenCategories.length} categories. Starting repair...`);
+                                    for (let oldVersion = kdfVersion - 1; oldVersion >= 1; oldVersion--) {
+                                        try {
+                                            const oldKey = await deriveKey(masterPassword, salt, oldVersion);
+
+                                            if (brokenItems.length > 0) {
+                                                await decryptVaultItem(brokenItems[0].encrypted_data, oldKey);
+                                            } else if (brokenCategories.length > 0) {
+                                                const catToTest = brokenCategories[0];
+                                                if (catToTest.name.startsWith(ENCRYPTED_CATEGORY_PREFIX)) {
+                                                    await decrypt(catToTest.name.slice(ENCRYPTED_CATEGORY_PREFIX.length), oldKey);
+                                                } else if (catToTest.icon && catToTest.icon.startsWith(ENCRYPTED_CATEGORY_PREFIX)) {
+                                                    await decrypt(catToTest.icon.slice(ENCRYPTED_CATEGORY_PREFIX.length), oldKey);
+                                                } else if (catToTest.color && catToTest.color.startsWith(ENCRYPTED_CATEGORY_PREFIX)) {
+                                                    await decrypt(catToTest.color.slice(ENCRYPTED_CATEGORY_PREFIX.length), oldKey);
+                                                } else {
+                                                    throw new Error('No encrypted fields found on broken category to test old key against');
+                                                }
+                                            }
+
+                                            const repairResult = await reEncryptVault(
+                                                brokenItems,
+                                                brokenCategories,
+                                                oldKey,
+                                                activeKey,
+                                            );
+
+                                            for (const itemUpdate of repairResult.itemUpdates) {
+                                                await supabase
+                                                    .from('vault_items')
+                                                    .update({ encrypted_data: itemUpdate.encrypted_data })
+                                                    .eq('id', itemUpdate.id)
+                                                    .eq('user_id', user.id);
+                                            }
+
+                                            for (const catUpdate of repairResult.categoryUpdates) {
+                                                await supabase
+                                                    .from('categories')
+                                                    .update({ name: catUpdate.name, icon: catUpdate.icon, color: catUpdate.color })
+                                                    .eq('id', catUpdate.id)
+                                                    .eq('user_id', user.id);
+                                            }
+
+                                            console.info(
+                                                `KDF repair (duress path) complete: re-encrypted ${repairResult.itemsReEncrypted} items, ${repairResult.categoriesReEncrypted} categories.`
+                                            );
+                                            break;
+                                        } catch {
+                                            continue;
+                                        }
                                     }
                                 }
                             }
@@ -787,68 +874,148 @@ export function VaultProvider({ children }: VaultProviderProps) {
                         .from('vault_items')
                         .select('id, encrypted_data')
                         .eq('user_id', user.id)
-                        .limit(1);
+                        .order('created_at', { ascending: true })
+                        .limit(5);
 
-                    if (probeItems && probeItems.length > 0) {
-                        try {
-                            await decryptVaultItem(probeItems[0].encrypted_data, activeKey);
-                            // Decrypt succeeded — data is consistent, nothing to repair
-                        } catch {
-                            // Decrypt failed — data is likely encrypted with an older KDF version
-                            console.warn('Detected broken KDF upgrade: data encrypted with older key. Starting repair...');
+                    const { data: probeCategories } = await supabase
+                        .from('categories')
+                        .select('id, name, icon, color')
+                        .eq('user_id', user.id)
+                        .order('created_at', { ascending: true })
+                        .limit(5);
 
-                            // Try each older KDF version as fallback
-                            for (let oldVersion = kdfVersion - 1; oldVersion >= 1; oldVersion--) {
-                                try {
-                                    const oldKey = await deriveKey(masterPassword, salt, oldVersion);
-                                    // Test if this old key can decrypt the probe item
-                                    await decryptVaultItem(probeItems[0].encrypted_data, oldKey);
+                    const ENCRYPTED_CATEGORY_PREFIX = 'enc:cat:v1:';
+                    let needsFullRepair = false;
 
-                                    // Old key works! Re-encrypt all data with the current key
-                                    console.info(`Fallback key v${oldVersion} works. Re-encrypting vault data...`);
+                    if (probeItems) {
+                        for (const item of probeItems) {
+                            try {
+                                await decryptVaultItem(item.encrypted_data, activeKey);
+                            } catch {
+                                needsFullRepair = true;
+                                break;
+                            }
+                        }
+                    }
 
-                                    const { data: allItems } = await supabase
-                                        .from('vault_items')
-                                        .select('id, encrypted_data')
-                                        .eq('user_id', user.id);
+                    if (!needsFullRepair && probeCategories) {
+                        for (const cat of probeCategories) {
+                            try {
+                                if (cat.name.startsWith(ENCRYPTED_CATEGORY_PREFIX)) {
+                                    await decrypt(cat.name.slice(ENCRYPTED_CATEGORY_PREFIX.length), activeKey);
+                                }
+                                if (cat.icon && cat.icon.startsWith(ENCRYPTED_CATEGORY_PREFIX)) {
+                                    await decrypt(cat.icon.slice(ENCRYPTED_CATEGORY_PREFIX.length), activeKey);
+                                }
+                                if (cat.color && cat.color.startsWith(ENCRYPTED_CATEGORY_PREFIX)) {
+                                    await decrypt(cat.color.slice(ENCRYPTED_CATEGORY_PREFIX.length), activeKey);
+                                }
+                            } catch {
+                                needsFullRepair = true;
+                                break;
+                            }
+                        }
+                    }
 
-                                    const { data: allCategories } = await supabase
-                                        .from('categories')
-                                        .select('id, name, icon, color')
-                                        .eq('user_id', user.id);
+                    if (needsFullRepair) {
+                        console.warn('Detected broken KDF upgrade in sample. Starting full vault scan and repair...');
 
-                                    const repairResult = await reEncryptVault(
-                                        allItems || [],
-                                        allCategories || [],
-                                        oldKey,
-                                        activeKey,
-                                    );
+                        const { data: allItems } = await supabase
+                            .from('vault_items')
+                            .select('id, encrypted_data')
+                            .eq('user_id', user.id);
 
-                                    // Persist repairs
-                                    for (const itemUpdate of repairResult.itemUpdates) {
-                                        await supabase
-                                            .from('vault_items')
-                                            .update({ encrypted_data: itemUpdate.encrypted_data })
-                                            .eq('id', itemUpdate.id)
-                                            .eq('user_id', user.id);
+                        const { data: allCategories } = await supabase
+                            .from('categories')
+                            .select('id, name, icon, color')
+                            .eq('user_id', user.id);
+
+                        if ((allItems && allItems.length > 0) || (allCategories && allCategories.length > 0)) {
+                            const brokenItems = [];
+                            const brokenCategories = [];
+
+                            if (allItems) {
+                                for (const item of allItems) {
+                                    try {
+                                        await decryptVaultItem(item.encrypted_data, activeKey);
+                                    } catch {
+                                        brokenItems.push(item);
                                     }
+                                }
+                            }
 
-                                    for (const catUpdate of repairResult.categoryUpdates) {
-                                        await supabase
-                                            .from('categories')
-                                            .update({ name: catUpdate.name, icon: catUpdate.icon, color: catUpdate.color })
-                                            .eq('id', catUpdate.id)
-                                            .eq('user_id', user.id);
+                            if (allCategories) {
+                                for (const cat of allCategories) {
+                                    try {
+                                        if (cat.name.startsWith(ENCRYPTED_CATEGORY_PREFIX)) {
+                                            await decrypt(cat.name.slice(ENCRYPTED_CATEGORY_PREFIX.length), activeKey);
+                                        }
+                                        if (cat.icon && cat.icon.startsWith(ENCRYPTED_CATEGORY_PREFIX)) {
+                                            await decrypt(cat.icon.slice(ENCRYPTED_CATEGORY_PREFIX.length), activeKey);
+                                        }
+                                        if (cat.color && cat.color.startsWith(ENCRYPTED_CATEGORY_PREFIX)) {
+                                            await decrypt(cat.color.slice(ENCRYPTED_CATEGORY_PREFIX.length), activeKey);
+                                        }
+                                    } catch {
+                                        brokenCategories.push(cat);
                                     }
+                                }
+                            }
 
-                                    console.info(
-                                        `KDF repair complete: re-encrypted ${repairResult.itemsReEncrypted} items ` +
-                                        `and ${repairResult.categoriesReEncrypted} categories from v${oldVersion} to v${kdfVersion}.`
-                                    );
-                                    break; // Repair done, stop trying older versions
-                                } catch {
-                                    // This old version didn't work either, try the next
-                                    continue;
+                            if (brokenItems.length > 0 || brokenCategories.length > 0) {
+                                console.warn(`Detected broken KDF upgrade: ${brokenItems.length} items, ${brokenCategories.length} categories encrypted with older key. Starting repair...`);
+
+                                for (let oldVersion = kdfVersion - 1; oldVersion >= 1; oldVersion--) {
+                                    try {
+                                        const oldKey = await deriveKey(masterPassword, salt, oldVersion);
+
+                                        if (brokenItems.length > 0) {
+                                            await decryptVaultItem(brokenItems[0].encrypted_data, oldKey);
+                                        } else if (brokenCategories.length > 0) {
+                                            const catToTest = brokenCategories[0];
+                                            if (catToTest.name.startsWith(ENCRYPTED_CATEGORY_PREFIX)) {
+                                                await decrypt(catToTest.name.slice(ENCRYPTED_CATEGORY_PREFIX.length), oldKey);
+                                            } else if (catToTest.icon && catToTest.icon.startsWith(ENCRYPTED_CATEGORY_PREFIX)) {
+                                                await decrypt(catToTest.icon.slice(ENCRYPTED_CATEGORY_PREFIX.length), oldKey);
+                                            } else if (catToTest.color && catToTest.color.startsWith(ENCRYPTED_CATEGORY_PREFIX)) {
+                                                await decrypt(catToTest.color.slice(ENCRYPTED_CATEGORY_PREFIX.length), oldKey);
+                                            } else {
+                                                throw new Error('No encrypted fields found on broken category to test old key against');
+                                            }
+                                        }
+
+                                        console.info(`Fallback key v${oldVersion} works. Re-encrypting broken vault data...`);
+
+                                        const repairResult = await reEncryptVault(
+                                            brokenItems,
+                                            brokenCategories,
+                                            oldKey,
+                                            activeKey,
+                                        );
+
+                                        for (const itemUpdate of repairResult.itemUpdates) {
+                                            await supabase
+                                                .from('vault_items')
+                                                .update({ encrypted_data: itemUpdate.encrypted_data })
+                                                .eq('id', itemUpdate.id)
+                                                .eq('user_id', user.id);
+                                        }
+
+                                        for (const catUpdate of repairResult.categoryUpdates) {
+                                            await supabase
+                                                .from('categories')
+                                                .update({ name: catUpdate.name, icon: catUpdate.icon, color: catUpdate.color })
+                                                .eq('id', catUpdate.id)
+                                                .eq('user_id', user.id);
+                                        }
+
+                                        console.info(
+                                            `KDF repair complete: re-encrypted ${repairResult.itemsReEncrypted} items, ${repairResult.categoriesReEncrypted} categories from v${oldVersion} to v${kdfVersion}.`
+                                        );
+                                        break; // Repair done, stop trying older versions
+                                    } catch {
+                                        continue;
+                                    }
                                 }
                             }
                         }

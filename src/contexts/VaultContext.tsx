@@ -612,6 +612,12 @@ export function VaultProvider({ children }: VaultProviderProps) {
                                     if (cat.name.startsWith(ENCRYPTED_CATEGORY_PREFIX)) {
                                         await decrypt(cat.name.slice(ENCRYPTED_CATEGORY_PREFIX.length), activeKey);
                                     }
+                                    if (cat.icon && cat.icon.startsWith(ENCRYPTED_CATEGORY_PREFIX)) {
+                                        await decrypt(cat.icon.slice(ENCRYPTED_CATEGORY_PREFIX.length), activeKey);
+                                    }
+                                    if (cat.color && cat.color.startsWith(ENCRYPTED_CATEGORY_PREFIX)) {
+                                        await decrypt(cat.color.slice(ENCRYPTED_CATEGORY_PREFIX.length), activeKey);
+                                    }
                                 } catch {
                                     needsFullRepair = true;
                                     break;
@@ -652,6 +658,12 @@ export function VaultProvider({ children }: VaultProviderProps) {
                                             if (cat.name.startsWith(ENCRYPTED_CATEGORY_PREFIX)) {
                                                 await decrypt(cat.name.slice(ENCRYPTED_CATEGORY_PREFIX.length), activeKey);
                                             }
+                                            if (cat.icon && cat.icon.startsWith(ENCRYPTED_CATEGORY_PREFIX)) {
+                                                await decrypt(cat.icon.slice(ENCRYPTED_CATEGORY_PREFIX.length), activeKey);
+                                            }
+                                            if (cat.color && cat.color.startsWith(ENCRYPTED_CATEGORY_PREFIX)) {
+                                                await decrypt(cat.color.slice(ENCRYPTED_CATEGORY_PREFIX.length), activeKey);
+                                            }
                                         } catch {
                                             brokenCategories.push(cat);
                                         }
@@ -667,7 +679,16 @@ export function VaultProvider({ children }: VaultProviderProps) {
                                             if (brokenItems.length > 0) {
                                                 await decryptVaultItem(brokenItems[0].encrypted_data, oldKey);
                                             } else if (brokenCategories.length > 0) {
-                                                await decrypt(brokenCategories[0].name.slice(ENCRYPTED_CATEGORY_PREFIX.length), oldKey);
+                                                const catToTest = brokenCategories[0];
+                                                if (catToTest.name.startsWith(ENCRYPTED_CATEGORY_PREFIX)) {
+                                                    await decrypt(catToTest.name.slice(ENCRYPTED_CATEGORY_PREFIX.length), oldKey);
+                                                } else if (catToTest.icon && catToTest.icon.startsWith(ENCRYPTED_CATEGORY_PREFIX)) {
+                                                    await decrypt(catToTest.icon.slice(ENCRYPTED_CATEGORY_PREFIX.length), oldKey);
+                                                } else if (catToTest.color && catToTest.color.startsWith(ENCRYPTED_CATEGORY_PREFIX)) {
+                                                    await decrypt(catToTest.color.slice(ENCRYPTED_CATEGORY_PREFIX.length), oldKey);
+                                                } else {
+                                                    throw new Error('No encrypted fields found on broken category to test old key against');
+                                                }
                                             }
 
                                             const repairResult = await reEncryptVault(
@@ -883,6 +904,12 @@ export function VaultProvider({ children }: VaultProviderProps) {
                                 if (cat.name.startsWith(ENCRYPTED_CATEGORY_PREFIX)) {
                                     await decrypt(cat.name.slice(ENCRYPTED_CATEGORY_PREFIX.length), activeKey);
                                 }
+                                if (cat.icon && cat.icon.startsWith(ENCRYPTED_CATEGORY_PREFIX)) {
+                                    await decrypt(cat.icon.slice(ENCRYPTED_CATEGORY_PREFIX.length), activeKey);
+                                }
+                                if (cat.color && cat.color.startsWith(ENCRYPTED_CATEGORY_PREFIX)) {
+                                    await decrypt(cat.color.slice(ENCRYPTED_CATEGORY_PREFIX.length), activeKey);
+                                }
                             } catch {
                                 needsFullRepair = true;
                                 break;
@@ -923,6 +950,12 @@ export function VaultProvider({ children }: VaultProviderProps) {
                                         if (cat.name.startsWith(ENCRYPTED_CATEGORY_PREFIX)) {
                                             await decrypt(cat.name.slice(ENCRYPTED_CATEGORY_PREFIX.length), activeKey);
                                         }
+                                        if (cat.icon && cat.icon.startsWith(ENCRYPTED_CATEGORY_PREFIX)) {
+                                            await decrypt(cat.icon.slice(ENCRYPTED_CATEGORY_PREFIX.length), activeKey);
+                                        }
+                                        if (cat.color && cat.color.startsWith(ENCRYPTED_CATEGORY_PREFIX)) {
+                                            await decrypt(cat.color.slice(ENCRYPTED_CATEGORY_PREFIX.length), activeKey);
+                                        }
                                     } catch {
                                         brokenCategories.push(cat);
                                     }
@@ -939,7 +972,16 @@ export function VaultProvider({ children }: VaultProviderProps) {
                                         if (brokenItems.length > 0) {
                                             await decryptVaultItem(brokenItems[0].encrypted_data, oldKey);
                                         } else if (brokenCategories.length > 0) {
-                                            await decrypt(brokenCategories[0].name.slice(ENCRYPTED_CATEGORY_PREFIX.length), oldKey);
+                                            const catToTest = brokenCategories[0];
+                                            if (catToTest.name.startsWith(ENCRYPTED_CATEGORY_PREFIX)) {
+                                                await decrypt(catToTest.name.slice(ENCRYPTED_CATEGORY_PREFIX.length), oldKey);
+                                            } else if (catToTest.icon && catToTest.icon.startsWith(ENCRYPTED_CATEGORY_PREFIX)) {
+                                                await decrypt(catToTest.icon.slice(ENCRYPTED_CATEGORY_PREFIX.length), oldKey);
+                                            } else if (catToTest.color && catToTest.color.startsWith(ENCRYPTED_CATEGORY_PREFIX)) {
+                                                await decrypt(catToTest.color.slice(ENCRYPTED_CATEGORY_PREFIX.length), oldKey);
+                                            } else {
+                                                throw new Error('No encrypted fields found on broken category to test old key against');
+                                            }
                                         }
 
                                         console.info(`Fallback key v${oldVersion} works. Re-encrypting broken vault data...`);

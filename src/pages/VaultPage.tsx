@@ -135,7 +135,7 @@ export default function VaultPage() {
                 return;
             }
 
-            setShowAdminButton(access.can_access_admin);
+            setShowAdminButton(access.is_admin);
         };
 
         void loadAdminAccess();

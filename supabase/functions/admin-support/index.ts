@@ -585,9 +585,8 @@ async function handleAssignSubscription(
   body: Record<string, unknown>,
   corsHeaders: Record<string, string>,
 ): Promise<Response> {
-  const isAdmin = await hasRole(client, userId, "admin");
   const canManageSubscriptions = await hasPermission(client, userId, "subscriptions.manage");
-  if (!isAdmin || !canManageSubscriptions) {
+  if (!canManageSubscriptions) {
     return jsonResponse(corsHeaders, { error: "Insufficient permissions" }, 403);
   }
 

@@ -190,7 +190,8 @@ async function handleGetAccess(
   const roles = await getUserRoles(client, userId);
   const permissions = await getUserPermissions(client);
   const isAdmin = roles.includes("admin");
-  const canAccessAdmin = isAdmin && permissions.some((permissionKey) =>
+  const isInternalTeam = roles.includes("admin") || roles.includes("moderator");
+  const canAccessAdmin = isInternalTeam && permissions.some((permissionKey) =>
     ADMIN_ACCESS_PERMISSION_KEYS.includes(permissionKey)
   );
 
@@ -577,7 +578,7 @@ async function handleSetRolePermission(
         permission_key: permissionKey,
         enabled,
       },
-  });
+    });
 
   if (auditError) {
     // SECURITY: Rollback must restore exact prior state, not blindly re-insert

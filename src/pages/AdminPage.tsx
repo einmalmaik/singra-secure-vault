@@ -65,7 +65,7 @@ export default function AdminPage() {
 
     const canSupportTab = useMemo(() => {
         // Subscription permissions are handled in Team tab, not here
-        if (!access?.is_admin) return false;
+        if (!access?.can_access_admin) return false;
         if (!access.permissions.includes('support.admin.access')) return false;
         if (billingDisabled) return false;
         return access.permissions.some(p => [
@@ -79,7 +79,7 @@ export default function AdminPage() {
 
     const canTeamTab = useMemo(() => {
         // Subscription management lives in Team tab
-        if (!access?.is_admin) {
+        if (!access?.can_access_admin) {
             return false;
         }
         return access.permissions.some((permission) =>

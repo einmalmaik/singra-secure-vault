@@ -7,17 +7,22 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { FunctionsHttpError } from "@supabase/supabase-js";
 
-const { mockInvoke, supabaseMock } = vi.hoisted(() => {
+const { mockInvoke, mockGetSession, supabaseMock } = vi.hoisted(() => {
   const mockInvoke = vi.fn();
+  const mockGetSession = vi.fn().mockResolvedValue({ data: { session: { access_token: 'test-token' } }, error: null });
 
   const supabaseMock = {
     functions: {
       invoke: mockInvoke,
     },
+    auth: {
+      getSession: mockGetSession,
+    }
   };
 
   return {
     mockInvoke,
+    mockGetSession,
     supabaseMock,
   };
 });

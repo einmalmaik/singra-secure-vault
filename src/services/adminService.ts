@@ -28,6 +28,10 @@ async function invokeAdminFunction(
     functionName: string,
     body: Record<string, unknown>,
 ): Promise<{ data: Record<string, unknown> | null; error: Error | null }> {
+    // Gatekeeper: await getSession() to guarantee any background token refresh 
+    // completes before we invoke the function, preventing race condition 401s.
+    await supabase.auth.getSession();
+
     const { data, error } = await supabase.functions.invoke(functionName, {
         body,
     });

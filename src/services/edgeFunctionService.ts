@@ -30,7 +30,15 @@ export async function invokeAuthedFunction<
 ): Promise<TResponse> {
     // Gatekeeper: await getSession() to guarantee any background token refresh 
     // completes before we invoke the function, preventing race condition 401s.
-    await supabase.auth.getSession();
+    const { data: { session } } = await supabase.auth.getSession();
+
+    if (!session) {
+        const authError = new Error('Authentication required') as EdgeFunctionServiceError;
+        authError.name = 'EdgeFunctionServiceError';
+        authError.code = 'AUTH_REQUIRED';
+        authError.status = 401;
+        throw authError;
+    }
 
     const { data, error } = await supabase.functions.invoke(functionName, {
         body,

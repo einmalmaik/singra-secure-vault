@@ -282,6 +282,34 @@ describe("AuthContext", () => {
 
             expect(mockSupabase.auth.signOut).toHaveBeenCalled();
         });
+
+        it("throws when supabase signOut returns an error", async () => {
+            const mockError = new Error("Network error");
+            mockSupabase.auth.signOut.mockResolvedValue({ error: mockError });
+
+            const consoleError = vi.spyOn(console, "error").mockImplementation(() => { });
+
+            const { result } = renderHook(() => useAuth(), { wrapper });
+
+            await waitFor(() => expect(result.current.loading).toBe(false));
+
+            let errorThrown;
+            try {
+                await act(async () => {
+                    await result.current.signOut();
+                });
+            } catch (e) {
+                errorThrown = e;
+            }
+
+            expect(errorThrown).toBe(mockError);
+            expect(consoleError).toHaveBeenCalledWith(
+                expect.stringContaining("[AuthContext] signOut failed"),
+                mockError,
+            );
+
+            consoleError.mockRestore();
+        });
     });
 
     describe("Auth state changes", () => {
@@ -448,6 +476,45 @@ describe("AuthContext", () => {
             );
 
             consoleError.mockRestore();
+        });
+
+        it("preserves valid session when getSession resolves with soft-error", async () => {
+            let authCallback: (event: string, session: unknown) => void = () => { };
+            mockSupabase.auth.onAuthStateChange.mockImplementation((callback) => {
+                authCallback = callback;
+                return {
+                    data: { subscription: { unsubscribe: vi.fn() } },
+                };
+            });
+
+            const softError = new Error("Auth session missing");
+            mockSupabase.auth.getSession.mockResolvedValue({
+                data: { session: null },
+                error: softError,
+            });
+
+            const consoleWarn = vi.spyOn(console, "warn").mockImplementation(() => { });
+
+            const { result } = renderHook(() => useAuth(), { wrapper });
+
+            act(() => {
+                authCallback("INITIAL_SESSION", mockSession);
+            });
+
+            await waitFor(() => {
+                expect(result.current.authReady).toBe(true);
+                expect(result.current.loading).toBe(false);
+            });
+
+            expect(result.current.user).toEqual(mockUser);
+            expect(result.current.session).toEqual(mockSession);
+
+            expect(consoleWarn).toHaveBeenCalledWith(
+                expect.stringContaining("[AuthContext] getSession() resolved with error"),
+                softError,
+            );
+
+            consoleWarn.mockRestore();
         });
 
         it("preserves valid session when getSession rejects after INITIAL_SESSION (no false-positive logout)", async () => {

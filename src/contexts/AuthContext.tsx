@@ -54,7 +54,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
     console.debug('[AuthContext] Calling getSession() to ensure token is fresh...');
     supabase.auth.getSession()
       .then(({ data: { session }, error }) => {
-        console.debug(`[AuthContext] getSession() resolved. Error:`, error);
+        if (error) {
+          // Soft-Error: Session invalid oder Refresh fehlgeschlagen.
+          // onAuthStateChange ist die kanonische Source of Truth —
+          // keinen State überschreiben, finally löst authReady auf.
+          console.warn(
+            '[AuthContext] getSession() resolved with error — preserving existing auth state:',
+            error
+          );
+          return;
+        }
+        console.debug('[AuthContext] getSession() resolved successfully.');
         setSession(session);
         setUser(session?.user ?? null);
       })
@@ -185,7 +195,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
    * Sign out the current user
    */
   const signOut = async () => {
-    await supabase.auth.signOut();
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      console.error('[AuthContext] signOut failed:', error);
+      throw error;
+    }
   };
 
   return (

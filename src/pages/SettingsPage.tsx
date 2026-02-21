@@ -40,7 +40,7 @@ type SettingsSection = {
 export default function SettingsPage() {
     const { t } = useTranslation();
     const navigate = useNavigate();
-    const { user, loading } = useAuth();
+    const { user, loading, authReady } = useAuth();
     const { isLocked } = useVault();
 
     const [searchQuery, setSearchQuery] = useState('');
@@ -63,7 +63,7 @@ export default function SettingsPage() {
         let isCancelled = false;
 
         const loadAdminAccess = async () => {
-            if (!user) {
+            if (!authReady || !user) {
                 if (!isCancelled) {
                     setShowAdminButton(false);
                     setIsAdminUser(false);
@@ -71,6 +71,7 @@ export default function SettingsPage() {
                 return;
             }
 
+            console.debug('[SettingsPage] authReady is true, fetching admin access...');
             const { access, error } = await getTeamAccess();
             if (isCancelled) {
                 return;
@@ -91,7 +92,7 @@ export default function SettingsPage() {
         return () => {
             isCancelled = true;
         };
-    }, [user]);
+    }, [authReady, user]);
 
     const sections: SettingsSection[] = useMemo(
         () => [

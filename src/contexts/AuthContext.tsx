@@ -15,6 +15,7 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  authReady: boolean;
   signUp: (email: string, password: string) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signInWithOAuth: (provider: 'google' | 'discord' | 'github') => Promise<{ error: Error | null }>;
@@ -31,23 +32,54 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [authReady, setAuthReady] = useState(false);
 
   useEffect(() => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        console.debug(`[AuthContext] Auth state changed: ${event}`);
         setSession(session);
         setUser(session?.user ?? null);
-        setLoading(false);
+
+        // Don't mark as ready/loaded on INITIAL_SESSION if we hold out for getSession
+        if (event !== 'INITIAL_SESSION') {
+          setLoading(false);
+          setAuthReady(true);
+        }
       }
     );
 
     // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
+    console.debug('[AuthContext] Calling getSession() to ensure token is fresh...');
+    supabase.auth.getSession()
+      .then(({ data: { session }, error }) => {
+        console.debug(`[AuthContext] getSession() resolved. Error:`, error);
+        setSession(session);
+        setUser(session?.user ?? null);
+      })
+      .catch((error: unknown) => {
+        // Log the failure but do NOT clear user/session state here.
+        //
+        // Rationale (Option B over Option A):
+        // onAuthStateChange is the canonical source of truth for auth state.
+        // It fires synchronously with INITIAL_SESSION *before* getSession()
+        // resolves, so a valid user/session may already be set when this catch
+        // runs. Unconditionally calling setUser(null) / setSession(null) here
+        // would log out an already-authenticated user on a transient error
+        // (storage lock, network hiccup, IndexedDB race).
+        //
+        // The finally block below still resolves authReady + loading, so the
+        // app never hangs. If there genuinely was no session, onAuthStateChange
+        // will have set user/session to null already.
+        console.error('[AuthContext] getSession() failed — auth state preserved from onAuthStateChange:', error);
+      })
+      .finally(() => {
+        // ALWAYS resolve auth state, regardless of success or failure.
+        // Prevents permanent loading spinner when getSession rejects.
+        setLoading(false);
+        setAuthReady(true);
+      });
 
     return () => subscription.unsubscribe();
   }, []);
@@ -162,6 +194,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         user,
         session,
         loading,
+        authReady,
         signUp,
         signIn,
         signInWithOAuth,

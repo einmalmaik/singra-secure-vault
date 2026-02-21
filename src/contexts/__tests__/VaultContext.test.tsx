@@ -120,7 +120,7 @@ describe("VaultContext", () => {
     localStorage.clear();
 
     // Default auth mock
-    mockUseAuth.mockReturnValue({ user: mockUser });
+    mockUseAuth.mockReturnValue({ user: mockUser, authReady: true });
     mockDeriveRawKey.mockResolvedValue(new Uint8Array(32));
     mockImportMasterKey.mockResolvedValue({} as CryptoKey);
     mockAuthenticatePasskey.mockResolvedValue({ success: true, encryptionKey: {} as CryptoKey });
@@ -213,6 +213,80 @@ describe("VaultContext", () => {
       expect(result.current.isSetupRequired).toBe(false);
       expect(result.current.isLocked).toBe(true);
     });
+
+    it("should run checkSetup when authReady transitions from false to true", async () => {
+      // Regression test for stale-closure P1 bug (Commit 19bb7e8):
+      // authReady was missing from the useEffect dep array, so checkSetup() never
+      // re-ran when authReady became true without a simultaneous user change.
+
+      // Start: user present but authReady=false (INITIAL_SESSION window).
+      // Case B guard fires: early return WITHOUT setting isLoading=false.
+      // isLoading stays true — spinner shown, no stale-defaults flash (Bug 4 fix).
+      mockUseAuth.mockReturnValue({ user: mockUser, authReady: false });
+
+      const { result, rerender } = renderHook(() => useVault(), {
+        wrapper: createWrapper(),
+      });
+
+      // isLoading must remain TRUE — setup is pending, not yet aborted.
+      // Supabase must NOT be called yet (auth not ready).
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(true);
+      });
+      expect(mockSupabase.from).not.toHaveBeenCalledWith("profiles");
+
+      // Now auth becomes ready (Supabase session synchronized) without user changing.
+      mockUseAuth.mockReturnValue({ user: mockUser, authReady: true });
+      rerender();
+
+      // With the dep-array fix, the useEffect re-runs and calls checkSetup().
+      // The default mock returns no profile → isSetupRequired becomes true.
+      await waitFor(() => {
+        expect(result.current.isSetupRequired).toBe(true);
+      });
+      // isLoading must be false after checkSetup() completes (finally block)
+      expect(result.current.isLoading).toBe(false);
+      // Verify Supabase was actually called (proof that checkSetup ran)
+      expect(mockSupabase.from).toHaveBeenCalledWith("profiles");
+    });
+
+    it("should keep isLoading true when user is set but authReady is false", async () => {
+      // Regression test for Bug 4 (premature isLoading=false in INITIAL_SESSION window):
+      // Before the guard split, both (!user) and (!authReady) paths called
+      // setIsLoading(false). Now Case B (user set, authReady=false) returns
+      // immediately without touching isLoading, preserving the spinner.
+      mockUseAuth.mockReturnValue({ user: mockUser, authReady: false });
+
+      const { result } = renderHook(() => useVault(), {
+        wrapper: createWrapper(),
+      });
+
+      // Spin for 100ms — isLoading must remain true the entire time.
+      // (waitFor with negation: give it time and confirm it never went false.)
+      await new Promise((r) => setTimeout(r, 100));
+      expect(result.current.isLoading).toBe(true);
+
+      // hasPasskeyUnlock must NOT have been cleared — user exists, data unknown.
+      // (Only cleared when user is definitively absent.)
+      expect(result.current.isLoading).toBe(true);
+    });
+
+    it("should set isLoading false and clear passkeys when user is null", async () => {
+      // Regression test for Bug 4 (Case A guard):
+      // When there is no user, isLoading must end immediately so the UI
+      // can show the sign-in screen without waiting.
+      mockUseAuth.mockReturnValue({ user: null, authReady: false });
+
+      const { result } = renderHook(() => useVault(), {
+        wrapper: createWrapper(),
+      });
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+      // Supabase must never have been touched — no user, no fetch.
+      expect(mockSupabase.from).not.toHaveBeenCalledWith("profiles");
+    });
   });
 
   describe("setupMasterPassword", () => {
@@ -243,7 +317,7 @@ describe("VaultContext", () => {
     });
 
     it("should return error when user is not logged in", async () => {
-      mockUseAuth.mockReturnValue({ user: null });
+      mockUseAuth.mockReturnValue({ user: null, authReady: true });
 
       const { result } = renderHook(() => useVault(), { wrapper: createWrapper() });
 

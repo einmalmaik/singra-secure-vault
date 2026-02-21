@@ -134,7 +134,7 @@ interface VaultProviderProps {
 }
 
 export function VaultProvider({ children }: VaultProviderProps) {
-    const { user } = useAuth();
+    const { user, authReady } = useAuth();
 
     // Get initial auto-lock timeout from localStorage
     const getInitialAutoLockTimeout = () => {
@@ -200,10 +200,12 @@ export function VaultProvider({ children }: VaultProviderProps) {
     const [lastActivity, setLastActivity] = useState(Date.now());
 
     const refreshPasskeyUnlockStatus = useCallback(async (): Promise<void> => {
-        if (!user || !webAuthnAvailable) {
+        if (!authReady || !user || !webAuthnAvailable) {
             setHasPasskeyUnlock(false);
             return;
         }
+
+        console.debug('[VaultContext] authReady is true, refreshing passkey unlock status...');
 
         try {
             const { data: passkeys } = await supabase
@@ -218,17 +220,29 @@ export function VaultProvider({ children }: VaultProviderProps) {
             // Non-fatal: passkey status check can fail silently
             setHasPasskeyUnlock(false);
         }
-    }, [user, webAuthnAvailable]);
+    }, [user, webAuthnAvailable, authReady]); // authReady required — stale closure fix
 
     // Check if master password is set up
     useEffect(() => {
         async function checkSetup() {
+            // Case A: No user session — definitively nothing to load.
+            // End loading so the UI can show the sign-in screen.
             if (!user) {
                 setHasPasskeyUnlock(false);
                 setIsLoading(false);
                 return;
             }
 
+            // Case B: User present but auth not yet fully synchronized
+            // (INITIAL_SESSION fired before getSession() resolved).
+            // Keep isLoading=true — checkSetup() will run once authReady flips,
+            // thanks to authReady being in the dep array. Showing a spinner here
+            // is correct; setting isLoading=false would cause a stale-defaults flash.
+            if (!authReady) {
+                return;
+            }
+
+            console.debug('[VaultContext] authReady is true, fetching user profiles...');
             try {
                 // NOTE: kdf_version may not exist in generated Supabase types until
                 // types are regenerated. Using explicit column list + type assertion.
@@ -296,7 +310,7 @@ export function VaultProvider({ children }: VaultProviderProps) {
         }
 
         checkSetup();
-    }, [user, webAuthnAvailable, refreshPasskeyUnlockStatus]);
+    }, [user, authReady, webAuthnAvailable, refreshPasskeyUnlockStatus]); // authReady required — stale closure fix
 
     // Auto-lock on inactivity
     useEffect(() => {

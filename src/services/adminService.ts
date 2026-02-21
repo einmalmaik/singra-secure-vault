@@ -31,15 +31,20 @@ async function invokeAdminFunction(
     // Gatekeeper: await getUser() to guarantee any background token refresh 
     // completes before we invoke the function, preventing race condition 401s.
     // getUser validates server-side instead of just checking localStorage.
+    console.debug(`[AdminService] invokeAdminFunction('${functionName}') started. Awaiting getUser()...`);
     const { data: { user }, error: userError } = await supabase.auth.getUser();
+    console.debug(`[AdminService] getUser() returned for '${functionName}'. Has user:`, !!user);
 
     if (userError || !user) {
         return { data: null, error: new Error('Authentication required to access admin functions') };
     }
 
+    console.debug(`[AdminService] Invoking '${functionName}' now...`);
+    const startTime = Date.now();
     const { data, error } = await supabase.functions.invoke(functionName, {
         body,
     });
+    console.debug(`[AdminService] Invoked '${functionName}' in ${Date.now() - startTime}ms. Error:`, error);
 
     if (error) {
         return { data: null, error: new Error(error.message || 'Edge function request failed') };

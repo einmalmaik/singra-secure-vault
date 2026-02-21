@@ -41,7 +41,7 @@ import { isEdgeFunctionServiceError } from '@/services/edgeFunctionService';
 export function PasskeySettings() {
     const { t } = useTranslation();
     const { toast } = useToast();
-    const { user } = useAuth();
+    const { user, authReady } = useAuth();
     const { webAuthnAvailable, getRawKeyForPasskey, refreshPasskeyUnlockStatus } = useVault();
 
     const [passkeys, setPasskeys] = useState<PasskeyCredential[]>([]);
@@ -77,11 +77,12 @@ export function PasskeySettings() {
     }, [t]);
 
     const loadPasskeys = useCallback(async () => {
-        if (!user) {
+        if (!authReady || !user) {
             setPasskeys([]);
             return;
         }
 
+        console.debug('[PasskeySettings] authReady is true, fetching passkeys...');
         setLoading(true);
         try {
             const creds = await listPasskeys();
@@ -97,14 +98,14 @@ export function PasskeySettings() {
         } finally {
             setLoading(false);
         }
-    }, [refreshPasskeyUnlockStatus, resolveErrorMessage, t, toast, user]);
+    }, [authReady, refreshPasskeyUnlockStatus, resolveErrorMessage, t, toast, user]); // authReady required — stale closure fix
 
     useEffect(() => {
-        if (webAuthnAvailable && user) {
-            loadPasskeys();
+        if (authReady && webAuthnAvailable && user) {
+            void loadPasskeys();
             isPlatformAuthenticatorAvailable().then(setHasPlatformAuth);
         }
-    }, [webAuthnAvailable, loadPasskeys, user]);
+    }, [authReady, webAuthnAvailable, loadPasskeys, user]);
 
     const handleRegister = async (e: React.FormEvent) => {
         e.preventDefault();

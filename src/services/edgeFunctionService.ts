@@ -31,7 +31,9 @@ export async function invokeAuthedFunction<
     // Gatekeeper: await getUser() to guarantee any background token refresh 
     // completes before we invoke the function, preventing race condition 401s.
     // getUser validates server-side instead of just checking localStorage.
+    console.debug(`[EdgeFunctionService] invokeAuthedFunction('${functionName}') started. Awaiting getUser()...`);
     const { data: { user }, error: userError } = await supabase.auth.getUser();
+    console.debug(`[EdgeFunctionService] getUser() returned for '${functionName}'. Has user:`, !!user);
 
     if (userError || !user) {
         const authError = new Error('Authentication required') as EdgeFunctionServiceError;
@@ -41,9 +43,12 @@ export async function invokeAuthedFunction<
         throw authError;
     }
 
+    console.debug(`[EdgeFunctionService] Invoking '${functionName}' now...`);
+    const startTime = Date.now();
     const { data, error } = await supabase.functions.invoke(functionName, {
         body,
     });
+    console.debug(`[EdgeFunctionService] Invoked '${functionName}' in ${Date.now() - startTime}ms. Error:`, error);
 
     if (error) {
         throw await normalizeSupabaseFunctionError(error);

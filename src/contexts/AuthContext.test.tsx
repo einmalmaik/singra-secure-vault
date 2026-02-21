@@ -449,5 +449,55 @@ describe("AuthContext", () => {
 
             consoleError.mockRestore();
         });
+
+        it("preserves valid session when getSession rejects after INITIAL_SESSION (no false-positive logout)", async () => {
+            // Regression test for Bug 6 (P1): the catch block from Bug 5 fix
+            // unconditionally called setUser(null)/setSession(null), logging out
+            // an already-authenticated user when getSession() had a transient
+            // rejection AFTER onAuthStateChange had already delivered INITIAL_SESSION.
+
+            // Step 1: Set up onAuthStateChange to fire INITIAL_SESSION with a valid session.
+            let authCallback: (event: string, session: unknown) => void = () => { };
+            mockSupabase.auth.onAuthStateChange.mockImplementation((callback) => {
+                authCallback = callback;
+                return {
+                    data: { subscription: { unsubscribe: vi.fn() } },
+                };
+            });
+
+            // Step 2: getSession() will reject (transient storage error).
+            const transientError = new Error("IndexedDB: lock timeout");
+            mockSupabase.auth.getSession.mockRejectedValue(transientError);
+
+            const consoleError = vi.spyOn(console, "error").mockImplementation(() => { });
+
+            const { result } = renderHook(() => useAuth(), { wrapper });
+
+            // Step 3: Simulate INITIAL_SESSION firing BEFORE getSession() settles.
+            // In the real browser, this happens synchronously during the listener
+            // setup — here we fire it immediately after mount.
+            act(() => {
+                authCallback("INITIAL_SESSION", mockSession);
+            });
+
+            // Step 4: Wait for finally to flip authReady + loading.
+            await waitFor(() => {
+                expect(result.current.authReady).toBe(true);
+                expect(result.current.loading).toBe(false);
+            });
+
+            // CRITICAL: user must NOT be null — catch must not have overwritten
+            // the valid session that INITIAL_SESSION delivered.
+            expect(result.current.user).toEqual(mockUser);
+            expect(result.current.session).toEqual(mockSession);
+
+            // Error must still be logged (catch still runs, just no state change)
+            expect(consoleError).toHaveBeenCalledWith(
+                expect.stringContaining("[AuthContext] getSession() failed"),
+                transientError,
+            );
+
+            consoleError.mockRestore();
+        });
     });
 });

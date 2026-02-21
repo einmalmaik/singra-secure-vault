@@ -59,11 +59,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
         setUser(session?.user ?? null);
       })
       .catch((error: unknown) => {
-        // Storage corruption, IndexedDB lock failure, or network timeout during
-        // token refresh. Treat as unauthenticated — user must sign in again.
-        console.error('[AuthContext] getSession() failed — treating as unauthenticated:', error);
-        setSession(null);
-        setUser(null);
+        // Log the failure but do NOT clear user/session state here.
+        //
+        // Rationale (Option B over Option A):
+        // onAuthStateChange is the canonical source of truth for auth state.
+        // It fires synchronously with INITIAL_SESSION *before* getSession()
+        // resolves, so a valid user/session may already be set when this catch
+        // runs. Unconditionally calling setUser(null) / setSession(null) here
+        // would log out an already-authenticated user on a transient error
+        // (storage lock, network hiccup, IndexedDB race).
+        //
+        // The finally block below still resolves authReady + loading, so the
+        // app never hangs. If there genuinely was no session, onAuthStateChange
+        // will have set user/session to null already.
+        console.error('[AuthContext] getSession() failed — auth state preserved from onAuthStateChange:', error);
       })
       .finally(() => {
         // ALWAYS resolve auth state, regardless of success or failure.

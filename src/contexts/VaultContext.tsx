@@ -220,7 +220,7 @@ export function VaultProvider({ children }: VaultProviderProps) {
             // Non-fatal: passkey status check can fail silently
             setHasPasskeyUnlock(false);
         }
-    }, [user, webAuthnAvailable]);
+    }, [user, webAuthnAvailable, authReady]); // authReady required — stale closure fix
 
     // Check if master password is set up
     useEffect(() => {
@@ -299,7 +299,7 @@ export function VaultProvider({ children }: VaultProviderProps) {
         }
 
         checkSetup();
-    }, [user, webAuthnAvailable, refreshPasskeyUnlockStatus]);
+    }, [user, authReady, webAuthnAvailable, refreshPasskeyUnlockStatus]); // authReady required — stale closure fix
 
     // Auto-lock on inactivity
     useEffect(() => {

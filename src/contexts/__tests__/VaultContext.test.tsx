@@ -213,6 +213,38 @@ describe("VaultContext", () => {
       expect(result.current.isSetupRequired).toBe(false);
       expect(result.current.isLocked).toBe(true);
     });
+
+    it("should run checkSetup when authReady transitions from false to true", async () => {
+      // Regression test for stale-closure P1 bug:
+      // authReady was missing from the useEffect dep array, so checkSetup() never
+      // re-ran when authReady became true without a simultaneous user change.
+
+      // Start: user present but authReady=false (Supabase auth not yet synchronized).
+      // The guard `if (!authReady || !user)` short-circuits without touching Supabase.
+      mockUseAuth.mockReturnValue({ user: mockUser, authReady: false });
+
+      const { result, rerender } = renderHook(() => useVault(), {
+        wrapper: createWrapper(),
+      });
+
+      // Guard fires: isLoading resolves to false, Supabase was NOT called yet.
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+      expect(mockSupabase.from).not.toHaveBeenCalledWith("profiles");
+
+      // Now auth becomes ready (Supabase session synchronized) without user changing.
+      mockUseAuth.mockReturnValue({ user: mockUser, authReady: true });
+      rerender();
+
+      // With the dep-array fix, the useEffect re-runs and calls checkSetup().
+      // The default mock returns no profile → isSetupRequired becomes true.
+      await waitFor(() => {
+        expect(result.current.isSetupRequired).toBe(true);
+      });
+      // Verify Supabase was actually called (proof that checkSetup ran)
+      expect(mockSupabase.from).toHaveBeenCalledWith("profiles");
+    });
   });
 
   describe("setupMasterPassword", () => {

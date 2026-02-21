@@ -50,7 +50,7 @@ export default function VaultPage() {
     const navigate = useNavigate();
     const { toast } = useToast();
     const isMobile = useIsMobile();
-    const { user, loading: authLoading } = useAuth();
+    const { user, loading: authLoading, authReady } = useAuth();
     const { isLocked, isSetupRequired, isLoading: vaultLoading } = useVault();
 
     // State
@@ -115,10 +115,11 @@ export default function VaultPage() {
 
     useEffect(() => {
         // Admin-Button nur laden wenn:
-        // 1. User ist Supabase-authentifiziert
-        // 2. Vault ist entsperrt (nicht im Setup/Lock-State)
+        // 1. Auth-Status vollständig vom Server synchronisiert ist (authReady)
+        // 2. User ist Supabase-authentifiziert
+        // 3. Vault ist entsperrt (nicht im Setup/Lock-State)
         // Verhindert race condition 401s beim App-Start
-        if (!user || isLocked || isSetupRequired) {
+        if (!authReady || !user || isLocked || isSetupRequired) {
             setShowAdminButton(false);
             return;
         }
@@ -126,6 +127,7 @@ export default function VaultPage() {
         let cancelled = false;
 
         const loadAdminAccess = async () => {
+            console.debug('[VaultPage] authReady is true, fetching admin access...');
             const { access, error } = await getTeamAccess();
 
             if (cancelled) {
@@ -145,7 +147,7 @@ export default function VaultPage() {
         return () => {
             cancelled = true;
         };
-    }, [user, isLocked, isSetupRequired]);
+    }, [authReady, user, isLocked, isSetupRequired]);
 
     // Redirect if not authenticated
     if (!authLoading && !user) {

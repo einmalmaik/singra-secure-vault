@@ -120,7 +120,7 @@ describe("VaultContext", () => {
     localStorage.clear();
 
     // Default auth mock
-    mockUseAuth.mockReturnValue({ user: mockUser });
+    mockUseAuth.mockReturnValue({ user: mockUser, authReady: true });
     mockDeriveRawKey.mockResolvedValue(new Uint8Array(32));
     mockImportMasterKey.mockResolvedValue({} as CryptoKey);
     mockAuthenticatePasskey.mockResolvedValue({ success: true, encryptionKey: {} as CryptoKey });
@@ -243,7 +243,7 @@ describe("VaultContext", () => {
     });
 
     it("should return error when user is not logged in", async () => {
-      mockUseAuth.mockReturnValue({ user: null });
+      mockUseAuth.mockReturnValue({ user: null, authReady: true });
 
       const { result } = renderHook(() => useVault(), { wrapper: createWrapper() });
 

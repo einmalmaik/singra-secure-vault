@@ -134,7 +134,7 @@ interface VaultProviderProps {
 }
 
 export function VaultProvider({ children }: VaultProviderProps) {
-    const { user } = useAuth();
+    const { user, authReady } = useAuth();
 
     // Get initial auto-lock timeout from localStorage
     const getInitialAutoLockTimeout = () => {
@@ -200,10 +200,12 @@ export function VaultProvider({ children }: VaultProviderProps) {
     const [lastActivity, setLastActivity] = useState(Date.now());
 
     const refreshPasskeyUnlockStatus = useCallback(async (): Promise<void> => {
-        if (!user || !webAuthnAvailable) {
+        if (!authReady || !user || !webAuthnAvailable) {
             setHasPasskeyUnlock(false);
             return;
         }
+
+        console.debug('[VaultContext] authReady is true, refreshing passkey unlock status...');
 
         try {
             const { data: passkeys } = await supabase
@@ -223,12 +225,13 @@ export function VaultProvider({ children }: VaultProviderProps) {
     // Check if master password is set up
     useEffect(() => {
         async function checkSetup() {
-            if (!user) {
+            if (!authReady || !user) {
                 setHasPasskeyUnlock(false);
                 setIsLoading(false);
                 return;
             }
 
+            console.debug('[VaultContext] authReady is true, fetching user profiles...');
             try {
                 // NOTE: kdf_version may not exist in generated Supabase types until
                 // types are regenerated. Using explicit column list + type assertion.

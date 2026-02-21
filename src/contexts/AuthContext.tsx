@@ -15,6 +15,7 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  authReady: boolean;
   signUp: (email: string, password: string) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signInWithOAuth: (provider: 'google' | 'discord' | 'github') => Promise<{ error: Error | null }>;
@@ -31,22 +32,32 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [authReady, setAuthReady] = useState(false);
 
   useEffect(() => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        console.debug(`[AuthContext] Auth state changed: ${event}`);
         setSession(session);
         setUser(session?.user ?? null);
-        setLoading(false);
+
+        // Don't mark as ready/loaded on INITIAL_SESSION if we hold out for getSession
+        if (event !== 'INITIAL_SESSION') {
+          setLoading(false);
+          setAuthReady(true);
+        }
       }
     );
 
     // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    console.debug('[AuthContext] Calling getSession() to ensure token is fresh...');
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      console.debug(`[AuthContext] getSession() resolved. Error:`, error);
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
+      setAuthReady(true);
     });
 
     return () => subscription.unsubscribe();
@@ -162,6 +173,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         user,
         session,
         loading,
+        authReady,
         signUp,
         signIn,
         signInWithOAuth,

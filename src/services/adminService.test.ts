@@ -2,13 +2,13 @@
 // Licensed under the Business Source License 1.1 — see LICENSE
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockGetSession, mockInvoke, supabaseMock } = vi.hoisted(() => {
+const { mockGetUser, mockInvoke, supabaseMock } = vi.hoisted(() => {
   const mockInvoke = vi.fn();
-  const mockGetSession = vi.fn();
+  const mockGetUser = vi.fn();
 
   const supabaseMock = {
     auth: {
-      getSession: mockGetSession,
+      getUser: mockGetUser,
     },
     functions: {
       invoke: mockInvoke,
@@ -16,7 +16,7 @@ const { mockGetSession, mockInvoke, supabaseMock } = vi.hoisted(() => {
   };
 
   return {
-    mockGetSession,
+    mockGetUser,
     mockInvoke,
     supabaseMock,
   };
@@ -40,10 +40,10 @@ import {
 describe("adminService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockGetSession.mockResolvedValue({
+    mockGetUser.mockResolvedValue({
       data: {
-        session: {
-          access_token: "test-token",
+        user: {
+          id: "test-user",
         },
       },
       error: null,

@@ -28,11 +28,12 @@ async function invokeAdminFunction(
     functionName: string,
     body: Record<string, unknown>,
 ): Promise<{ data: Record<string, unknown> | null; error: Error | null }> {
-    // Gatekeeper: await getSession() to guarantee any background token refresh 
+    // Gatekeeper: await getUser() to guarantee any background token refresh 
     // completes before we invoke the function, preventing race condition 401s.
-    const { data: { session } } = await supabase.auth.getSession();
+    // getUser validates server-side instead of just checking localStorage.
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
 
-    if (!session) {
+    if (userError || !user) {
         return { data: null, error: new Error('Authentication required to access admin functions') };
     }
 

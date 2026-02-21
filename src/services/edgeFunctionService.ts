@@ -28,11 +28,12 @@ export async function invokeAuthedFunction<
     functionName: string,
     body?: TBody,
 ): Promise<TResponse> {
-    // Gatekeeper: await getSession() to guarantee any background token refresh 
+    // Gatekeeper: await getUser() to guarantee any background token refresh 
     // completes before we invoke the function, preventing race condition 401s.
-    const { data: { session } } = await supabase.auth.getSession();
+    // getUser validates server-side instead of just checking localStorage.
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
 
-    if (!session) {
+    if (userError || !user) {
         const authError = new Error('Authentication required') as EdgeFunctionServiceError;
         authError.name = 'EdgeFunctionServiceError';
         authError.code = 'AUTH_REQUIRED';

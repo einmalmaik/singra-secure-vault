@@ -115,7 +115,7 @@ import {
 describe("duressService (DB-dependent functions)", () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        
+
         // Default mock implementations
         mockCryptoService.generateSalt.mockReturnValue("mock-salt-123");
         mockCryptoService.deriveKey.mockResolvedValue("mock-crypto-key" as unknown);
@@ -318,11 +318,11 @@ describe("duressService (DB-dependent functions)", () => {
         it("unlocks with duress password when duress verifier matches", async () => {
             const realKey = { type: "real-key" };
             const duressKey = { type: "duress-key" };
-            
+
             mockCryptoService.deriveKey
                 .mockResolvedValueOnce(realKey) // real key
                 .mockResolvedValueOnce(duressKey); // duress key
-            
+
             mockCryptoService.verifyKey
                 .mockResolvedValueOnce(false) // real verifier fails
                 .mockResolvedValueOnce(true); // duress verifier matches
@@ -355,11 +355,11 @@ describe("duressService (DB-dependent functions)", () => {
         it("returns invalid when neither password matches", async () => {
             const realKey = { type: "real-key" };
             const duressKey = { type: "duress-key" };
-            
+
             mockCryptoService.deriveKey
                 .mockResolvedValueOnce(realKey)
                 .mockResolvedValueOnce(duressKey);
-            
+
             mockCryptoService.verifyKey
                 .mockResolvedValueOnce(false) // real fails
                 .mockResolvedValueOnce(false); // duress fails
@@ -386,7 +386,10 @@ describe("duressService (DB-dependent functions)", () => {
 
         it("only checks real password when duress config is null", async () => {
             const realKey = { type: "real-key" };
-            mockCryptoService.deriveKey.mockResolvedValueOnce(realKey);
+            const dummyKey = { type: "dummy-key" };
+            mockCryptoService.deriveKey
+                .mockResolvedValueOnce(realKey)
+                .mockResolvedValueOnce(dummyKey);
             mockCryptoService.verifyKey.mockResolvedValueOnce(true);
 
             const result = await attemptDualUnlock(
@@ -398,13 +401,16 @@ describe("duressService (DB-dependent functions)", () => {
             );
 
             expect(result.mode).toBe("real");
-            expect(mockCryptoService.deriveKey).toHaveBeenCalledTimes(1);
+            expect(mockCryptoService.deriveKey).toHaveBeenCalledTimes(2);
             expect(mockCryptoService.verifyKey).toHaveBeenCalledTimes(1);
         });
 
         it("only checks real password when duress config is disabled", async () => {
             const realKey = { type: "real-key" };
-            mockCryptoService.deriveKey.mockResolvedValueOnce(realKey);
+            const dummyKey = { type: "dummy-key" };
+            mockCryptoService.deriveKey
+                .mockResolvedValueOnce(realKey)
+                .mockResolvedValueOnce(dummyKey);
             mockCryptoService.verifyKey.mockResolvedValueOnce(false);
 
             const duressConfig = {
@@ -423,7 +429,7 @@ describe("duressService (DB-dependent functions)", () => {
             );
 
             expect(result.mode).toBe("invalid");
-            expect(mockCryptoService.deriveKey).toHaveBeenCalledTimes(1);
+            expect(mockCryptoService.deriveKey).toHaveBeenCalledTimes(2);
         });
 
         it("handles exception during unlock", async () => {
@@ -445,17 +451,17 @@ describe("duressService (DB-dependent functions)", () => {
         it("derives both keys in parallel for constant-time behavior", async () => {
             const realKey = { type: "real-key" };
             const duressKey = { type: "duress-key" };
-            
+
             let realResolve: (value: unknown) => void;
             let duressResolve: (value: unknown) => void;
-            
+
             const realPromise = new Promise(resolve => { realResolve = resolve; });
             const duressPromise = new Promise(resolve => { duressResolve = resolve; });
-            
+
             mockCryptoService.deriveKey
                 .mockReturnValueOnce(realPromise as unknown)
                 .mockReturnValueOnce(duressPromise as unknown);
-            
+
             mockCryptoService.verifyKey.mockResolvedValue(false);
 
             const duressConfig = {
@@ -475,13 +481,13 @@ describe("duressService (DB-dependent functions)", () => {
 
             // Verify both derivations started before either resolved
             expect(mockCryptoService.deriveKey).toHaveBeenCalledTimes(2);
-            
+
             // Resolve them
             realResolve(realKey);
             duressResolve(duressKey);
-            
+
             await unlockPromise;
-            
+
             // Both should have been verified
             expect(mockCryptoService.verifyKey).toHaveBeenCalledTimes(2);
         });
@@ -543,21 +549,21 @@ describe("duressService (DB-dependent functions)", () => {
                 duress_password_verifier: "old-verifier",
                 duress_kdf_version: 2,
             }, null);
-            
+
             const oldKey = { type: "old-key" };
             const newKey = { type: "new-key" };
-            
+
             mockCryptoService.deriveKey
                 .mockResolvedValueOnce(oldKey) // verify old password
                 .mockResolvedValueOnce(newKey); // derive new key
-            
+
             mockCryptoService.verifyKey.mockResolvedValueOnce(true); // old password verified
             mockCryptoService.createVerificationHash.mockResolvedValue("new-verifier");
             mockCryptoService.generateSalt.mockReturnValue("new-salt");
 
             const updateChain = mockSupabase._createChainable();
             updateChain._setResult({ user_id: "user-1" }, null);
-            
+
             mockSupabase.from
                 .mockReturnValueOnce(selectChain) // first call for getDuressConfig
                 .mockReturnValueOnce(selectChain) // second call for verifier check
@@ -576,10 +582,10 @@ describe("duressService (DB-dependent functions)", () => {
 
             // Verify old key derivation
             expect(mockCryptoService.deriveKey).toHaveBeenNthCalledWith(1, "old-duress-pass", "old-salt", 2);
-            
+
             // Verify new key derivation
             expect(mockCryptoService.deriveKey).toHaveBeenNthCalledWith(2, "new-duress-pass", "new-salt", 2);
-            
+
             // Verify DB update
             expect(updateChain.update).toHaveBeenCalledWith({
                 duress_salt: "new-salt",
@@ -627,11 +633,11 @@ describe("duressService (DB-dependent functions)", () => {
                 duress_password_verifier: "old-verifier",
                 duress_kdf_version: 2,
             }, null);
-            
+
             const oldKey = { type: "old-key" };
             mockCryptoService.deriveKey.mockResolvedValueOnce(oldKey);
             mockCryptoService.verifyKey.mockResolvedValueOnce(false); // verification fails
-            
+
             mockSupabase.from
                 .mockReturnValueOnce(selectChain) // getDuressConfig
                 .mockReturnValueOnce(selectChain); // verifier check
@@ -654,10 +660,10 @@ describe("duressService (DB-dependent functions)", () => {
                 duress_password_verifier: "old-verifier",
                 duress_kdf_version: 2,
             }, null);
-            
+
             const selectChain2 = mockSupabase._createChainable();
             selectChain2._setResult(null, null); // no data
-            
+
             mockSupabase.from
                 .mockReturnValueOnce(selectChain1) // getDuressConfig
                 .mockReturnValueOnce(selectChain2); // verifier check
@@ -680,21 +686,21 @@ describe("duressService (DB-dependent functions)", () => {
                 duress_password_verifier: "old-verifier",
                 duress_kdf_version: 2,
             }, null);
-            
+
             const oldKey = { type: "old-key" };
             const newKey = { type: "new-key" };
-            
+
             mockCryptoService.deriveKey
                 .mockResolvedValueOnce(oldKey)
                 .mockResolvedValueOnce(newKey);
-            
+
             mockCryptoService.verifyKey.mockResolvedValueOnce(true);
             mockCryptoService.createVerificationHash.mockResolvedValue("new-verifier");
             mockCryptoService.generateSalt.mockReturnValue("new-salt");
 
             const updateChain = mockSupabase._createChainable();
             updateChain._setResult(null, { message: "Constraint violation" });
-            
+
             mockSupabase.from
                 .mockReturnValueOnce(selectChain)
                 .mockReturnValueOnce(selectChain)
@@ -719,26 +725,26 @@ describe("duressService (DB-dependent functions)", () => {
                 duress_password_verifier: "old-verifier",
                 duress_kdf_version: 2,
             }, null);
-            
+
             const selectChain2 = mockSupabase._createChainable();
             selectChain2._setResult({
                 duress_password_verifier: "old-verifier",
             }, null);
-            
+
             mockSupabase.from
                 .mockReturnValueOnce(selectChain1) // getDuressConfig succeeds
                 .mockReturnValueOnce(selectChain2) // verifier check succeeds
                 .mockImplementationOnce(() => { // update throws
                     throw new Error("Unexpected DB error");
                 });
-            
+
             const oldKey = { type: "old-key" };
             const newKey = { type: "new-key" };
-            
+
             mockCryptoService.deriveKey
                 .mockResolvedValueOnce(oldKey)
                 .mockResolvedValueOnce(newKey);
-            
+
             mockCryptoService.verifyKey.mockResolvedValueOnce(true);
             mockCryptoService.createVerificationHash.mockResolvedValue("new-verifier");
             mockCryptoService.generateSalt.mockReturnValue("new-salt");

@@ -114,16 +114,18 @@ export default function VaultPage() {
     }, [user, isLocked, isSetupRequired, isOnline, toast, t]);
 
     useEffect(() => {
+        // Admin-Button nur laden wenn:
+        // 1. User ist Supabase-authentifiziert
+        // 2. Vault ist entsperrt (nicht im Setup/Lock-State)
+        // Verhindert race condition 401s beim App-Start
+        if (!user || isLocked || isSetupRequired) {
+            setShowAdminButton(false);
+            return;
+        }
+
         let cancelled = false;
 
         const loadAdminAccess = async () => {
-            if (!user) {
-                if (!cancelled) {
-                    setShowAdminButton(false);
-                }
-                return;
-            }
-
             const { access, error } = await getTeamAccess();
 
             if (cancelled) {
@@ -143,7 +145,7 @@ export default function VaultPage() {
         return () => {
             cancelled = true;
         };
-    }, [user]);
+    }, [user, isLocked, isSetupRequired]);
 
     // Redirect if not authenticated
     if (!authLoading && !user) {

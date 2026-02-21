@@ -52,13 +52,25 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     // THEN check for existing session
     console.debug('[AuthContext] Calling getSession() to ensure token is fresh...');
-    supabase.auth.getSession().then(({ data: { session }, error }) => {
-      console.debug(`[AuthContext] getSession() resolved. Error:`, error);
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-      setAuthReady(true);
-    });
+    supabase.auth.getSession()
+      .then(({ data: { session }, error }) => {
+        console.debug(`[AuthContext] getSession() resolved. Error:`, error);
+        setSession(session);
+        setUser(session?.user ?? null);
+      })
+      .catch((error: unknown) => {
+        // Storage corruption, IndexedDB lock failure, or network timeout during
+        // token refresh. Treat as unauthenticated — user must sign in again.
+        console.error('[AuthContext] getSession() failed — treating as unauthenticated:', error);
+        setSession(null);
+        setUser(null);
+      })
+      .finally(() => {
+        // ALWAYS resolve auth state, regardless of success or failure.
+        // Prevents permanent loading spinner when getSession rejects.
+        setLoading(false);
+        setAuthReady(true);
+      });
 
     return () => subscription.unsubscribe();
   }, []);

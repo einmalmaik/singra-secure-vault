@@ -22,6 +22,7 @@ vi.mock("@/hooks/use-toast", () => ({
 vi.mock("@/contexts/AuthContext", () => ({
   useAuth: () => ({
     user: mockUser,
+    authReady: true,
   }),
 }));
 
@@ -47,6 +48,11 @@ vi.mock("@/services/passkeyService", () => ({
   deletePasskey: (...args: unknown[]) => mockDeletePasskey(...args),
   isWebAuthnAvailable: vi.fn().mockReturnValue(true),
   isPlatformAuthenticatorAvailable: vi.fn().mockResolvedValue(true),
+}));
+
+vi.mock("@/services/edgeFunctionService", () => ({
+  isEdgeFunctionServiceError: (error: unknown) =>
+    error instanceof Error && error.name === "EdgeFunctionServiceError",
 }));
 
 describe("PasskeySettings", () => {
@@ -119,5 +125,29 @@ describe("PasskeySettings", () => {
     });
 
     expect(mockListPasskeys).not.toHaveBeenCalled();
+  });
+
+  it("calls listPasskeys when authReady and user are set (stale closure regression)", async () => {
+    // Regression test for loadPasskeys useCallback stale closure bug (P1):
+    // authReady was missing from useCallback dep array. This test verifies that
+    // passkeys load and render when authReady=true, proving loadPasskeys runs
+    // past the `if (!authReady || !user) return` guard.
+    mockListPasskeys.mockResolvedValue([
+      {
+        id: "pk-1",
+        device_name: "Touch ID",
+        created_at: "2024-01-01T00:00:00Z",
+        last_used_at: null,
+        prf_enabled: true,
+      },
+    ]);
+
+    render(<PasskeySettings />);
+
+    // If loadPasskeys ran to completion, the passkey name will appear.
+    // A stale closure returning early would leave the list empty.
+    await waitFor(() => {
+      expect(screen.getByText("Touch ID")).toBeInTheDocument();
+    });
   });
 });

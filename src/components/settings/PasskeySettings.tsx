@@ -98,7 +98,7 @@ export function PasskeySettings() {
         } finally {
             setLoading(false);
         }
-    }, [refreshPasskeyUnlockStatus, resolveErrorMessage, t, toast, user]);
+    }, [authReady, refreshPasskeyUnlockStatus, resolveErrorMessage, t, toast, user]); // authReady required — stale closure fix
 
     useEffect(() => {
         if (authReady && webAuthnAvailable && user) {

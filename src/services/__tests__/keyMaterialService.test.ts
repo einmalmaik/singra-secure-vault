@@ -57,7 +57,10 @@ const mockPqService = vi.hoisted(() => ({
 }));
 
 vi.mock("@/integrations/supabase/client", () => ({ supabase: mockSupabase }));
-vi.mock("@/services/cryptoService", () => mockCryptoService);
+vi.mock("@/services/cryptoService", () => ({
+  ...mockCryptoService,
+  CURRENT_KDF_VERSION: 2,
+}));
 vi.mock("@/services/pqCryptoService", () => mockPqService);
 
 import {
@@ -178,11 +181,11 @@ describe("ensureHybridKeyMaterial()", () => {
 
     expect(mockCryptoService.generateUserKeyPair).toHaveBeenCalledWith("MasterPassword123!");
     expect(mockPqService.generatePQKeyPair).toHaveBeenCalledTimes(1);
-    expect(mockCryptoService.deriveKey).toHaveBeenCalledWith("MasterPassword123!", "pq-salt");
+    expect(mockCryptoService.deriveKey).toHaveBeenCalledWith("MasterPassword123!", "pq-salt", 2);
     expect(mockCryptoService.encrypt).toHaveBeenCalledWith("pq-secret", expect.anything());
     expect(pqUpdate.update).toHaveBeenCalledWith(expect.objectContaining({
       pq_public_key: "pq-public",
-      pq_encrypted_private_key: "pq-salt:pq-private-encrypted",
+      pq_encrypted_private_key: "2:pq-salt:pq-private-encrypted",
       pq_key_version: 1,
       security_standard_version: 1,
     }));

@@ -298,7 +298,6 @@ describe("enableTwoFactor", () => {
     // 4. from('backup_codes').insert(...) — store codes
     const chains = setupFromChain([
       { table: "user_2fa", data: null, error: null },
-      { table: "profiles", data: { encryption_salt: TEST_SALT } },
       { table: "backup_codes", data: null, error: null },
     ]);
 
@@ -313,7 +312,7 @@ describe("enableTwoFactor", () => {
     });
 
     // Verify backup_codes insert was called
-    expect(chains[2].chain.insert).toHaveBeenCalled();
+    expect(chains[1].chain.insert).toHaveBeenCalled();
   });
 
   it("returns error when code is invalid", async () => {
@@ -354,7 +353,6 @@ describe("enableTwoFactor", () => {
 
     const chains = setupFromChain([
       { table: "user_2fa", data: null, error: null },
-      { table: "profiles", data: { encryption_salt: TEST_SALT } },
       { table: "backup_codes", data: null, error: null },
     ]);
 
@@ -362,7 +360,7 @@ describe("enableTwoFactor", () => {
 
     await enableTwoFactor(TEST_USER_ID, TEST_CODE, backupCodes);
 
-    const insertCall = chains[2].chain.insert.mock.calls[0][0];
+    const insertCall = chains[1].chain.insert.mock.calls[0][0];
     expect(insertCall).toHaveLength(backupCodes.length);
 
     // Each inserted item should have user_id and code_hash (hex string, not plaintext)
@@ -370,31 +368,11 @@ describe("enableTwoFactor", () => {
       expect(item.user_id).toBe(TEST_USER_ID);
       expect(item.code_hash).toBeDefined();
       expect(typeof item.code_hash).toBe("string");
-      // Must be a hex string (64 chars for SHA-256 / HMAC-SHA-256)
-      expect(item.code_hash).toMatch(/^[0-9a-f]{64}$/);
+      // Must be a v3 hash string (v3:salt:hex)
+      expect(item.code_hash).toMatch(/^v3:[A-Za-z0-9+/=]+:[0-9a-f]+$/);
       // Must NOT be the plaintext code
       expect(backupCodes).not.toContain(item.code_hash);
     }
-  });
-
-  it("queries profiles for encryption salt (HMAC path)", async () => {
-    mockSupabase.rpc.mockResolvedValueOnce({
-      data: TEST_SECRET,
-      error: null,
-    });
-
-    const chains = setupFromChain([
-      { table: "user_2fa", data: null, error: null },
-      { table: "profiles", data: { encryption_salt: TEST_SALT } },
-      { table: "backup_codes", data: null, error: null },
-    ]);
-
-    mockValidate.mockReturnValue(0);
-
-    await enableTwoFactor(TEST_USER_ID, TEST_CODE, backupCodes);
-
-    // profiles chain should have been accessed with select('encryption_salt')
-    expect(chains[1].chain.select).toHaveBeenCalledWith("encryption_salt");
   });
 });
 
@@ -405,10 +383,10 @@ describe("verifyAndConsumeBackupCode", () => {
     const hmacHash = await hashBackupCode(PLAIN_CODE, TEST_SALT);
 
     const chains = setupFromChain([
-      // 1. profiles — getUserEncryptionSalt
+      // 1. backup_codes — fetch unused codes
+      { table: "backup_codes", data: [{ id: "code-1", code_hash: hmacHash, hash_version: 2 }] },
+      // 2. profiles — getUserEncryptionSalt
       { table: "profiles", data: { encryption_salt: TEST_SALT } },
-      // 2. backup_codes — find matching code
-      { table: "backup_codes", data: { id: "code-1", code_hash: hmacHash } },
       // 3. backup_codes — mark as used
       { table: "backup_codes", data: null, error: null },
       // 4. user_2fa — update last_verified_at
@@ -427,10 +405,10 @@ describe("verifyAndConsumeBackupCode", () => {
 
   it("returns false when code is invalid", async () => {
     setupFromChain([
-      // 1. profiles — getUserEncryptionSalt
+      // 1. backup_codes — fetch unused codes (no codes)
+      { table: "backup_codes", data: [], error: null },
+      // 2. profiles — getUserEncryptionSalt
       { table: "profiles", data: { encryption_salt: TEST_SALT } },
-      // 2. backup_codes — no matching code found
-      { table: "backup_codes", data: null, error: null },
     ]);
 
     const result = await verifyAndConsumeBackupCode(TEST_USER_ID, "ZZZZ-0000");
@@ -446,10 +424,10 @@ describe("verifyAndConsumeBackupCode", () => {
     expect(hmacHash).not.toBe(legacyHash);
 
     const chains = setupFromChain([
-      // 1. profiles — returns salt
+      // 1. backup_codes — fetch unused codes
+      { table: "backup_codes", data: [{ id: "code-legacy", code_hash: legacyHash, hash_version: 2 }] },
+      // 2. profiles — returns salt
       { table: "profiles", data: { encryption_salt: TEST_SALT } },
-      // 2. backup_codes — find matching code (legacy)
-      { table: "backup_codes", data: { id: "code-legacy", code_hash: legacyHash } },
       // 3. backup_codes — mark as used
       { table: "backup_codes", data: null, error: null },
       // 4. user_2fa — update last_verified_at
@@ -459,13 +437,6 @@ describe("verifyAndConsumeBackupCode", () => {
     const result = await verifyAndConsumeBackupCode(TEST_USER_ID, PLAIN_CODE);
 
     expect(result).toBe(true);
-
-    // The `in` method should have been called with both hashes
-    const inCall = chains[1].chain.in.mock.calls[0];
-    expect(inCall[0]).toBe("code_hash");
-    const candidateHashes: string[] = inCall[1];
-    expect(candidateHashes).toContain(hmacHash);
-    expect(candidateHashes).toContain(legacyHash);
   });
 });
 
@@ -645,10 +616,10 @@ describe("verifyTwoFactorForLogin", () => {
     const hmacHash = await hashBackupCode(PLAIN_CODE, TEST_SALT);
 
     setupFromChain([
-      // 1. profiles — getUserEncryptionSalt
+      // 1. backup_codes — fetch unused codes
+      { table: "backup_codes", data: [{ id: "code-1", code_hash: hmacHash, hash_version: 2 }] },
+      // 2. profiles — getUserEncryptionSalt
       { table: "profiles", data: { encryption_salt: TEST_SALT } },
-      // 2. backup_codes — find matching code
-      { table: "backup_codes", data: { id: "code-1", code_hash: hmacHash } },
       // 3. backup_codes — mark as used
       { table: "backup_codes", data: null, error: null },
       // 4. user_2fa — update last_verified_at

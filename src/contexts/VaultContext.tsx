@@ -225,9 +225,20 @@ export function VaultProvider({ children }: VaultProviderProps) {
     // Check if master password is set up
     useEffect(() => {
         async function checkSetup() {
-            if (!authReady || !user) {
+            // Case A: No user session — definitively nothing to load.
+            // End loading so the UI can show the sign-in screen.
+            if (!user) {
                 setHasPasskeyUnlock(false);
                 setIsLoading(false);
+                return;
+            }
+
+            // Case B: User present but auth not yet fully synchronized
+            // (INITIAL_SESSION fired before getSession() resolved).
+            // Keep isLoading=true — checkSetup() will run once authReady flips,
+            // thanks to authReady being in the dep array. Showing a spinner here
+            // is correct; setting isLoading=false would cause a stale-defaults flash.
+            if (!authReady) {
                 return;
             }
 

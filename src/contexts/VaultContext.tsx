@@ -98,8 +98,8 @@ interface VaultContextType {
     // Encryption helpers
     encryptData: (plaintext: string) => Promise<string>;
     decryptData: (encrypted: string) => Promise<string>;
-    encryptItem: (data: VaultItemData) => Promise<string>;
-    decryptItem: (encryptedData: string) => Promise<VaultItemData>;
+    encryptItem: (data: VaultItemData, entryId?: string) => Promise<string>;
+    decryptItem: (encryptedData: string, entryId?: string) => Promise<VaultItemData>;
 
     // Settings
     autoLockTimeout: number;
@@ -612,7 +612,7 @@ export function VaultProvider({ children }: VaultProviderProps) {
                         if (probeItems) {
                             for (const item of probeItems) {
                                 try {
-                                    await decryptVaultItem(item.encrypted_data, activeKey);
+                                    await decryptVaultItem(item.encrypted_data, activeKey, item.id);
                                 } catch {
                                     needsFullRepair = true;
                                     break;
@@ -659,7 +659,7 @@ export function VaultProvider({ children }: VaultProviderProps) {
                                 if (allItems) {
                                     for (const item of allItems) {
                                         try {
-                                            await decryptVaultItem(item.encrypted_data, activeKey);
+                                            await decryptVaultItem(item.encrypted_data, activeKey, item.id);
                                         } catch {
                                             brokenItems.push(item);
                                         }
@@ -691,7 +691,7 @@ export function VaultProvider({ children }: VaultProviderProps) {
                                             const oldKey = await deriveKey(masterPassword, salt, oldVersion);
 
                                             if (brokenItems.length > 0) {
-                                                await decryptVaultItem(brokenItems[0].encrypted_data, oldKey);
+                                                await decryptVaultItem(brokenItems[0].encrypted_data, oldKey, brokenItems[0].id);
                                             } else if (brokenCategories.length > 0) {
                                                 const catToTest = brokenCategories[0];
                                                 if (catToTest.name.startsWith(ENCRYPTED_CATEGORY_PREFIX)) {
@@ -1266,21 +1266,21 @@ export function VaultProvider({ children }: VaultProviderProps) {
     /**
      * Encrypts a vault item
      */
-    const encryptItem = useCallback(async (data: VaultItemData): Promise<string> => {
+    const encryptItem = useCallback(async (data: VaultItemData, entryId?: string): Promise<string> => {
         if (!encryptionKey) {
             throw new Error('Vault is locked');
         }
-        return encryptVaultItem(data, encryptionKey);
+        return encryptVaultItem(data, encryptionKey, entryId);
     }, [encryptionKey]);
 
     /**
      * Decrypts a vault item
      */
-    const decryptItem = useCallback(async (encryptedData: string): Promise<VaultItemData> => {
+    const decryptItem = useCallback(async (encryptedData: string, entryId?: string): Promise<VaultItemData> => {
         if (!encryptionKey) {
             throw new Error('Vault is locked');
         }
-        return decryptVaultItem(encryptedData, encryptionKey);
+        return decryptVaultItem(encryptedData, encryptionKey, entryId);
     }, [encryptionKey]);
 
     return (

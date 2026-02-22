@@ -35,7 +35,7 @@ export const CURRENT_KDF_VERSION = 2;
  * Only add new versions.
  */
 export const KDF_PARAMS: Record<number, KdfParams> = {
-    1: { memory: 65536,  iterations: 3, parallelism: 4, hashLength: 32 },
+    1: { memory: 65536, iterations: 3, parallelism: 4, hashLength: 32 },
     2: { memory: 131072, iterations: 3, parallelism: 4, hashLength: 32 },
 };
 
@@ -196,20 +196,28 @@ export async function importMasterKey(
  * 
  * @param plaintext - String data to encrypt
  * @param key - CryptoKey derived from master password
+ * @param aad - Optional Additional Authenticated Data (e.g. entry ID).
+ *              AAD is included in the GCM auth tag but NOT stored in the
+ *              ciphertext. The same AAD must be provided at decryption.
+ *              SECURITY: Binds ciphertext to a context (e.g. vault entry ID)
+ *              to prevent ciphertext-swap attacks.
  * @returns Base64-encoded encrypted data
  */
 export async function encrypt(
     plaintext: string,
-    key: CryptoKey
+    key: CryptoKey,
+    aad?: string
 ): Promise<string> {
     const iv = crypto.getRandomValues(new Uint8Array(IV_LENGTH));
     const plaintextBytes = new TextEncoder().encode(plaintext);
+    const additionalData = aad ? new TextEncoder().encode(aad) : undefined;
 
     const ciphertext = await crypto.subtle.encrypt(
         {
             name: 'AES-GCM',
             iv: iv,
             tagLength: TAG_LENGTH,
+            ...(additionalData && { additionalData }),
         },
         key,
         plaintextBytes
@@ -228,24 +236,30 @@ export async function encrypt(
  * 
  * @param encryptedBase64 - Base64-encoded encrypted data (IV || ciphertext || authTag)
  * @param key - CryptoKey derived from master password
+ * @param aad - Optional Additional Authenticated Data. Must match the AAD
+ *              used during encryption, otherwise GCM auth tag verification
+ *              fails and decryption throws.
  * @returns Decrypted plaintext string
- * @throws Error if decryption fails (wrong key or tampered data)
+ * @throws Error if decryption fails (wrong key, tampered data, or AAD mismatch)
  */
 export async function decrypt(
     encryptedBase64: string,
-    key: CryptoKey
+    key: CryptoKey,
+    aad?: string
 ): Promise<string> {
     const combined = base64ToUint8Array(encryptedBase64);
 
     // Extract IV and ciphertext
     const iv = combined.slice(0, IV_LENGTH);
     const ciphertext = combined.slice(IV_LENGTH);
+    const additionalData = aad ? new TextEncoder().encode(aad) : undefined;
 
     const plaintextBytes = await crypto.subtle.decrypt(
         {
             name: 'AES-GCM',
             iv: iv,
             tagLength: TAG_LENGTH,
+            ...(additionalData && { additionalData }),
         },
         key,
         ciphertext
@@ -255,32 +269,57 @@ export async function decrypt(
 }
 
 /**
- * Encrypts a vault item's sensitive data
+ * Encrypts a vault item's sensitive data.
+ *
+ * SECURITY: When entryId is provided, it is used as AES-GCM Additional
+ * Authenticated Data (AAD). This cryptographically binds the ciphertext
+ * to this specific entry, preventing ciphertext-swap attacks where an
+ * attacker with DB access swaps encrypted_data between rows.
  * 
  * @param data - Object containing sensitive vault item fields
  * @param key - CryptoKey derived from master password
+ * @param entryId - Vault item UUID. Used as AAD to bind ciphertext to entry.
  * @returns Base64-encoded encrypted JSON
  */
 export async function encryptVaultItem(
     data: VaultItemData,
-    key: CryptoKey
+    key: CryptoKey,
+    entryId?: string
 ): Promise<string> {
     const json = JSON.stringify(data);
-    return encrypt(json, key);
+    return encrypt(json, key, entryId);
 }
 
 /**
- * Decrypts a vault item's sensitive data
+ * Decrypts a vault item's sensitive data.
+ *
+ * SECURITY: When entryId is provided, tries decryption with AAD first.
+ * Falls back to decryption without AAD for backward compatibility with
+ * entries encrypted before the AAD fix was introduced.
  * 
  * @param encryptedData - Base64-encoded encrypted JSON from database
  * @param key - CryptoKey derived from master password
+ * @param entryId - Vault item UUID. Must match the AAD used during encryption.
  * @returns Decrypted vault item data object
+ * @throws Error if decryption fails with both AAD and no-AAD attempts
  */
 export async function decryptVaultItem(
     encryptedData: string,
-    key: CryptoKey
+    key: CryptoKey,
+    entryId?: string
 ): Promise<VaultItemData> {
-    const json = await decrypt(encryptedData, key);
+    let json: string;
+    if (entryId) {
+        try {
+            // Try with AAD first (new format, swap-protected)
+            json = await decrypt(encryptedData, key, entryId);
+        } catch {
+            // Backward compat: entry was encrypted without AAD (legacy format)
+            json = await decrypt(encryptedData, key);
+        }
+    } else {
+        json = await decrypt(encryptedData, key);
+    }
     return JSON.parse(json) as VaultItemData;
 }
 
@@ -427,9 +466,14 @@ const ENCRYPTED_CATEGORY_PREFIX = 'enc:cat:v1:';
 /**
  * Re-encrypts a single encrypted string from oldKey to newKey.
  *
+ * When aad is provided, tries decryption with AAD first (new format),
+ * falls back to without AAD (legacy format). Always re-encrypts WITH
+ * AAD to migrate legacy entries to the new swap-protected format.
+ *
  * @param encryptedBase64 - The encrypted data (base64)
  * @param oldKey - The old CryptoKey used to encrypt the data
  * @param newKey - The new CryptoKey to re-encrypt with
+ * @param aad - Optional AAD (e.g. entry ID) for swap protection
  * @returns Re-encrypted base64 string
  * @throws Error if decryption or re-encryption fails
  */
@@ -437,9 +481,22 @@ export async function reEncryptString(
     encryptedBase64: string,
     oldKey: CryptoKey,
     newKey: CryptoKey,
+    aad?: string,
 ): Promise<string> {
-    const plaintext = await decrypt(encryptedBase64, oldKey);
-    return encrypt(plaintext, newKey);
+    let plaintext: string;
+    if (aad) {
+        try {
+            // Try with AAD first (already migrated)
+            plaintext = await decrypt(encryptedBase64, oldKey, aad);
+        } catch {
+            // Fallback: legacy entry without AAD
+            plaintext = await decrypt(encryptedBase64, oldKey);
+        }
+    } else {
+        plaintext = await decrypt(encryptedBase64, oldKey);
+    }
+    // Always re-encrypt with AAD if provided (migrate to new format)
+    return encrypt(plaintext, newKey, aad);
 }
 
 /**
@@ -476,11 +533,13 @@ export async function reEncryptVault(
     oldKey: CryptoKey,
     newKey: CryptoKey,
 ): Promise<ReEncryptionResult> {
-    // Re-encrypt vault items
+    // Re-encrypt vault items (with AAD binding to entry ID)
     const itemUpdates: Array<{ id: string; encrypted_data: string }> = [];
     for (const item of items) {
         try {
-            const newEncrypted = await reEncryptString(item.encrypted_data, oldKey, newKey);
+            // SECURITY: Pass item.id as AAD to bind ciphertext to entry ID.
+            // reEncryptString handles legacy (no-AAD) → new (with-AAD) migration.
+            const newEncrypted = await reEncryptString(item.encrypted_data, oldKey, newKey, item.id);
             itemUpdates.push({ id: item.id, encrypted_data: newEncrypted });
         } catch (err) {
             // If a single item fails, abort the entire operation.
@@ -905,7 +964,7 @@ export async function generateSharedKey(): Promise<string> {
         true,
         ['encrypt', 'decrypt']
     );
-    
+
     const keyJwk = await crypto.subtle.exportKey('jwk', key);
     return JSON.stringify(keyJwk);
 }
@@ -927,7 +986,7 @@ export async function wrapKey(sharedKey: string, publicKey: string): Promise<str
         false,
         ['encrypt']
     );
-    
+
     // 2. Encrypt Shared Key
     const sharedKeyBytes = new TextEncoder().encode(sharedKey);
     const wrappedKeyBytes = await crypto.subtle.encrypt(
@@ -935,7 +994,7 @@ export async function wrapKey(sharedKey: string, publicKey: string): Promise<str
         publicKeyCrypto,
         sharedKeyBytes
     );
-    
+
     // 3. Base64-encode
     return uint8ArrayToBase64(new Uint8Array(wrappedKeyBytes));
 }
@@ -996,10 +1055,10 @@ export async function unwrapKey(
     if (!salt || !encryptedData) {
         throw new Error('Invalid encrypted private key format');
     }
-    
+
     const key = await deriveKey(masterPassword, salt, kdfVersion);
     const privateKey = await decrypt(encryptedData, key);
-    
+
     // 2. Import Private Key
     const privateKeyJwk = JSON.parse(privateKey);
     const privateKeyCrypto = await crypto.subtle.importKey(
@@ -1009,7 +1068,7 @@ export async function unwrapKey(
         false,
         ['decrypt']
     );
-    
+
     // 3. Decrypt Shared Key
     const wrappedKeyBytes = base64ToUint8Array(wrappedKey);
     const sharedKeyBytes = await crypto.subtle.decrypt(
@@ -1017,7 +1076,7 @@ export async function unwrapKey(
         privateKeyCrypto,
         wrappedKeyBytes
     );
-    
+
     return new TextDecoder().decode(sharedKeyBytes);
 }
 
@@ -1041,7 +1100,7 @@ export async function encryptWithSharedKey(
         false,
         ['encrypt']
     );
-    
+
     // Encrypt data
     const json = JSON.stringify(data);
     return encrypt(json, key);
@@ -1067,7 +1126,7 @@ export async function decryptWithSharedKey(
         false,
         ['decrypt']
     );
-    
+
     // Decrypt data
     const json = await decrypt(encryptedData, key);
     return JSON.parse(json) as VaultItemData;
@@ -1113,7 +1172,7 @@ async function decryptWithPassword(encryptedData: string, password: string): Pro
     if (!salt || !encrypted) {
         throw new Error('Invalid encrypted data format');
     }
-    
+
     const key = await deriveKey(password, salt, kdfVersion);
     return decrypt(encrypted, key);
 }

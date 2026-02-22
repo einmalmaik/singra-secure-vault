@@ -82,7 +82,7 @@ export function DataSettings() {
             const decryptedItems = await Promise.all(
                 items.map(async (item) => {
                     try {
-                        const decrypted = await decryptItem(item.encrypted_data);
+                        const decrypted = await decryptItem(item.encrypted_data, item.id);
                         const resolvedTitle = decrypted.title || item.title;
                         const resolvedWebsiteUrl = decrypted.websiteUrl || item.website_url;
                         const resolvedItemType = decrypted.itemType || item.item_type || 'password';
@@ -181,7 +181,10 @@ export function DataSettings() {
             // Import each item
             for (const item of data.items) {
                 try {
-                    // Encrypt the data
+                    // SECURITY: Generate ID client-side for AAD binding
+                    const newItemId = crypto.randomUUID();
+
+                    // Encrypt the data (with entry ID as AAD)
                     const encryptedData = await encryptItem({
                         ...item.data,
                         title: item.title || item.data?.title || 'Imported Item',
@@ -191,10 +194,11 @@ export function DataSettings() {
                             ? item.is_favorite
                             : !!item.data?.isFavorite,
                         categoryId: item.category_id ?? item.data?.categoryId ?? null,
-                    });
+                    }, newItemId);
 
                     // Insert into database
                     await supabase.from('vault_items').insert({
+                        id: newItemId,
                         user_id: user.id,
                         vault_id: vault.id,
                         title: ENCRYPTED_ITEM_TITLE_PLACEHOLDER,

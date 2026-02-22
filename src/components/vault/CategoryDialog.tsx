@@ -220,7 +220,7 @@ export function CategoryDialog({ open, onOpenChange, category, onSave }: Categor
 
             for (const item of items) {
                 try {
-                    const decryptedData = await decryptItem(item.encrypted_data);
+                    const decryptedData = await decryptItem(item.encrypted_data, item.id);
                     const resolvedCategoryId = decryptedData.categoryId ?? item.category_id ?? null;
                     if (resolvedCategoryId !== category.id) {
                         continue;
@@ -235,7 +235,7 @@ export function CategoryDialog({ open, onOpenChange, category, onSave }: Categor
                             ? decryptedData.isFavorite
                             : !!item.is_favorite,
                         categoryId: null,
-                    });
+                    }, item.id);
 
                     const itemPayload = {
                         id: item.id,
@@ -431,8 +431,8 @@ export function CategoryDialog({ open, onOpenChange, category, onSave }: Categor
                                             type="button"
                                             onClick={() => setColor(presetColor)}
                                             className={`w-6 h-6 rounded-full border-2 transition-transform ${color === presetColor
-                                                    ? 'border-foreground scale-110'
-                                                    : 'border-transparent hover:scale-105'
+                                                ? 'border-foreground scale-110'
+                                                : 'border-transparent hover:scale-105'
                                                 }`}
                                             style={{ backgroundColor: presetColor }}
                                         />

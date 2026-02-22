@@ -116,7 +116,7 @@ export function VaultSidebar({
                     }
 
                     try {
-                        const decryptedData = await decryptItem(item.encrypted_data);
+                        const decryptedData = await decryptItem(item.encrypted_data, item.id);
                         failedDecryptPayloadByItemIdRef.current.delete(item.id);
                         const resolvedCategoryId = decryptedData.categoryId ?? item.category_id;
                         const resolvedTitle = decryptedData.title || item.title;
@@ -147,7 +147,7 @@ export function VaultSidebar({
                                 itemType: resolvedItemType,
                                 isFavorite: resolvedIsFavorite,
                                 categoryId: resolvedCategoryId,
-                            });
+                            }, item.id);
 
                             await supabase
                                 .from('vault_items')

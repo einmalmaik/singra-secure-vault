@@ -650,7 +650,7 @@ describe("VaultContext", () => {
       });
 
       expect(encrypted).toBe("encrypted-item-json");
-      expect(mockEncryptVaultItem).toHaveBeenCalledWith(itemData, expect.anything());
+      expect(mockEncryptVaultItem).toHaveBeenCalledWith(itemData, expect.anything(), undefined);
     });
 
     it("should decrypt vault item when unlocked", async () => {
@@ -678,7 +678,7 @@ describe("VaultContext", () => {
       });
 
       expect(decrypted).toEqual(decryptedItem);
-      expect(mockDecryptVaultItem).toHaveBeenCalledWith("encrypted-item-data", expect.anything());
+      expect(mockDecryptVaultItem).toHaveBeenCalledWith("encrypted-item-data", expect.anything(), undefined);
     });
   });
 

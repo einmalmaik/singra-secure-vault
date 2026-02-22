@@ -199,7 +199,7 @@ export default function VaultHealthPage() {
 
             for (const item of snapshot.items) {
                 try {
-                    const decrypted = await decryptItem(item.encrypted_data);
+                    const decrypted = await decryptItem(item.encrypted_data, item.id);
                     if (decrypted.password) {
                         passwordItems.push({
                             id: item.id,

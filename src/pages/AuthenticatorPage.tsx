@@ -71,7 +71,7 @@ export default function AuthenticatorPage() {
 
             for (const item of rawItems || []) {
                 try {
-                    const decrypted = await decryptItem(item.encrypted_data);
+                    const decrypted = await decryptItem(item.encrypted_data, item.id);
                     // Filter for items with valid TOTP secrets
                     if (decrypted.totpSecret && isValidTOTPSecret(decrypted.totpSecret)) {
                         decryptedItems.push({

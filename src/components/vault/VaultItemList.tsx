@@ -95,7 +95,7 @@ export function VaultItemList({
                         }
 
                         try {
-                            const decryptedData = await decryptItem(item.encrypted_data);
+                            const decryptedData = await decryptItem(item.encrypted_data, item.id);
                             failedDecryptPayloadByItemIdRef.current.delete(item.id);
                             const hasLegacyPlaintextMeta =
                                 (!decryptedData.title && item.title && item.title !== ENCRYPTED_ITEM_TITLE_PLACEHOLDER) ||
@@ -126,7 +126,7 @@ export function VaultItemList({
                                 };
 
                                 if (source === 'remote' && isAppOnline()) {
-                                    const migratedEncryptedData = await encryptItem(resolvedDecryptedData);
+                                    const migratedEncryptedData = await encryptItem(resolvedDecryptedData, item.id);
 
                                     await supabase
                                         .from('vault_items')

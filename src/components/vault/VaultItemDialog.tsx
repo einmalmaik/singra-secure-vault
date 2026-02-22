@@ -282,7 +282,7 @@ export function VaultItemDialog({ open, onOpenChange, itemId, onSave, initialTyp
                 }
 
                 // Decrypt data
-                const decrypted = await decryptItem(item.encrypted_data);
+                const decrypted = await decryptItem(item.encrypted_data, normalizedItemId);
                 const resolvedTitle = decrypted.title || item.title || '';
                 const resolvedUrl = decrypted.websiteUrl || item.website_url || '';
                 const resolvedFavorite = typeof decrypted.isFavorite === 'boolean'
@@ -374,10 +374,13 @@ export function VaultItemDialog({ open, onOpenChange, itemId, onSave, initialTyp
                 ? markAsDecoyItem(itemDataToEncrypt)
                 : itemDataToEncrypt;
 
-            // Encrypt sensitive data
-            const encryptedData = await encryptItem(finalItemData);
-
+            // SECURITY: Generate or reuse item ID BEFORE encryption so it can
+            // be bound as AES-GCM AAD to prevent ciphertext-swap attacks.
             const targetItemId = normalizedItemId ?? crypto.randomUUID();
+
+            // Encrypt sensitive data (with entry ID as AAD)
+            const encryptedData = await encryptItem(finalItemData, targetItemId);
+
             const itemData = {
                 id: targetItemId,
                 user_id: user.id,

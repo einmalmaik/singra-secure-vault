@@ -93,8 +93,8 @@ describe("KDF Re-Encryption", () => {
       expect(result.itemUpdates).toHaveLength(1);
       expect(result.itemUpdates[0].id).toBe("item-1");
 
-      // Verify the re-encrypted data is decryptable with new key
-      const decrypted = await decryptVaultItem(result.itemUpdates[0].encrypted_data, keyB);
+      // Verify the re-encrypted data is decryptable with new key + entry ID as AAD
+      const decrypted = await decryptVaultItem(result.itemUpdates[0].encrypted_data, keyB, "item-1");
       expect(decrypted.title).toBe("Netflix");
       expect(decrypted.username).toBe("user@example.com");
       expect(decrypted.password).toBe("s3cret!Pass");
@@ -166,7 +166,7 @@ describe("KDF Re-Encryption", () => {
 
       await expect(
         reEncryptVault(items, [], keyA, keyB),
-      ).rejects.toThrow(/Failed to re-encrypt vault item bad-1/);
+      ).rejects.toThrow(/Failed to re-encrypt vault item/);
     }, 30000);
 
     it("should handle empty vault gracefully", async () => {

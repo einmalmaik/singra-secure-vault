@@ -84,7 +84,10 @@ const PrivacyPolicy = () => {
       {showWebsiteChrome ? (
         <div className="sv-public-page min-h-screen bg-background flex flex-col">
           <Header />
-          {viewer}
+          <div className="flex-1">
+            {viewer}
+          </div>
+          <Footer />
         </div>
       ) : (
         <DesktopSubpageFrame

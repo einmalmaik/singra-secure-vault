@@ -10,13 +10,8 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { Github, Globe } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { languages, changeLanguage, type LanguageCode } from '@/i18n';
+import { changeLanguage, type LanguageCode } from '@/i18n';
+import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { APP_VERSION_DISPLAY } from '@/config/appVersion';
 
 export function Footer() {
@@ -38,26 +33,10 @@ export function Footer() {
             </p>
 
             {/* Language Switcher */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-2">
-                  <Globe className="w-4 h-4" />
-                  {languages[i18n.language as LanguageCode]?.name || 'Deutsch'}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                {Object.entries(languages).map(([code, lang]) => (
-                  <DropdownMenuItem
-                    key={code}
-                    onClick={() => changeLanguage(code as LanguageCode)}
-                    className={i18n.language === code ? 'bg-muted' : ''}
-                  >
-                    <span className="mr-2">{lang.flag}</span>
-                    {lang.name}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <LanguageSwitcher
+              language={i18n.language === 'en' ? 'en' : 'de'}
+              onChange={(lang) => changeLanguage(lang as LanguageCode)}
+            />
           </div>
 
           {/* Links */}
@@ -103,9 +82,14 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <Link to="/impressum" className="text-muted-foreground hover:text-foreground transition-colors">
+                <a
+                  href="https://www.mauntingstudios.de/imprint"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
                   {t('landing.footer.imprint')}
-                </Link>
+                </a>
               </li>
               <li>
                 <button

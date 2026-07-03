@@ -591,9 +591,14 @@ export default function VaultPage() {
                             <Link to="/privacy" className="hover:text-foreground transition-colors">
                                 {t('landing.footer.privacy')}
                             </Link>
-                            <Link to="/impressum" className="hover:text-foreground transition-colors">
+                            <a
+                                href="https://www.mauntingstudios.de/imprint"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="hover:text-foreground transition-colors"
+                            >
                                 {t('landing.footer.imprint')}
-                            </Link>
+                            </a>
                             <button
                                 type="button"
                                 onClick={() => window.dispatchEvent(new Event('singra:open-cookie-settings'))}

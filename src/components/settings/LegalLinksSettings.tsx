@@ -35,7 +35,7 @@ export function LegalLinksSettings() {
           <FileText className="mr-2 h-4 w-4" />
           {t('landing.footer.privacy')}
         </Button>
-        <Button variant="outline" onClick={() => navigate('/impressum', { state: returnState })}>
+        <Button variant="outline" onClick={() => window.open('https://www.mauntingstudios.de/imprint', '_blank', 'noopener,noreferrer')}>
           <Scale className="mr-2 h-4 w-4" />
           {t('landing.footer.imprint')}
         </Button>

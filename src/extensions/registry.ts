@@ -17,12 +17,38 @@ import type {
     SettingsSectionDescriptor,
     SettingsSurface,
 } from './types';
+import {
+    attemptDualUnlock,
+    attemptDuressUnlockOnly,
+    getDefaultDecoyItems,
+    getDuressConfig,
+    isDecoyItem,
+    markAsDecoyItem,
+} from '@/services/duressService';
+import { analyzeVaultHealthSummary } from '@/services/vaultHealthService';
+import { FileAttachments } from '@/components/vault/FileAttachments';
 
 // ============ Internal State ============
 
-const componentRegistry = new Map<ExtensionSlot, ExtensionComponent>();
+const componentRegistry = new Map<ExtensionSlot, ExtensionComponent>([
+    ['vault.file-attachments', FileAttachments as any]
+]);
 const routeRegistry: ExtensionRoute[] = [];
-const serviceHooks: Partial<ServiceHooks> = {};
+const serviceHooks: Partial<ServiceHooks> = {
+    getDuressConfig,
+    attemptDualUnlock,
+    attemptDuressUnlockOnly,
+    getDuressDecoyItems: () => getDefaultDecoyItems().map((decoy) => ({
+        title: decoy.title,
+        username: decoy.username,
+        password: decoy.password,
+        websiteUrl: decoy.website,
+        notes: decoy.notes,
+    })),
+    markAsDecoyItem,
+    isDecoyItem,
+    analyzeVaultHealthSummary,
+};
 const settingsSectionRegistry = new Map<string, SettingsSectionDescriptor>();
 
 // ============ Component Registration ============

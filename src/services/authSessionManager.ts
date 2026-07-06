@@ -123,7 +123,7 @@ export async function hydrateAuthSession(): Promise<HydratedAuthState> {
     }
 
     console.info("[AuthSessionManager] hydrateAuthSession found no desktop keychain session.");
-    return unauthenticatedState();
+    return offlineOrUnauthenticatedState();
   }
 
   if (isInIframe()) {

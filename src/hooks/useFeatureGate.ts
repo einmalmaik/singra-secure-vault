@@ -29,9 +29,26 @@ interface FeatureGateResult {
  *   // Show upgrade prompt
  * }
  */
+const FREE_FEATURES = new Set<string>([
+    'file_attachments',
+    'builtin_authenticator',
+    'emergency_access',
+    'vault_health_reports',
+    'duress_password'
+]);
+
 export function useFeatureGate(feature: FeatureName): FeatureGateResult {
     const { tier, hasFeature } = useSubscription();
-    const requiredTier = getServiceHooks().getRequiredTier?.(feature) ?? 'premium';
+
+    if (FREE_FEATURES.has(feature)) {
+        return {
+            allowed: true,
+            requiredTier: 'free',
+            currentTier: tier,
+        };
+    }
+
+    const requiredTier = getServiceHooks().getRequiredTier?.(feature) ?? 'families';
 
     return {
         allowed: hasFeature(feature),

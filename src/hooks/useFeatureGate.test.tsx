@@ -126,33 +126,33 @@ describe("useFeatureGate", () => {
             expect(result.current.requiredTier).toBe("free");
         });
 
-        it("denies file_attachments (requires premium)", () => {
+        it("allows file_attachments (free)", () => {
             const { result } = renderHook(() => useFeatureGate("file_attachments"));
             
-            expect(result.current.allowed).toBe(false);
-            expect(result.current.requiredTier).toBe("premium");
+            expect(result.current.allowed).toBe(true);
+            expect(result.current.requiredTier).toBe("free");
             expect(result.current.currentTier).toBe("free");
         });
 
-        it("denies builtin_authenticator (requires premium)", () => {
+        it("allows builtin_authenticator (free)", () => {
             const { result } = renderHook(() => useFeatureGate("builtin_authenticator"));
             
-            expect(result.current.allowed).toBe(false);
-            expect(result.current.requiredTier).toBe("premium");
+            expect(result.current.allowed).toBe(true);
+            expect(result.current.requiredTier).toBe("free");
         });
 
-        it("denies emergency_access (requires premium)", () => {
+        it("allows emergency_access (free)", () => {
             const { result } = renderHook(() => useFeatureGate("emergency_access"));
             
-            expect(result.current.allowed).toBe(false);
-            expect(result.current.requiredTier).toBe("premium");
+            expect(result.current.allowed).toBe(true);
+            expect(result.current.requiredTier).toBe("free");
         });
 
-        it("denies vault_health_reports (requires premium)", () => {
+        it("allows vault_health_reports (free)", () => {
             const { result } = renderHook(() => useFeatureGate("vault_health_reports"));
             
-            expect(result.current.allowed).toBe(false);
-            expect(result.current.requiredTier).toBe("premium");
+            expect(result.current.allowed).toBe(true);
+            expect(result.current.requiredTier).toBe("free");
         });
 
         it("denies priority_support (requires premium)", () => {
@@ -183,11 +183,11 @@ describe("useFeatureGate", () => {
             expect(result.current.requiredTier).toBe("free");
         });
 
-        it("denies duress_password (requires premium)", () => {
+        it("allows duress_password (free)", () => {
             const { result } = renderHook(() => useFeatureGate("duress_password"));
             
-            expect(result.current.allowed).toBe(false);
-            expect(result.current.requiredTier).toBe("premium");
+            expect(result.current.allowed).toBe(true);
+            expect(result.current.requiredTier).toBe("free");
         });
     });
 
@@ -217,7 +217,7 @@ describe("useFeatureGate", () => {
             const { result } = renderHook(() => useFeatureGate("file_attachments"));
             
             expect(result.current.allowed).toBe(true);
-            expect(result.current.requiredTier).toBe("premium");
+            expect(result.current.requiredTier).toBe("free");
         });
 
         it("allows builtin_authenticator", () => {

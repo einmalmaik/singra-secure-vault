@@ -80,12 +80,12 @@ describe("useFeatureGate", () => {
       
     });
 
-    it("should block premium features on free tier", () => {
+    it("should allow file_attachments on free tier", () => {
       const { result } = renderHook(() => useFeatureGate("file_attachments"));
 
-      expect(result.current.allowed).toBe(false);
+      expect(result.current.allowed).toBe(true);
       expect(result.current.currentTier).toBe("free");
-      expect(result.current.requiredTier).toBe("premium");
+      expect(result.current.requiredTier).toBe("free");
       
     });
 
@@ -123,7 +123,7 @@ describe("useFeatureGate", () => {
 
       expect(result.current.allowed).toBe(true);
       expect(result.current.currentTier).toBe("premium");
-      expect(result.current.requiredTier).toBe("premium");
+      expect(result.current.requiredTier).toBe("free");
     });
 
     it("should block families-only features on premium tier", () => {
@@ -195,20 +195,23 @@ describe("useFeatureGate", () => {
         },
       });
 
-      const premiumFeatures = [
+      const migratedFreeFeatures = [
         "file_attachments",
         "builtin_authenticator",
         "emergency_access",
         "vault_health_reports",
-        "priority_support",
         "duress_password",
       ] as const;
 
-      premiumFeatures.forEach((feature) => {
+      migratedFreeFeatures.forEach((feature) => {
         const { result } = renderHook(() => useFeatureGate(feature));
         expect(result.current.allowed).toBe(true);
-        expect(result.current.requiredTier).toBe("premium");
+        expect(result.current.requiredTier).toBe("free");
       });
+
+      const { result } = renderHook(() => useFeatureGate("priority_support"));
+      expect(result.current.allowed).toBe(true);
+      expect(result.current.requiredTier).toBe("premium");
     });
 
     it("should expose post-quantum sharing-key protection as a free feature", () => {

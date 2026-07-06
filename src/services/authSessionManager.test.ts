@@ -239,7 +239,7 @@ describe("authSessionManager", () => {
     expect(sessionStorage.getItem(SESSION_FALLBACK_STORAGE_KEY)).toBeNull();
   });
 
-  it("does not hydrate a desktop session from token-free offline identity alone", async () => {
+  it("hydrates a desktop session into offline mode from token-free offline identity", async () => {
     runtimeState.isTauri = true;
     runtimeState.invoke.mockResolvedValue(null);
     localStorage.setItem(AUTH_OFFLINE_IDENTITY_STORAGE_KEY, JSON.stringify({
@@ -250,9 +250,9 @@ describe("authSessionManager", () => {
 
     const result = await hydrateAuthSession();
 
-    expect(result.mode).toBe("unauthenticated");
-    expect(result.user).toBeNull();
-    expect(result.offlineIdentity).toBeNull();
+    expect(result.mode).toBe("offline");
+    expect(result.user?.id).toBe("offline-user");
+    expect(result.offlineIdentity?.userId).toBe("offline-user");
   });
 
   it("does not hydrate a web session from token-free offline identity while online", async () => {

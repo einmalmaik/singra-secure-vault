@@ -41,6 +41,9 @@ import NotFound from "./pages/NotFound";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import SecurityWhitepaper from "./pages/SecurityWhitepaper";
 import DesktopUpdatePreviewPage from "./pages/DesktopUpdatePreviewPage";
+import VaultHealthPage from "./pages/VaultHealthPage";
+import AuthenticatorPage from "./pages/AuthenticatorPage";
+import GrantorVaultPage from "./pages/GrantorVaultPage";
 
 const queryClient = new QueryClient();
 
@@ -121,6 +124,36 @@ const App = () => {
                       {/* Admin route is now registered via initPremium as a premium route */}
                       <Route path="/security" element={<SecurityWhitepaper />} />
                       <Route path="/privacy" element={<PrivacyPolicy />} />
+                      <Route
+                        path="/vault-health"
+                        element={
+                          <ProtectedRoute>
+                            <VaultUnlockRequiredRoute>
+                              <VaultHealthPage />
+                            </VaultUnlockRequiredRoute>
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/authenticator"
+                        element={
+                          <ProtectedRoute>
+                            <VaultUnlockRequiredRoute>
+                              <AuthenticatorPage />
+                            </VaultUnlockRequiredRoute>
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/vault/emergency/:id"
+                        element={
+                          <ProtectedRoute>
+                            <VaultUnlockRequiredRoute>
+                              <GrantorVaultPage />
+                            </VaultUnlockRequiredRoute>
+                          </ProtectedRoute>
+                        }
+                      />
                       {import.meta.env.DEV && (
                         <Route
                           path="/debug/desktop-update"

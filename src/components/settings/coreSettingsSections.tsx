@@ -11,6 +11,8 @@ import { SecuritySettings } from '@/components/settings/SecuritySettings';
 import { DeviceKeySettings } from '@/components/settings/DeviceKeySettings';
 import { TrustedDevicesSettings } from '@/components/settings/TrustedDevicesSettings';
 import { VaultRecoveryCodesSettings } from '@/components/settings/VaultRecoveryCodesSettings';
+import { DuressSettings } from '@/components/settings/DuressSettings';
+import EmergencyAccessSettings from '@/components/settings/EmergencyAccessSettings';
 import type { SettingsSectionDescriptor } from '@/extensions/types';
 
 export function getCoreProfileSettingsSections(t: TFunction): SettingsSectionDescriptor[] {
@@ -130,6 +132,24 @@ export function getCoreVaultSettingsSections(t: TFunction): SettingsSectionDescr
       title: 'Recovery-Codes',
       keywords: ['recovery', 'backup codes', 'geräte recovery', 'geraete recovery', 'wiederherstellung', 'notfall', 'device trust'],
       render: () => <VaultRecoveryCodesSettings />,
+    },
+    {
+      id: 'vault-duress',
+      surface: 'vault',
+      tab: 'security',
+      order: 40,
+      title: 'Duress-Schutz',
+      keywords: ['duress', 'panic password', 'notfall', 'decoy', 'alarm'],
+      render: (props) => <DuressSettings bypassFeatureGate={props?.bypassFeatureGate} />,
+    },
+    {
+      id: 'vault-emergency-access',
+      surface: 'vault',
+      tab: 'sharing-emergency',
+      order: 30,
+      title: 'Notfallzugang',
+      keywords: ['emergency', 'notfallzugang', 'trusted contact', 'recovery'],
+      render: (props) => <EmergencyAccessSettings bypassFeatureGate={props?.bypassFeatureGate} />,
     },
     {
       id: 'vault-data',

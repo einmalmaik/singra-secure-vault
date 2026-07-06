@@ -17,6 +17,11 @@ import { hasOAuthCallbackPayload } from "@/platform/tauriOAuthCallback";
 import { isTauriRuntime } from "@/platform/runtime";
 import { getTauriInvoke } from "@/platform/tauriInvoke";
 import { runtimeConfig } from "@/config/runtimeConfig";
+import {
+  clearAuthSessionActivity,
+  isAuthSessionExpiredByRetentionPolicy,
+  recordAuthSessionActivity,
+} from "@/services/authSessionRetentionPolicy";
 
 export const SESSION_FALLBACK_STORAGE_KEY = "singra-auth-session-fallback";
 export const AUTH_OFFLINE_IDENTITY_STORAGE_KEY = "singra-auth-offline-identity";
@@ -64,6 +69,15 @@ export function isInIframe(): boolean {
 }
 
 export async function hydrateAuthSession(): Promise<HydratedAuthState> {
+  if (isAuthSessionExpiredByRetentionPolicy()) {
+    console.info("[AuthSessionManager] Auth session retention policy expired persisted session.");
+    await clearPersistentSession({ clearRetentionActivity: false });
+    if (!isInIframe() && !isTauriRuntime()) {
+      await invalidateBffSession().catch(() => undefined);
+    }
+    return unauthenticatedState();
+  }
+
   const memorySession = await getMemorySession();
   if (memorySession?.access_token) {
     console.info("[AuthSessionManager] hydrateAuthSession resolved from in-memory session.", {
@@ -144,6 +158,8 @@ export async function persistAuthenticatedSession(session: Session | null): Prom
     clearSessionFallback();
     return;
   }
+
+  recordAuthSessionActivity();
 
   if (isTauriRuntime()) {
     try {
@@ -318,11 +334,31 @@ export function getSessionRefreshDelayMs(session: Session, nowMs = Date.now()): 
   return Math.max(0, expiresAtMs - nowMs - SESSION_REFRESH_SKEW_MS);
 }
 
-export async function clearPersistentSession(): Promise<void> {
+interface ClearPersistentSessionOptions {
+  clearRetentionActivity?: boolean;
+}
+
+export async function clearPersistentSession(options: ClearPersistentSessionOptions = {}): Promise<void> {
   console.info("[AuthSessionManager] Clearing persisted auth artifacts.");
   clearSessionFallback();
   await clearRefreshTokenFromKeychain();
   await clearOfflineIdentity();
+  if (options.clearRetentionActivity !== false) {
+    clearAuthSessionActivity();
+  }
+}
+
+export async function invalidateBffSession(): Promise<boolean> {
+  const apiUrl = runtimeConfig.supabaseFunctionsUrl ?? `${runtimeConfig.supabaseUrl}/functions/v1`;
+  const res = await fetch(`${apiUrl}/auth-session`, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${runtimeConfig.supabasePublishableKey}`,
+    },
+    credentials: "include",
+  });
+
+  return res.ok;
 }
 
 export async function hydrateFromBffCookie(): Promise<Session | null> {

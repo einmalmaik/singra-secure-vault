@@ -8,7 +8,8 @@
 
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Shield, Lock, Timer } from 'lucide-react';
+import { Shield, Lock, Timer, LogOut } from 'lucide-react';
+import { useState } from 'react';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,6 +27,10 @@ import { TwoFactorSettings } from './TwoFactorSettings';
 import { PasskeySettings } from './PasskeySettings';
 import { useVault } from '@/contexts/VaultContext';
 import { useToast } from '@/hooks/use-toast';
+import {
+    readAuthSessionRetentionPolicy,
+    saveAuthSessionRetentionPolicy,
+} from '@/services/authSessionRetentionPolicy';
 
 const AUTO_LOCK_OPTIONS = [
     { value: '60000', label: '1 min' },
@@ -34,6 +39,14 @@ const AUTO_LOCK_OPTIONS = [
     { value: '1800000', label: '30 min' },
     { value: '3600000', label: '1 h' },
     { value: '0', label: 'settings.security.never' },
+];
+
+const AUTH_SESSION_RETENTION_OPTIONS = [
+    { value: '0', label: 'settings.security.accountSession.keepSignedIn' },
+    { value: '900000', label: 'settings.security.accountSession.after15Minutes' },
+    { value: '1800000', label: 'settings.security.accountSession.after30Minutes' },
+    { value: '3600000', label: 'settings.security.accountSession.after1Hour' },
+    { value: '86400000', label: 'settings.security.accountSession.after1Day' },
 ];
 
 type SecuritySettingsMode = 'all' | 'account' | 'vault';
@@ -47,9 +60,13 @@ export function SecuritySettings({ mode = 'all' }: SecuritySettingsProps) {
     const { toast } = useToast();
     const navigate = useNavigate();
     const { autoLockTimeout, setAutoLockTimeout, lock, isLocked } = useVault();
+    const [authSessionRetentionMs, setAuthSessionRetentionMs] = useState(
+        () => readAuthSessionRetentionPolicy().timeoutMs,
+    );
     const showVaultControls = mode !== 'account';
     const showTwoFactor = mode !== 'vault';
     const showPasskeySettings = mode !== 'account';
+    const showAccountSessionControls = mode !== 'vault';
 
     const handleAutoLockChange = (value: string) => {
         const timeout = parseInt(value, 10);
@@ -58,6 +75,16 @@ export function SecuritySettings({ mode = 'all' }: SecuritySettingsProps) {
         toast({
             title: t('common.success'),
             description: t('settings.security.autoLockUpdated'),
+        });
+    };
+
+    const handleAuthSessionRetentionChange = (value: string) => {
+        const policy = saveAuthSessionRetentionPolicy(parseInt(value, 10));
+        setAuthSessionRetentionMs(policy.timeoutMs);
+
+        toast({
+            title: t('common.success'),
+            description: t('settings.security.accountSession.updated'),
         });
     };
 
@@ -133,9 +160,52 @@ export function SecuritySettings({ mode = 'all' }: SecuritySettingsProps) {
                 </Card>
             )}
 
-            {showTwoFactor && (
+            {showAccountSessionControls && (
                 <>
                     {showVaultControls && <Separator className="my-6" />}
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <LogOut className="w-5 h-5" />
+                                {t('settings.security.accountSession.title')}
+                            </CardTitle>
+                            <CardDescription>
+                                {t('settings.security.accountSession.description')}
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                            <div className="space-y-2">
+                                <Label className="flex items-center gap-2" htmlFor="account-session-retention">
+                                    <Timer className="w-4 h-4" />
+                                    {t('settings.security.accountSession.label')}
+                                </Label>
+                                <Select
+                                    value={authSessionRetentionMs.toString()}
+                                    onValueChange={handleAuthSessionRetentionChange}
+                                >
+                                    <SelectTrigger id="account-session-retention" className="w-full sm:w-[240px]">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {AUTH_SESSION_RETENTION_OPTIONS.map((option) => (
+                                            <SelectItem key={option.value} value={option.value}>
+                                                {t(option.label)}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <p className="text-sm text-muted-foreground">
+                                    {t('settings.security.accountSession.hint')}
+                                </p>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </>
+            )}
+
+            {showTwoFactor && (
+                <>
+                    {(showVaultControls || showAccountSessionControls) && <Separator className="my-6" />}
                     <TwoFactorSettings />
                 </>
             )}

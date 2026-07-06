@@ -15,13 +15,18 @@ import {
   AuthMode,
   clearPersistentSession,
   hydrateAuthSession,
+  invalidateBffSession,
   isInIframe,
   persistAuthenticatedSession,
   startAuthSessionKeepAlive,
 } from "@/services/authSessionManager";
+import {
+  AUTH_SESSION_RETENTION_CHANGED_EVENT,
+  getAuthSessionRetentionDelayMs,
+  recordAuthSessionActivity,
+} from "@/services/authSessionRetentionPolicy";
 import { isTauriRuntime } from "@/platform/runtime";
 import { disableTauriDevAuthBypass } from "@/platform/tauriDevMode";
-import { runtimeConfig } from "@/config/runtimeConfig";
 
 interface AuthContextType {
   user: User | null;
@@ -108,7 +113,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   }, [applySessionState, authMode, authReady, session?.access_token]);
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     await clearPersistentSession();
 
     const { error: signOutError } = await supabase.auth.signOut();
@@ -118,22 +123,64 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     if (!isInIframe() && !isTauriRuntime()) {
-      const apiUrl = runtimeConfig.supabaseFunctionsUrl ?? `${runtimeConfig.supabaseUrl}/functions/v1`;
-      const res = await fetch(`${apiUrl}/auth-session`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${runtimeConfig.supabasePublishableKey}`,
-        },
-        credentials: "include",
-      });
-
-      if (!res.ok) {
-        console.error("[AuthContext] Failed to invalidate BFF session, status:", res.status);
+      const invalidated = await invalidateBffSession();
+      if (!invalidated) {
+        console.error("[AuthContext] Failed to invalidate BFF session.");
       }
     }
 
     applySessionState(null, null, "unauthenticated");
-  };
+  }, [applySessionState]);
+
+  useEffect(() => {
+    if (!authReady || authMode !== "online" || !session?.access_token) {
+      return undefined;
+    }
+
+    let stopped = false;
+    let retentionTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const clearRetentionTimer = () => {
+      if (retentionTimer) {
+        clearTimeout(retentionTimer);
+        retentionTimer = null;
+      }
+    };
+
+    const scheduleRetentionCheck = () => {
+      clearRetentionTimer();
+      const delayMs = getAuthSessionRetentionDelayMs();
+      if (delayMs === null || stopped) {
+        return;
+      }
+
+      retentionTimer = setTimeout(() => {
+        void signOut().catch(() => undefined);
+      }, delayMs);
+    };
+
+    const handleActivity = () => {
+      recordAuthSessionActivity();
+      scheduleRetentionCheck();
+    };
+
+    recordAuthSessionActivity();
+    scheduleRetentionCheck();
+
+    window.addEventListener("pointerdown", handleActivity, { passive: true });
+    window.addEventListener("keydown", handleActivity);
+    window.addEventListener("focus", handleActivity);
+    window.addEventListener(AUTH_SESSION_RETENTION_CHANGED_EVENT, scheduleRetentionCheck);
+
+    return () => {
+      stopped = true;
+      clearRetentionTimer();
+      window.removeEventListener("pointerdown", handleActivity);
+      window.removeEventListener("keydown", handleActivity);
+      window.removeEventListener("focus", handleActivity);
+      window.removeEventListener(AUTH_SESSION_RETENTION_CHANGED_EVENT, scheduleRetentionCheck);
+    };
+  }, [authMode, authReady, session?.access_token, signOut]);
 
   return (
     <AuthContext.Provider

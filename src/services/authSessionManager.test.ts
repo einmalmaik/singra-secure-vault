@@ -54,6 +54,11 @@ import {
   SESSION_FALLBACK_STORAGE_KEY,
   startAuthSessionKeepAlive,
 } from "@/services/authSessionManager";
+import {
+  AUTH_SESSION_LAST_ACTIVE_STORAGE_KEY,
+  recordAuthSessionActivity,
+  saveAuthSessionRetentionPolicy,
+} from "@/services/authSessionRetentionPolicy";
 
 const mockUser = {
   id: "user-1",
@@ -215,11 +220,13 @@ describe("authSessionManager", () => {
       email: "user@example.com",
       updatedAt: new Date().toISOString(),
     }));
+    recordAuthSessionActivity(Date.parse("2026-07-06T10:00:00.000Z"));
 
     await clearPersistentSession();
 
     expect(sessionStorage.getItem(SESSION_FALLBACK_STORAGE_KEY)).toBeNull();
     expect(localStorage.getItem(AUTH_OFFLINE_IDENTITY_STORAGE_KEY)).toBeNull();
+    expect(localStorage.getItem(AUTH_SESSION_LAST_ACTIVE_STORAGE_KEY)).toBeNull();
   });
 
   it("clears legacy tab fallback tokens instead of hydrating from them", () => {
@@ -352,6 +359,33 @@ describe("authSessionManager", () => {
     expect(mockRefreshSession).toHaveBeenCalledWith({ refresh_token: "keychain-refresh-token" });
     expect(result.mode).toBe("online");
     expect(result.session?.access_token).toBe("access-token");
+  });
+
+  it("does not hydrate an expired desktop account session from the keychain", async () => {
+    runtimeState.isTauri = true;
+    let storedRefreshToken: string | null = "keychain-refresh-token";
+    runtimeState.invoke.mockImplementation(async (command: string) => {
+      if (command === "load_refresh_token") {
+        return storedRefreshToken;
+      }
+
+      if (command === "clear_refresh_token") {
+        storedRefreshToken = null;
+        return null;
+      }
+
+      return null;
+    });
+    saveAuthSessionRetentionPolicy(15 * 60 * 1000);
+    recordAuthSessionActivity(Date.parse("2026-07-06T10:00:00.000Z"));
+    vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-07-06T10:16:00.000Z"));
+
+    const result = await hydrateAuthSession();
+
+    expect(result.mode).toBe("unauthenticated");
+    expect(mockRefreshSession).not.toHaveBeenCalled();
+    expect(storedRefreshToken).toBeNull();
+    expect(localStorage.getItem(AUTH_SESSION_LAST_ACTIVE_STORAGE_KEY)).toBe(String(Date.parse("2026-07-06T10:00:00.000Z")));
   });
 });
 

@@ -28,6 +28,18 @@ jobs:
         with:
           node-version: '24'
 
+      - name: Checkout design-dna source
+        uses: actions/checkout@v4.2.2
+        with:
+          repository: einmalmaik/maunting-design-dna
+          ref: 'main'
+          token: ${{ secrets.SINGRA_PREMIUM_PAT }}
+          path: .design-dna-source
+          persist-credentials: false
+
+      - name: Stage design-dna source as sibling repository
+        run: node scripts/stage-premium-source.mjs .design-dna-source ../maunting-design-dna
+
       - name: Install dependencies
         run: npm ci
 

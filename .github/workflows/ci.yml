@@ -35,7 +35,7 @@ jobs:
           node scripts/stage-premium-source.mjs .design-dna-source ../maunting-design-dna/maunting-design-dna
 
       - name: Install design-dna dependencies
-        run: npm ci --prefix ../maunting-design-dna/maunting-design-dna
+        run: npm --prefix ../maunting-design-dna/maunting-design-dna ci
 
       - name: Install dependencies
         run: npm ci

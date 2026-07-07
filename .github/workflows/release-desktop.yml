@@ -93,12 +93,12 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: "Singra Vault v__VERSION__"
           releaseBody: |
-            ## Singra Vault 0.6.2
+            ## Singra Vault v0.6.4
 
-            Switches the crypto backbone from the GitHub-pinned `@dis/shield`
-            package to the published `@msdis/shield` package on the public
-            npm registry. No cryptographic, layout or wire-format changes —
-            public surface is byte-identical.
+            - **Core Feature Integration**: Shifted crucial security features directly into the Core package (including Duress/Panic password protection, Emergency Access configurations, File Attachment support, and Vault Health diagnostics).
+            - **Seamless Session Persistence**: Added a robust Windows DPAPI-backed secure persistence layer in the Rust backend to ensure users stay logged in online after restarting the application.
+            - **MauntingStudios Design DNA**: Integrated the premium `.scrollbar-ice` smooth scrollbar styling across all core panels (Sidebar, Entry Dialogs, Previews, and Dropdowns).
+            - **Enhanced Offline Reliability**: Bypassed redundant remote database queries when starting in offline mode, eliminating console warnings and improving start times.
           generateReleaseNotes: false
           releaseDraft: false
           prerelease: false

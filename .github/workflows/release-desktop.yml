@@ -64,7 +64,9 @@ jobs:
           persist-credentials: false
 
       - name: Stage design-dna source as sibling repository
-        run: node scripts/stage-premium-source.mjs .design-dna-source ../maunting-design-dna
+        run: |
+          node -e "const fs = require('fs'); fs.mkdirSync('../maunting-design-dna', { recursive: true })"
+          node scripts/stage-premium-source.mjs .design-dna-source ../maunting-design-dna/maunting-design-dna
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable

@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { isLikelyOfflineError } from '@/services/offlineVaultService';
+import { isOfflineSessionActive } from '@/services/activeSessionState';
 import {
   parseVaultManifestEnvelopeV2,
   serializeVaultManifestEnvelopeV2,
@@ -43,6 +44,10 @@ export async function loadServerManifestEnvelopeV2(input: {
 }): Promise<StoredVaultManifestEnvelopeV2 | null> {
   if (!input.vaultId) {
     return null;
+  }
+
+  if (isOfflineSessionActive()) {
+    return loadCachedManifestEnvelopeV2(input);
   }
 
   let result: { data: VaultManifestRow | null; error: { code?: string; message?: string } | null };

@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2025-2026 Maunting Studios
+// Copyright (c) 2025-2026 Maunting Studios
 // Licensed under the Business Source License 1.1 - see LICENSE
 /**
  * @fileoverview Category Dialog Component
@@ -326,7 +326,7 @@ export function CategoryDialog({ open, onOpenChange, category, initialAction, on
                         {/* Icon Selection */}
                         <div className="space-y-2">
                             <Label>{t('categories.icon')}</Label>
-                            <div className="max-h-[11.5rem] overflow-y-auto rounded-lg border border-border/45 bg-background/35 p-2">
+                            <div className="max-h-[11.5rem] overflow-y-auto scrollbar-ice rounded-lg border border-border/45 bg-background/35 p-2">
                             <div className="grid grid-cols-5 gap-1 sm:grid-cols-8">
                                 <button
                                     type="button"

@@ -13,6 +13,7 @@ import { isTauriDevUserId, TAURI_DEV_VAULT_ID } from '@/platform/tauriDevMode';
 import type { VaultProtectionMode } from '@/services/deviceKeyProtectionPolicy';
 import { normalizeVaultProtectionMode } from '@/services/deviceKeyProtectionPolicy';
 import { supabase } from '@/integrations/supabase/client';
+import { isOfflineSessionActive } from '@/services/activeSessionState';
 
 export type VaultRuntimeSnapshotSource = 'remote' | 'cache' | 'empty';
 
@@ -104,7 +105,7 @@ export async function loadCurrentVaultIntegritySnapshot(input: {
     };
   }
 
-  if (input.preferRemote || isAppOnline()) {
+  if (!isOfflineSessionActive() && (input.preferRemote || isAppOnline())) {
     try {
       const rawSnapshot = await fetchRemoteOfflineSnapshot(userId, {
         persist: input.persistRemoteSnapshot !== false,

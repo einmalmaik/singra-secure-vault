@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2025-2026 Maunting Studios
+// Copyright (c) 2025-2026 Maunting Studios
 // Licensed under the Business Source License 1.1 - see LICENSE
 /**
  * @fileoverview Vault Item Dialog Component
@@ -716,7 +716,7 @@ export function VaultItemDialog({ open, onOpenChange, itemId, onSave, initialTyp
                         event.preventDefault();
                     }}
                 >
-                    <div className="max-h-[calc(100dvh_-_1rem)] overflow-y-auto lg:max-h-[88dvh]">
+                    <div className="max-h-[calc(100dvh_-_1rem)] overflow-y-auto scrollbar-ice lg:max-h-[88dvh]">
                         <DialogHeader className="border-b border-border/45 px-5 py-4 sm:px-6">
                             <div className="flex items-start gap-3">
                                 <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-primary/30 bg-primary/10 text-primary">

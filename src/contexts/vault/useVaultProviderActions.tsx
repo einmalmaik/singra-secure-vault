@@ -36,6 +36,7 @@ import type {
   VaultIntegrityVerificationResult,
 } from '@/services/vaultIntegrityService';
 import { isAppOnline, saveOfflineCredentials } from '@/services/offlineVaultService';
+import { isOfflineSessionActive } from '@/services/activeSessionState';
 import { loadRemoteVaultProfile, type VaultRuntimeCredentials } from '@/services/offlineVaultRuntimeService';
 import { buildVaultContextValue } from './buildVaultContextValue';
 import { useVaultCryptoActions } from './useVaultCryptoActions';
@@ -93,7 +94,7 @@ export function useVaultProviderActions(): VaultContextType {
     });
   }, [setCurrentDeviceKey]);
   const refreshRemoteCredentials = useCallback(async (): Promise<VaultRuntimeCredentials | null> => {
-    if (!authReady || !user || !isAppOnline()) {
+    if (!authReady || !user || !isAppOnline() || isOfflineSessionActive()) {
       return null;
     }
 

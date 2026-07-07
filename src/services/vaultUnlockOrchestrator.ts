@@ -1,5 +1,6 @@
 import { isAppOnline, getOfflineVaultTwoFactorRequirement, saveOfflineVaultTwoFactorRequirement } from './offlineVaultService';
 import { getTwoFactorRequirement } from './twoFactorService';
+import { isOfflineSessionActive } from '@/services/activeSessionState';
 
 export interface VaultTwoFactorGateOptions {
   verifyTwoFactor?: () => Promise<boolean>;
@@ -15,7 +16,9 @@ export async function enforceVaultTwoFactorBeforeKeyRelease(
 ): Promise<{ error: Error | null }> {
   const { userId, options } = input;
 
-  if (!isAppOnline()) {
+  const online = isAppOnline() && !isOfflineSessionActive();
+
+  if (!online) {
     const cachedRequired = await getOfflineVaultTwoFactorRequirement(userId);
     if (cachedRequired === false) {
       return { error: null };

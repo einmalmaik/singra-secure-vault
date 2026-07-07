@@ -22,6 +22,7 @@ import {
   isAuthSessionExpiredByRetentionPolicy,
   recordAuthSessionActivity,
 } from "@/services/authSessionRetentionPolicy";
+import { isLikelyOfflineError } from "@/services/offlineVaultService";
 
 export const SESSION_FALLBACK_STORAGE_KEY = "singra-auth-session-fallback";
 export const AUTH_OFFLINE_IDENTITY_STORAGE_KEY = "singra-auth-offline-identity";
@@ -533,6 +534,10 @@ async function refreshFromTauriKeychain(): Promise<Session | null> {
     if (concurrentSession?.access_token) {
       console.info("[AuthSessionManager] refreshFromTauriKeychain recovered concurrent in-memory session.");
       return concurrentSession;
+    }
+    if (error && isLikelyOfflineError(error)) {
+      console.info("[AuthSessionManager] Keeping refresh token due to likely network/offline error during refresh.");
+      return null;
     }
     await clearRefreshTokenFromKeychain();
     clearDesktopPersistedSessionTokens(runtimeConfig.supabaseUrl);

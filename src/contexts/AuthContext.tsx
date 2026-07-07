@@ -27,6 +27,7 @@ import {
 } from "@/services/authSessionRetentionPolicy";
 import { isTauriRuntime } from "@/platform/runtime";
 import { disableTauriDevAuthBypass } from "@/platform/tauriDevMode";
+import { setGlobalIsOfflineSession } from "@/services/activeSessionState";
 
 interface AuthContextType {
   user: User | null;
@@ -53,6 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(nextSession);
     setUser(nextUser);
     setAuthMode(nextMode);
+    setGlobalIsOfflineSession(nextMode === "offline");
   }, []);
 
   useEffect(() => {

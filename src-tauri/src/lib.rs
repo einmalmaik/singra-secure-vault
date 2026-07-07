@@ -90,25 +90,165 @@ fn save_refresh_token(refresh_token: String) -> Result<(), String> {
         return Err("refresh token must not be empty".to_string());
     }
 
-    keychain_entry()?.set_password(token).map_err(keyring_error)
+    // Try storing in the OS keyring
+    let _keyring_saved = match keychain_entry() {
+        Ok(entry) => entry.set_password(token).is_ok(),
+        Err(_) => false,
+    };
+
+    // ALWAYS store in the DPAPI fallback on Windows as a reliable backup
+    let _ = store_refresh_token_fallback(token);
+
+    Ok(())
 }
 
 #[tauri::command]
 fn load_refresh_token() -> Result<Option<String>, String> {
-    match keychain_entry()?.get_password() {
-        Ok(token) if token.trim().is_empty() => Ok(None),
-        Ok(token) => Ok(Some(token)),
-        Err(KeyringError::NoEntry) => Ok(None),
-        Err(error) => Err(keyring_error(error)),
+    let keyring_result = keychain_entry().and_then(|entry| {
+        entry.get_password().map_err(keyring_error)
+    });
+
+    match keyring_result {
+        Ok(token) if !token.trim().is_empty() => Ok(Some(token)),
+        _ => {
+            load_refresh_token_fallback()
+        }
     }
 }
 
 #[tauri::command]
 fn clear_refresh_token() -> Result<(), String> {
+    let _ = clear_refresh_token_fallback();
     match keychain_entry()?.delete_credential() {
         Ok(()) | Err(KeyringError::NoEntry) => Ok(()),
         Err(error) => Err(keyring_error(error)),
     }
+}
+
+fn refresh_token_fallback_path() -> Result<PathBuf, String> {
+    let base = std::env::var_os("LOCALAPPDATA")
+        .or_else(|| std::env::var_os("APPDATA"))
+        .map(PathBuf::from)
+        .ok_or_else(|| "unsupported platform".to_string())?;
+    Ok(base.join("Singra Vault").join("auth-tokens").join("refresh-token.bin"))
+}
+
+#[cfg(target_os = "windows")]
+fn store_refresh_token_fallback(token: &str) -> Result<(), String> {
+    let protected = protect_bytes(token.as_bytes())?;
+    let path = refresh_token_fallback_path()?;
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    fs::write(path, protected).map_err(|e| e.to_string())
+}
+
+#[cfg(not(target_os = "windows"))]
+fn store_refresh_token_fallback(_token: &str) -> Result<(), String> {
+    Ok(())
+}
+
+#[cfg(target_os = "windows")]
+fn load_refresh_token_fallback() -> Result<Option<String>, String> {
+    let path = refresh_token_fallback_path()?;
+    if !path.exists() {
+        return Ok(None);
+    }
+    let payload = fs::read(path).map_err(|e| e.to_string())?;
+    let decrypted_bytes = unprotect_bytes(&payload)?;
+    let token = String::from_utf8(decrypted_bytes).map_err(|e| e.to_string())?;
+    Ok(Some(token))
+}
+
+#[cfg(not(target_os = "windows"))]
+fn load_refresh_token_fallback() -> Result<Option<String>, String> {
+    Ok(None)
+}
+
+#[cfg(target_os = "windows")]
+fn clear_refresh_token_fallback() -> Result<(), String> {
+    let path = refresh_token_fallback_path()?;
+    if path.exists() {
+        fs::remove_file(path).map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+#[cfg(not(target_os = "windows"))]
+fn clear_refresh_token_fallback() -> Result<(), String> {
+    Ok(())
+}
+
+#[cfg(target_os = "windows")]
+fn protect_bytes(bytes: &[u8]) -> Result<Vec<u8>, String> {
+    let mut input = CRYPT_INTEGER_BLOB {
+        cbData: bytes.len() as u32,
+        pbData: bytes.as_ptr() as *mut u8,
+    };
+    let mut output = CRYPT_INTEGER_BLOB {
+        cbData: 0,
+        pbData: std::ptr::null_mut(),
+    };
+
+    let success = unsafe {
+        CryptProtectData(
+            &mut input,
+            std::ptr::null(),
+            std::ptr::null(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            CRYPTPROTECT_UI_FORBIDDEN,
+            &mut output,
+        )
+    };
+
+    if success == 0 {
+        return Err("CryptProtectData failed".to_string());
+    }
+
+    let protected = unsafe {
+        std::slice::from_raw_parts(output.pbData, output.cbData as usize).to_vec()
+    };
+    unsafe {
+        LocalFree(output.pbData as _);
+    }
+    Ok(protected)
+}
+
+#[cfg(target_os = "windows")]
+fn unprotect_bytes(payload: &[u8]) -> Result<Vec<u8>, String> {
+    let mut input = CRYPT_INTEGER_BLOB {
+        cbData: payload.len() as u32,
+        pbData: payload.as_ptr() as *mut u8,
+    };
+    let mut output = CRYPT_INTEGER_BLOB {
+        cbData: 0,
+        pbData: std::ptr::null_mut(),
+    };
+
+    let success = unsafe {
+        CryptUnprotectData(
+            &mut input,
+            std::ptr::null_mut(),
+            std::ptr::null(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            CRYPTPROTECT_UI_FORBIDDEN,
+            &mut output,
+        )
+    };
+
+    if success == 0 {
+        return Err("CryptUnprotectData failed".to_string());
+    }
+
+    let decrypted = unsafe {
+        std::slice::from_raw_parts(output.pbData, output.cbData as usize).to_vec()
+    };
+    unsafe {
+        LocalFree(output.pbData as _);
+    }
+    Ok(decrypted)
 }
 
 #[tauri::command]

@@ -48,7 +48,7 @@ export function VaultItemPreviewPanel({
       <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-primary/35 to-transparent" />
       <div
         className={cn(
-          'h-full max-h-[inherit] overflow-y-auto p-4 pb-[calc(1rem+var(--safe-area-bottom))]',
+          'h-full max-h-[inherit] overflow-y-auto scrollbar-ice p-4 pb-[calc(1rem+var(--safe-area-bottom))]',
           classes.content,
           contentClassName,
         )}

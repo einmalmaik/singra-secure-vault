@@ -31,6 +31,7 @@ import {
     CURRENT_KDF_VERSION,
 } from './cryptoService';
 import { supabase } from '@/integrations/supabase/client';
+import { isOfflineSessionActive } from '@/services/activeSessionState';
 
 // ============ Type Definitions ============
 
@@ -207,6 +208,10 @@ function generateDecoyItems(): DecoyItem[] {
  * @returns Duress configuration or null if not set up
  */
 export async function getDuressConfig(userId: string): Promise<DuressConfig | null> {
+    if (isOfflineSessionActive()) {
+        return null;
+    }
+
     try {
         const { data, error } = await supabase
             .from('profiles')

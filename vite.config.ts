@@ -300,7 +300,7 @@ export default defineConfig(async ({ mode }) => {
         injectRegister: "script",
         injectManifest: {
           globPatterns: ["**/*.{js,css,html,ico,png,svg,webmanifest}"],
-          maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
+          maximumFileSizeToCacheInBytes: 10 * 1024 * 1024,
         },
         devOptions: {
           enabled: false,
@@ -312,6 +312,7 @@ export default defineConfig(async ({ mode }) => {
       alias: {
         "@": path.resolve(__dirname, "./src"),
         "@singra/premium": premiumEntry,
+        "@singra/ui": path.resolve(__dirname, "../maunting-design-dna/maunting-design-dna"),
       },
     },
     build: {

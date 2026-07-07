@@ -12,6 +12,10 @@ export default defineConfig({
     fileParallelism: false,
   },
   resolve: {
-    alias: { "@": path.resolve(__dirname, "./src") },
+    dedupe: ["react", "react-dom", "react-router-dom"],
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+      "@singra/ui": path.resolve(__dirname, "../maunting-design-dna/maunting-design-dna"),
+    },
   },
 });

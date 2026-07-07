@@ -42,6 +42,7 @@ import { VaultOpLogConflictPanel } from '@/components/vault/VaultOpLogConflictPa
 import { VaultAddDeviceBanner } from '@/components/vault/VaultAddDeviceBanner';
 import { VaultPendingDevicesPanel } from '@/components/vault/VaultPendingDevicesPanel';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
+import { LanguageSwitcher } from '@maunting/design-dna';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { isPremiumActive } from '@/extensions/registry';
 import { syncOfflineMutations } from '@/services/offlineVaultService';
@@ -101,7 +102,7 @@ function getIntegrityWarningText(
 }
 
 export default function VaultPage() {
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
     const navigate = useNavigate();
     const location = useLocation();
     const { toast } = useToast();
@@ -498,6 +499,11 @@ export default function VaultPage() {
                                     <List className="w-4 h-4" />
                                 </Button>
                             </div>
+
+                            <LanguageSwitcher
+                                language={i18n.language as any}
+                                onChange={(lang) => i18n.changeLanguage(lang)}
+                            />
 
                             <Button onClick={handleOpenNewItem} className="ms-header-primary-button ml-auto sm:ml-0">
                                 <Plus className="w-4 h-4 mr-2" />

@@ -1,3 +1,4 @@
+@import "@maunting/design-dna/tokens.css";
 @import "./design/tokens.css";
 
 @tailwind base;
@@ -267,20 +268,24 @@
   .sv-app-shell {
     position: relative;
     isolation: isolate;
+    min-height: 100vh;
     background:
-      linear-gradient(135deg, hsl(206 31% 4%) 0%, hsl(207 34% 5%) 42%, hsl(214 35% 4%) 100%);
+      radial-gradient(circle at 10% -10%, rgba(112, 231, 189, 0.08), transparent 30%),
+      radial-gradient(circle at 92% 8%, rgba(118, 190, 199, 0.12), transparent 32%),
+      #071014;
   }
 
   .sv-app-shell::before {
-    content: "";
+    content: '';
     position: fixed;
     inset: 0;
-    z-index: -1;
+    z-index: 0;
     pointer-events: none;
-    background:
-      linear-gradient(135deg, hsl(194 44% 68% / 0.08) 0%, transparent 32%),
-      linear-gradient(315deg, hsl(38 92% 50% / 0.08) 0%, transparent 30%),
-      linear-gradient(180deg, transparent 0%, hsl(0 0% 0% / 0.42) 100%);
+    background-image:
+      linear-gradient(rgba(155, 212, 218, 0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(155, 212, 218, 0.025) 1px, transparent 1px);
+    background-size: 48px 48px;
+    mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.8), transparent 80%);
   }
 
   .sv-vault-topbar {
@@ -327,8 +332,13 @@
   }
 
   .sv-auth-page {
+    position: relative;
+    isolation: isolate;
+    min-height: 100vh;
     background:
-      linear-gradient(135deg, hsl(206 31% 4%) 0%, hsl(205 30% 7%) 52%, hsl(214 35% 5%) 100%);
+      radial-gradient(circle at 10% -10%, rgba(112, 231, 189, 0.08), transparent 30%),
+      radial-gradient(circle at 92% 8%, rgba(118, 190, 199, 0.12), transparent 32%),
+      #071014;
   }
 
   .sv-auth-form-panel {

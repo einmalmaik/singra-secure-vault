@@ -1,7 +1,8 @@
 import { useToast } from "@/hooks/use-toast";
 import { Toast, ToastClose, ToastDescription, ToastProvider, ToastTitle, ToastViewport } from "@/components/ui/toast";
-import { Copy } from "lucide-react";
+import { Copy, CheckCircle2, AlertTriangle, Info, XCircle } from "lucide-react";
 import type { ReactNode } from "react";
+import { cn } from "@/lib/utils";
 
 function toastText(value: ReactNode): string {
   if (typeof value === "string" || typeof value === "number") {
@@ -32,12 +33,27 @@ export function Toaster() {
 
   return (
     <ToastProvider>
-      {toasts.map(function ({ id, title, description, action, ...props }) {
+      {toasts.map(function ({ id, title, description, action, variant = "default", ...props }) {
         const copyText = buildCopyText(title, description);
 
+        let Icon = Info;
+        let iconColor = "text-primary";
+
+        if (variant === "destructive") {
+          Icon = XCircle;
+          iconColor = "text-destructive";
+        } else if (variant === "success") {
+          Icon = CheckCircle2;
+          iconColor = "text-success";
+        } else if (variant === "warning") {
+          Icon = AlertTriangle;
+          iconColor = "text-warning";
+        }
+
         return (
-          <Toast key={id} {...props}>
-            <div className="grid gap-1">
+          <Toast key={id} variant={variant} {...props}>
+            <Icon className={cn("mt-0.5 size-4 shrink-0", iconColor)} aria-hidden="true" />
+            <div className="flex-1 space-y-1">
               {title && <ToastTitle>{title}</ToastTitle>}
               {description && <ToastDescription>{description}</ToastDescription>}
             </div>

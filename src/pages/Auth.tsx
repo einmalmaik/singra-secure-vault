@@ -34,6 +34,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { TwoFactorVerificationModal } from '@/components/auth/TwoFactorVerificationModal';
 import { supabase } from '@/integrations/supabase/client';
+import { LanguageSwitcher } from '@maunting/design-dna';
 import { SEO } from '@/components/SEO';
 import { usePasswordCheck } from '@/hooks/usePasswordCheck';
 import { PasswordStrengthMeter } from '@/components/ui/PasswordStrengthMeter';
@@ -125,7 +126,7 @@ const AUTH_PANEL_VIDEO_SOURCES = [
 ];
 
 export default function Auth() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
@@ -880,6 +881,12 @@ export default function Auth() {
 
       {/* ── Form Panel (100% mobile / 55% desktop) ──────────────── */}
       <div className="sv-auth-form-panel flex-1 flex flex-col items-center justify-center p-6 md:p-12 auth-form-reveal relative">
+        <div className="absolute top-4 right-4 z-50">
+          <LanguageSwitcher
+            language={i18n.language as any}
+            onChange={(lang) => i18n.changeLanguage(lang)}
+          />
+        </div>
         {/* Mobile logo */}
         <Link to="/" className="lg:hidden flex items-center gap-3 mb-10">
           <img src="/singra-icon.png" alt="Singra Vault" className="w-8 h-8 rounded-full shadow-lg shadow-primary/20 ring-1 ring-border/70" />

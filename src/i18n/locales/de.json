@@ -63,7 +63,7 @@
     },
     "security": {
       "title": "Höchste Sicherheitsstandards",
-      "subtitle": "Wir kombinieren starke Kryptografie mit lokaler Integrit?tspr?fung, Passkey-Entsperrung und transparent dokumentierten Grenzen.",
+      "subtitle": "Wir kombinieren starke Kryptografie mit lokaler Integritätsprüfung, Passkey-Entsperrung und transparent dokumentierten Grenzen.",
       "zeroKnowledge": {
         "title": "Vault-Payloads clientseitig verschlüsselt",
         "description": "Tresor-Inhalte werden lokal verschlüsselt und entschlüsselt. Technische Metadaten und Recovery-/Sharing-Pfade haben eigene, dokumentierte Grenzen."
@@ -135,7 +135,7 @@
     "comparison": {
       "badge": "Ehrlicher Vergleich",
       "title": "Warum Singra Vault?",
-      "subtitle": "Ein faktenbasierter Vergleich mit f?hrenden Passwortmanagern. Alle Daten stammen aus offiziellen Quellen und wurden am 23. April 2026 gepr?ft.",
+      "subtitle": "Ein faktenbasierter Vergleich mit führenden Passwortmanagern. Alle Daten stammen aus offiziellen Quellen und wurden am 23. April 2026 geprüft.",
       "featureLabel": "Funktion",
       "features": {
         "openSource": "Open Source",
@@ -158,7 +158,7 @@
         "partial": "Teilweise / begrenzte Grenze",
         "unavailable": "Nicht verfügbar"
       },
-      "disclaimer": "Alle Informationen basieren auf offizieller ?ffentlicher Dokumentation der jeweiligen Anbieter. Preise, Funktionsumfang und Browser-Unterst?tzung k?nnen sich jederzeit ?ndern.",
+      "disclaimer": "Alle Informationen basieren auf offizieller öffentlicher Dokumentation der jeweiligen Anbieter. Preise, Funktionsumfang und Browser-Unterstützung können sich jederzeit ändern.",
       "verifiedAt": "Stand: {{date}}"
     },
     "pwa": {
@@ -634,23 +634,23 @@
     "syncingOfflineChanges": "Synchronisiere Offline-Änderungen...",
     "syncedAfterOffline": "{{count}} Offline-Änderungen synchronisiert.",
     "addDevice": {
-      "requestSent": "Ger\u00e4te-Anfrage gesendet",
-      "requestSentDesc": "Bitte best\u00e4tige dieses Ger\u00e4t auf einem bereits vertrauensw\u00fcrdigen Ger\u00e4t.",
+      "requestSent": "Geräte-Anfrage gesendet",
+      "requestSentDesc": "Bitte bestätige dieses Gerät auf einem bereits vertrauenswürdigen Gerät.",
       "error": "Die Anfrage konnte nicht gesendet werden.",
-      "untrustedTitle": "Ger\u00e4t nicht vertrauensw\u00fcrdig",
-      "untrustedDesc": "Dieses Ger\u00e4t ist angemeldet, aber noch nicht f\u00fcr diesen Tresor best\u00e4tigt. Best\u00e4tige es auf einem bereits vertrauensw\u00fcrdigen Ger\u00e4t, bevor Inhalte angezeigt oder \u00c4nderungen erlaubt werden.",
-      "pendingDesc": "Anfrage ausstehend. Bitte auf einem bestehenden Ger\u00e4t best\u00e4tigen.",
-      "waiting": "Warte auf Best\u00e4tigung...",
-      "startPairing": "Ger\u00e4t koppeln",
-      "approved": "Ger\u00e4t wurde erfolgreich autorisiert.",
+      "untrustedTitle": "Gerät nicht vertrauenswürdig",
+      "untrustedDesc": "Dieses Gerät ist angemeldet, aber noch nicht für diesen Tresor bestätigt. Bestätige es auf einem bereits vertrauenswürdigen Gerät, bevor Inhalte angezeigt oder Änderungen erlaubt werden.",
+      "pendingDesc": "Anfrage ausstehend. Bitte auf einem bestehenden Gerät bestätigen.",
+      "waiting": "Warte auf Bestätigung...",
+      "startPairing": "Gerät koppeln",
+      "approved": "Gerät wurde erfolgreich autorisiert.",
       "rejected": "Anfrage wurde abgelehnt.",
-      "pendingRequestsTitle": "Neue Ger\u00e4teanfragen"
+      "pendingRequestsTitle": "Neue Geräteanfragen"
     },
     "oplog": {
       "loading": "Sicherheitsstatus wird geladen...",
       "actionCompleted": "OpLog-Aktion wurde verifiziert abgeschlossen.",
-      "verifyingDeviceTrust": "Ger\u00e4testatus wird verifiziert",
-      "verifyingDeviceTrustDescription": "Der Tresor wird erst angezeigt, wenn dieses Ger\u00e4t lokal als vertrauensw\u00fcrdig verifiziert wurde."
+      "verifyingDeviceTrust": "Gerätestatus wird verifiziert",
+      "verifyingDeviceTrustDescription": "Der Tresor wird erst angezeigt, wenn dieses Gerät lokal als vertrauenswürdig verifiziert wurde."
     },
     "empty": {
       "title": "Dein Tresor ist leer",
@@ -803,21 +803,21 @@
       "ignoreSummaryAction": "Alle Hinweise ausblenden",
       "resetChallengeExpired": "Die Sicherheitsbestätigung für den Tresor-Reset ist abgelaufen. Bitte versuche es erneut.",
       "resetFailed": "Der Tresor konnte nicht zurückgesetzt werden.",
-      "revalidationTitle": "Integrit\u00e4tspr\u00fcfung erforderlich",
-      "retryCheck": "Erneut pr\u00fcfen",
-      "recheckFailed": "Der Integrit\u00e4tscheck konnte nicht abgeschlossen werden.",
-      "recheckUnavailable": "Der Tresor-Schl\u00fcssel oder Snapshot ist nicht verf\u00fcgbar. Sperre den Tresor und entsperre ihn erneut.",
-      "unlockVerificationFailed": "Die Tresor-Integrit\u00e4t konnte nicht gepr\u00fcft werden. Wenn du offline bist, entsperre den Tresor mit einem zuvor vollst\u00e4ndig synchronisierten lokalen Snapshot.",
+      "revalidationTitle": "Integritätsprüfung erforderlich",
+      "retryCheck": "Erneut prüfen",
+      "recheckFailed": "Der Integritätscheck konnte nicht abgeschlossen werden.",
+      "recheckUnavailable": "Der Tresor-Schlüssel oder Snapshot ist nicht verfügbar. Sperre den Tresor und entsperre ihn erneut.",
+      "unlockVerificationFailed": "Die Tresor-Integrität konnte nicht geprüft werden. Wenn du offline bist, entsperre den Tresor mit einem zuvor vollständig synchronisierten lokalen Snapshot.",
       "messages": {
-        "manifest_persist_failed": "Der Manifest-V2-Status konnte noch nicht dauerhaft gespeichert werden. Ein erneuter Integrit\u00e4tscheck ist erforderlich.",
-        "rollback_check_unavailable": "Der lokale Rollback-Schutz ist aktuell nicht verf\u00fcgbar. Der normale Tresorzugriff bleibt gesperrt.",
-        "manifest_snapshot_conflict": "Der lokale vertrauensw\u00fcrdige Snapshot widerspricht dem Server-Manifest. Bitte synchronisiere oder nutze die Wiederherstellung.",
-        "snapshot_source_not_authoritative": "Es konnte kein frischer oder lokal verifizierter Snapshot autoritativ gepr\u00fcft werden. Pr\u00fcfe die Verbindung und versuche es erneut.",
-        "snapshot_completeness_unknown": "Der lokale Snapshot enth\u00e4lt keine vollst\u00e4ndigen Pr\u00fcfinformationen. Ein frischer Server-Abgleich ist erforderlich.",
-        "revalidation_failed": "Die erneute Integrit\u00e4tspr\u00fcfung konnte den aktuellen Tresorstand noch nicht best\u00e4tigen.",
-        "migration_required": "Dieser Tresor ben\u00f6tigt eine Integrit\u00e4tsmigration. Der normale Zugriff bleibt bis zum Abschluss gesperrt.",
-        "scope_incomplete": "Der aktuelle Tresor-Snapshot ist unvollst\u00e4ndig. Der normale Zugriff bleibt bis zur vollst\u00e4ndigen Pr\u00fcfung gesperrt.",
-        "default": "Der Integrit\u00e4tszustand konnte nicht vollst\u00e4ndig best\u00e4tigt werden. Der normale Tresorzugriff bleibt gesperrt."
+        "manifest_persist_failed": "Der Manifest-V2-Status konnte noch nicht dauerhaft gespeichert werden. Ein erneuter Integritätscheck ist erforderlich.",
+        "rollback_check_unavailable": "Der lokale Rollback-Schutz ist aktuell nicht verfügbar. Der normale Tresorzugriff bleibt gesperrt.",
+        "manifest_snapshot_conflict": "Der lokale vertrauenswürdige Snapshot widerspricht dem Server-Manifest. Bitte synchronisiere oder nutze die Wiederherstellung.",
+        "snapshot_source_not_authoritative": "Es konnte kein frischer oder lokal verifizierter Snapshot autoritativ geprüft werden. Prüfe die Verbindung und versuche es erneut.",
+        "snapshot_completeness_unknown": "Der lokale Snapshot enthält keine vollständigen Prüfinformationen. Ein frischer Server-Abgleich ist erforderlich.",
+        "revalidation_failed": "Die erneute Integritätsprüfung konnte den aktuellen Tresorstand noch nicht bestätigen.",
+        "migration_required": "Dieser Tresor benötigt eine Integritätsmigration. Der normale Zugriff bleibt bis zum Abschluss gesperrt.",
+        "scope_incomplete": "Der aktuelle Tresor-Snapshot ist unvollständig. Der normale Zugriff bleibt bis zur vollständigen Prüfung gesperrt.",
+        "default": "Der Integritätszustand konnte nicht vollständig bestätigt werden. Der normale Tresorzugriff bleibt gesperrt."
       }
     }
   },
@@ -1510,7 +1510,27 @@
     "scanning": "Scanne...",
     "secure": "Sicher",
     "improvements": "Verbesserungen nötig",
-    "critical": "Kritische Probleme gefunden"
+    "critical": "Kritische Probleme gefunden",
+    "historyTitle": "Sicherheitsverlauf",
+    "last30days": "Letzte 30 Tage",
+    "exportReport": "Bericht exportieren",
+    "moreTips": "Weitere Tipps anzeigen",
+    "totalEntries": "Gesamt Einträge",
+    "uniquePasswords": "Einzigartige Passwörter",
+    "affectedAccounts": "Betroffene Konten",
+    "encryption": "Verschlüsselung",
+    "noIssuesFound": "Keine Probleme gefunden",
+    "noIssuesDesc": "Großartig! Es wurden keine sicherheitskritischen Probleme in deinem Tresor gefunden.",
+    "securityTips": "Sicherheitstipps",
+    "tip1Title": "Verwende einzigartige Passwörter",
+    "tip1Desc": "Jedes Konto sollte ein eigenes Passwort haben.",
+    "tip2Title": "Aktiviere Zwei-Faktor-Authentifizierung",
+    "tip2Desc": "Schütze deine Konten mit einer zusätzlichen Sicherheitsebene.",
+    "tip3Title": "Regelmäßig überprüfen",
+    "tip3Desc": "Führe regelmäßige Sicherheitschecks durch.",
+    "tip4Title": "Passwörter aktualisieren",
+    "tip4Desc": "Aktualisiere alte Passwörter regelmäßig.",
+    "lastAnalysisJustNow": "Letzte Analyse: Gerade eben"
   },
   "emergency": {
     "title": "Notfallzugang",
@@ -1840,5 +1860,47 @@
     "baselineEstablished": "Integritäts-Baseline erstellt",
     "itemCount": "{{count}} Einträge verifiziert",
     "passkeyNote": "Integritätsprüfung ist für Passkey-Entsperrsitzungen nicht verfügbar."
+  },
+  "vaultHealth": {
+    "title": "Tresor-Gesundheit",
+    "subtitle": "Übersicht über die Sicherheit deiner gespeicherten Passwörter",
+    "analyzed": "Dein Passwort-Tresor wurde analysiert. Du nutzt starke und einzigartige Passwörter.",
+    "analyzing": "Sicherheitsanalyse wird ausgeführt...",
+    "reanalyze": "Neu analysieren",
+    "lastAnalysisJustNow": "Letzte Analyse: Gerade eben",
+    "exportReport": "Bericht exportieren",
+    "historyTitle": "Sicherheitsverlauf",
+    "last30days": "Letzte 30 Tage",
+    "weak": "Schwach",
+    "pwned": "Geleakt",
+    "duplicate": "Doppelt",
+    "old": "Alt",
+    "strong": "Stark",
+    "issues": "Gefundene Probleme",
+    "noIssuesFound": "Keine Probleme gefunden",
+    "noIssuesDesc": "Großartig! Es wurden keine sicherheitskritischen Probleme in deinem Tresor gefunden.",
+    "securityTips": "Sicherheitstipps",
+    "tip1Title": "Einzigartigkeit prüfen",
+    "tip2Title": "Zwei-Faktor-Authentifizierung",
+    "tip3Title": "Regelmäßig überprüfen",
+    "tip4Title": "Passwörter aktualisieren",
+    "moreTips": "Weitere Tipps anzeigen",
+    "totalEntries": "Gesamt Einträge",
+    "uniquePasswords": "Einzigartige Passwörter",
+    "affectedAccounts": "Betroffene Konten",
+    "scoreExcellent": "Ausgezeichnet",
+    "scoreGood": "Gut",
+    "scoreFair": "Mittelmäßig",
+    "scorePoor": "Kritisch",
+    "tips": {
+      "duplicateFound": "Du verwendest {{count}} Passwörter mehrfach. Ersetze sie durch einzigartige Passwörter.",
+      "noDuplicate": "Hervorragend! Alle deine Passwörter werden nur einmal verwendet.",
+      "twoFactorDisabled": "Aktiviere Zwei-Faktor-Authentifizierung (2FA), um eine zusätzliche Schutzebene hinzuzufügen.",
+      "twoFactorEnabled": "Deine 2FA ist aktiv. Dein Konto wird durch eine zusätzliche Ebene geschützt.",
+      "weakFound": "Es wurden {{count}} schwache Passwörter gefunden. Erstelle stärkere Passwörter.",
+      "noWeak": "Großartig! Du verwendest ausschließlich starke Passwörter.",
+      "oldFound": "{{count}} Passwörter sind älter als 90 Tage. Aktualisiere sie für maximale Sicherheit.",
+      "noOld": "Super! Alle deine Passwörter sind aktuell."
+    }
   }
 }

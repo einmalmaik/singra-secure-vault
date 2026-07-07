@@ -70,7 +70,7 @@ jobs:
 
       - name: Install design-dna dependencies
         working-directory: ../maunting-design-dna/maunting-design-dna
-        run: npm ci
+        run: npm i
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable

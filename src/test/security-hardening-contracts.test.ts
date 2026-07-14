@@ -55,11 +55,7 @@ describe("security hardening contracts", () => {
       "invite-family-member",
       "accept-family-invitation",
       "invite-emergency-access",
-      "support-submit",
-      "support-list",
-      "support-metrics",
       "desktop-release",
-      "admin-support",
       "send-test-mail",
     ]) {
       expect(config).not.toContain(`[functions.${privateFunction}]`);

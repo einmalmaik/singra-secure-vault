@@ -39,6 +39,11 @@ export const COOKIE_DIALOG_COPY = {
                 description: 'Remember your preferences and settings for a better experience.',
                 items: ['Theme preference', 'Language preference', 'Auto-lock timer'],
             },
+            support: {
+                title: 'External support integration',
+                description: 'Loads the Singra Bot support widget only after your consent. Ticket details are sent voluntarily to the support operator.',
+                items: ['Connection to singrabot.mauntingstudios.de', 'Ticket access stored on the support origin', 'No vault or account data is sent automatically'],
+            },
             analytics: {
                 title: 'Analytics Cookies',
                 description: 'Analytics cookies are currently not implemented and not planned in the near future.',
@@ -63,6 +68,11 @@ export const COOKIE_DIALOG_COPY = {
                 title: 'Funktionale Cookies',
                 description: 'Speichern Präferenzen und Einstellungen für eine bessere Erfahrung.',
                 items: ['Theme-Praeferenz', 'Sprachpraeferenz', 'Auto-Lock-Timer'],
+            },
+            support: {
+                title: 'Externe Support-Integration',
+                description: 'Lädt das Support-Widget des Singra Bots erst nach deiner Einwilligung. Ticketangaben werden freiwillig an den Support-Betreiber gesendet.',
+                items: ['Verbindung zu singrabot.mauntingstudios.de', 'Ticketzugriff auf der Support-Origin gespeichert', 'Keine automatische Übertragung von Vault- oder Kontodaten'],
             },
             analytics: {
                 title: 'Analytics-Cookies',

@@ -30,7 +30,7 @@ describe('settingsSectionService', () => {
     expect(getDefaultSettingsTab('profile')).toBe('general');
     expect(getDefaultSettingsTab('vault')).toBe('security');
     expect(isSettingsTabId('billing', 'profile')).toBe(true);
-    expect(isSettingsTabId('support', 'profile')).toBe(true);
+    expect(isSettingsTabId('support', 'profile')).toBe(false);
     expect(isSettingsTabId('data-legal', 'profile')).toBe(true);
     expect(isSettingsTabId('data-legal', 'vault')).toBe(false);
     expect(isSettingsTabId('data', 'vault')).toBe(true);

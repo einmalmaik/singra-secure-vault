@@ -88,12 +88,12 @@ const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
  * Service Role Key für Admin-Operationen.
  * ACHTUNG: Umgeht RLS - nur für User-Erstellung und Record-Speicherung verwenden!
  */
-const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const supabaseServiceKey = Deno.env.get("SUPABASE_INTERNAL_SECRET_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 /**
  * Anonymer Schlüssel für OTP-Versand via Supabase Auth.
  */
-const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+const supabaseAnonKey = Deno.env.get("SUPABASE_INTERNAL_PUBLISHABLE_KEY") || Deno.env.get("SUPABASE_ANON_KEY")!;
 
 /**
  * OPAQUE Server Setup - kryptografische Serverkonfiguration.

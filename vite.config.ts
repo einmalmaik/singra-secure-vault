@@ -8,6 +8,7 @@ import topLevelAwait from "vite-plugin-top-level-await";
 import { VitePWA } from "vite-plugin-pwa";
 
 const GITHUB_LATEST_RELEASE_URL = "https://api.github.com/repos/einmalmaik/singravault/releases/latest";
+const SINGRA_SUPPORT_ORIGIN = "https://singrabot.mauntingstudios.de";
 
 async function resolveAppVersion(mode: string, packageVersion: string): Promise<{ version: string; source: string }> {
   const explicitVersion = process.env.SINGRA_VAULT_VERSION?.trim();
@@ -51,12 +52,12 @@ async function resolveAppVersion(mode: string, packageVersion: string): Promise<
 function buildContentSecurityPolicy(mode: string, delivery: "header" | "meta" = "header") {
   const dev = mode === "development";
   const scriptSrc = dev
-    ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
-    : "script-src 'self' 'wasm-unsafe-eval'";
+    ? `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${SINGRA_SUPPORT_ORIGIN}`
+    : `script-src 'self' 'wasm-unsafe-eval' ${SINGRA_SUPPORT_ORIGIN}`;
   const workerSrc = "worker-src 'self' blob:";
   const connectSrc = dev
     ? "connect-src 'self' ws: wss: http: https:"
-    : "connect-src 'self' https://*.supabase.co https://api.pwnedpasswords.com wss://*.supabase.co";
+    : `connect-src 'self' https://*.supabase.co https://api.pwnedpasswords.com wss://*.supabase.co ${SINGRA_SUPPORT_ORIGIN}`;
   const imgSrc = dev
     ? "img-src 'self' data: blob: https:"
     : "img-src 'self' data: blob:";
@@ -72,6 +73,7 @@ function buildContentSecurityPolicy(mode: string, delivery: "header" | "meta" = 
     fontSrc,
     workerSrc,
     connectSrc,
+    `frame-src 'self' ${SINGRA_SUPPORT_ORIGIN}`,
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",

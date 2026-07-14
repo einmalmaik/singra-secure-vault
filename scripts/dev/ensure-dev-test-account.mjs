@@ -5,6 +5,8 @@
 import { createClient } from "@supabase/supabase-js";
 import { createHash } from "node:crypto";
 import { config as loadDotenv } from "dotenv";
+import * as opaque from "@serenity-kit/opaque";
+import { execSync } from "node:child_process";
 
 loadDotenv({ path: ".env" });
 loadDotenv({ path: ".env.local", override: true });
@@ -72,16 +74,70 @@ const supabase = createClient(supabaseUrl, serviceRoleKey, {
 });
 
 const user = await findUserByEmail(email);
+let userId;
 if (user) {
   await updateUser(user.id);
+  userId = user.id;
   safeLog(`Dev test account ready: ${email}`);
 } else {
   const created = await createDevUser();
+  userId = created.id;
   safeLog(`Dev test account created: ${created.email ?? email}`);
 }
 
+await ensureOpaqueRecord(userId);
+
 if (resetVault) {
   safeLog("SINGRA_DEV_TEST_RESET_VAULT is set, but destructive vault reset is intentionally not automated here.");
+}
+
+async function ensureOpaqueRecord(targetUserId) {
+  await opaque.ready;
+  const serverSetup = "btyEdT4GePoYHAzeg46jn67fbMIwjalmsbMZH9sRnHuTh4dZfRKDZ6kZ3gBIhS9hpqh6SYReg4zeonD4jNqE6gdwTCoYgnAuNyqmNriT_j3pxUyJRh6KMLp2FbNnk_oFmnscUHy83zESX2NW0OufWiPSqv9zsn8mHh__EeYbnxc";
+  const userIdentifier = email.trim().toLowerCase();
+
+  safeLog(`Generating OPAQUE registration record for ${email}...`);
+
+  const { clientRegistrationState, registrationRequest } = opaque.client.startRegistration({
+    password: masterPassword
+  });
+
+  const { registrationResponse } = opaque.server.createRegistrationResponse({
+    serverSetup,
+    userIdentifier,
+    registrationRequest
+  });
+
+  const { registrationRecord } = opaque.client.finishRegistration({
+    clientRegistrationState,
+    registrationResponse,
+    password: masterPassword,
+    keyStretching: "memory-constrained"
+  });
+
+  safeLog(`Writing OPAQUE record directly to DB via Docker psql...`);
+
+  const sql1 = `
+    INSERT INTO public.user_opaque_records (user_id, opaque_identifier, registration_record, updated_at)
+    VALUES ('${targetUserId}', '${userIdentifier}', '${registrationRecord}', now())
+    ON CONFLICT (user_id) DO UPDATE SET
+      opaque_identifier = EXCLUDED.opaque_identifier,
+      registration_record = EXCLUDED.registration_record,
+      updated_at = now();
+  `.replace(/\s+/g, " ");
+
+  const sql2 = `
+    UPDATE public.profiles SET auth_protocol = 'opaque' WHERE user_id = '${targetUserId}';
+  `.replace(/\s+/g, " ");
+
+  try {
+    execSync(`docker exec -i supabase_db_lcrtadxlojaucwapgzmy psql -U postgres -d postgres -c "${sql1}"`, { stdio: "pipe" });
+    execSync(`docker exec -i supabase_db_lcrtadxlojaucwapgzmy psql -U postgres -d postgres -c "${sql2}"`, { stdio: "pipe" });
+  } catch (err) {
+    throw new Error(`Failed to write OPAQUE record via docker exec psql: ${err.message}`);
+  }
+
+  safeLog(`OPAQUE record successfully provisioned for: ${email}`);
 }
 
 async function findUserByEmail(targetEmail) {

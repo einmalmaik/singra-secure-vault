@@ -63,6 +63,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { getCookies, setCookie } from "https://deno.land/std@0.168.0/http/cookie.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
+// Force hot reload for CORS debug
 import {
     authRateLimitResponse,
     checkAuthRateLimit,
@@ -83,12 +84,12 @@ const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 /**
  * Service Role Key für Admin-Operationen.
  */
-const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const supabaseServiceKey = Deno.env.get("SUPABASE_INTERNAL_SECRET_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 /**
  * Anonymer Schlüssel für Auth-Client.
  */
-const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+const supabaseAnonKey = Deno.env.get("SUPABASE_INTERNAL_PUBLISHABLE_KEY") || Deno.env.get("SUPABASE_ANON_KEY")!;
 
 /**
  * Admin-Client für Rate-Limiting-Prüfungen.
@@ -147,6 +148,7 @@ Deno.serve(async (req) => {
     };
 
     if (req.method === "OPTIONS") {
+        console.log("[OPTIONS Debug] Response headers:", Array.from(headers.entries()));
         return new Response("ok", { headers });
     }
 

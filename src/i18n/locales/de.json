@@ -478,7 +478,7 @@
     },
     "collection": {
       "title": "Datenerfassung",
-      "content": "Wir erfassen nur das Nötigste, um den Dienst bereitzustellen:\n\n- E-Mail-Adresse (für Authentifizierung und Kontowiederherstellung)\n- Verschlüsselte Tresor-Daten (wir können den Inhalt nicht lesen)\n- Serverseitig sichtbare technische Metadaten wie IDs, Besitz-Zuordnungen, Zeitpunkte und neutrale Tresor-Item-Platzhalter\n- Vault-Verifier/OPAQUE-Daten zur Authentifizierung und Entsperrprüfung, nicht dein Klartext-Passwort\n- Serverseitig verschlüsseltes 2FA/TOTP-Secret (für Zwei-Faktor-Authentifizierung)\n- Authentifizierungs-Metadaten (Anmeldezeitpunkt)\n\nHinweis zur Funktion \"Tresor-Gesundheit\": Für die Analyse werden Passwörter nur lokal nach der Entschlüsselung in deiner aktiven Sitzung ausgewertet (z.B. auf Schwäche, Alter und Wiederverwendung). Es erfolgt dabei keine zusätzliche dauerhafte Speicherung von Klartext-Passwörtern auf dem Server."
+      "content": "Wir erfassen nur das Nötigste, um den Dienst bereitzustellen:\n\n- E-Mail-Adresse (für Authentifizierung und Kontowiederherstellung)\n- Verschlüsselte Tresor-Daten (wir können den Inhalt nicht lesen)\n- Serverseitig sichtbare technische Metadaten wie IDs, Besitz-Zuordnungen, Zeitpunkte und neutrale Tresor-Item-Platzhalter\n- Vault-Verifier/OPAQUE-Daten zur Authentifizierung und Entsperrprüfung, nicht dein Klartext-Passwort\n- Serverseitig verschlüsseltes 2FA/TOTP-Secret (für Zwei-Faktor-Authentifizierung)\n- Authentifizierungs-Metadaten (Anmeldezeitpunkt)\n\nExterner Support: Nur nach eigener Einwilligung wird das Widget von singrabot.mauntingstudios.de geladen. Name, E-Mail-Adresse, Nachricht und Anhänge gibst du freiwillig ein. Dabei werden technisch IP-Adresse und Webseiten-Origin übertragen. Supportdaten werden beim Bot mit DIS verschlüsselt gespeichert, für die Bearbeitung durch Bot-Laufzeit und Discord-Supportteam jedoch kurzzeitig entschlüsselt. Sie sind deshalb ausdrücklich kein Bestandteil des Zero-Knowledge-Vaults. Singra Vault überträgt niemals automatisch Kontodaten, Schlüssel oder Tresorinhalte an ein Ticket. Geschlossene Widget-Tickets werden nach der beim Bot konfigurierten Wiederöffnungsfrist von 1 bis höchstens 168 Stunden irreversibel aus PostgreSQL gelöscht; Discord-Threads und Support-Logs werden anschließend bestmöglich bereinigt. Bereits ausgelieferte Webhooks können nicht zurückgerufen werden. Lösch- und Auskunftsanfragen für Bot-Supportdaten kannst du an kontakt@mauntingstudios.de richten; wir beantworten sie innerhalb von 30 Tagen. Die Löschung deines Singra-Vault-Kontos löscht getrennt gespeicherte Bot-Tickets nicht automatisch.\n\nHinweis zur Funktion \"Tresor-Gesundheit\": Für die Analyse werden Passwörter nur lokal nach der Entschlüsselung in deiner aktiven Sitzung ausgewertet (z.B. auf Schwäche, Alter und Wiederverwendung). Es erfolgt dabei keine zusätzliche dauerhafte Speicherung von Klartext-Passwörtern auf dem Server."
     },
     "security": {
       "title": "Sicherheitsmaßnahmen",
@@ -490,11 +490,11 @@
     },
     "cookies": {
       "title": "Cookies & Lokale Daten",
-      "content": "Wir verwenden lokale Speichertechnologien (LocalStorage und IndexedDB), um deine Einstellungen (z.B. Theme, Sprache), Sitzungsinformationen und den verschlüsselten Offline-Tresor-Cache für die PWA-Nutzung zu speichern. Wir verwenden keine Tracking-Cookies von Drittanbietern."
+      "content": "Wir verwenden lokale Speichertechnologien (LocalStorage und IndexedDB), um deine Einstellungen (z.B. Theme, Sprache), Sitzungsinformationen und den verschlüsselten Offline-Tresor-Cache für die PWA-Nutzung zu speichern. Wir verwenden keine Tracking-Cookies von Drittanbietern. Nach separater Einwilligung speichert das externe Support-Widget Ticket-Zugriffsdaten auf seiner eigenen Origin, damit du freiwillig erstellte Tickets wieder öffnen kannst. Diese Einwilligung kann jederzeit in den Cookie-Einstellungen widerrufen werden."
     },
     "rights": {
       "title": "Deine Rechte",
-      "content": "Du hast jederzeit das Recht auf:\n\n• Auskunft über deine gespeicherten Daten\n• Berichtigung unrichtiger Daten\n• Löschung deines Kontos und aller Daten\n• Export deiner Daten in einem maschinenlesbaren Format"
+      "content": "Du hast jederzeit das Recht auf:\n\n• Auskunft über deine gespeicherten Daten\n• Berichtigung unrichtiger Daten\n• Löschung deines Kontos und der von Singra Vault gespeicherten Kontodaten; getrennte Bot-Supportdaten werden über kontakt@mauntingstudios.de gelöscht\n• Export deiner Daten in einem maschinenlesbaren Format"
     }
   },
   "cookies": {
@@ -606,6 +606,7 @@
       "ACCOUNT_ALREADY_EXISTS": "Es existiert bereits ein Konto mit dieser E-Mail-Adresse.",
       "OPAQUE_RECORD_CONFLICT": "Es existiert bereits ein Konto mit dieser E-Mail-Adresse.",
       "OPAQUE_REGISTRATION_FAILED": "Die Registrierung ist fehlgeschlagen. Bitte versuche es erneut.",
+      "REGISTRATION_CLOSED": "Neue Registrierungen sind derzeit geschlossen.",
       "AUTH_EMAIL_ALREADY_IN_USE": "Es existiert bereits ein Konto mit dieser E-Mail-Adresse.",
       "AUTH_INVALID_OR_EXPIRED_CODE": "Der Code ist ungültig oder abgelaufen.",
       "TOO_MANY_ATTEMPTS": "Zu viele Versuche. Bitte warte kurz und versuche es erneut.",
@@ -850,7 +851,6 @@
       "security": "Sicherheit",
       "billingSupport": "Abo & Support",
       "billing": "Abonnement",
-      "support": "Support",
       "data": "Daten",
       "dataLegal": "Daten & Rechtliches",
       "sharingEmergency": "Freigabe & Notfall"
@@ -1044,71 +1044,6 @@
       "importFailed": "Import fehlgeschlagen. Stelle sicher, dass die Datei gültig ist.",
       "unlockRequired": "Bitte entsperre zuerst deinen Tresor."
     },
-    "support": {
-      "title": "Support",
-      "description": "Erstelle Support-Tickets und verfolge Antwortzeiten.",
-      "currentSla": "Aktuelles Antwortziel",
-      "slaDisclaimer": "Antwortzeiten sind Zielwerte (in der Regel), keine garantierten Fristen.",
-      "securityHint": "Sende niemals dein Master-Passwort, Recovery-Codes, private Schlüssel oder Tresor-Inhalte über den Support.",
-      "subject": "Betreff",
-      "subjectPlaceholder": "Kurze Zusammenfassung deines Problems",
-      "category": "Kategorie",
-      "newTicket": "Neues Ticket",
-      "myTickets": "Meine Tickets",
-      "categories": {
-        "general": "Allgemein",
-        "technical": "Technisches Problem",
-        "billing": "Abrechnung",
-        "security": "Sicherheit",
-        "family": "Familien-Plan",
-        "other": "Sonstiges"
-      },
-      "message": "Nachricht",
-      "messagePlaceholder": "Beschreibe dein Problem möglichst genau (Schritte, Fehler, Erwartung).",
-      "validation": "Bitte mindestens 3 Zeichen im Betreff und 10 Zeichen in der Nachricht eingeben.",
-      "submit": "Ticket erstellen",
-      "submitting": "Wird erstellt...",
-      "submitSuccess": "Support-Ticket wurde erfolgreich erstellt.",
-      "submitError": "Support-Ticket konnte nicht erstellt werden.",
-      "loadError": "Support-Daten konnten nicht geladen werden.",
-      "rateLimited": "Zu viele Anfragen. Bitte warte kurz und versuche es erneut.",
-      "recentTickets": "Letzte Tickets",
-      "noTickets": "Noch keine Support-Tickets vorhanden.",
-      "firstResponseTime": "Erste Antwort: {{minutes}} Min",
-      "awaitingFirstResponse": "Warte auf erste Antwort",
-      "metricsTitle": "Aktueller Support-Durchschnitt",
-      "averageResponse30d": "Durchschnittliche erste Antwortzeit (30 Tage): {{hours}} h",
-      "metricsFootnote": "SLA-Trefferquote (beantwortete Tickets): {{hitRate}}%",
-      "status": {
-        "open": "Offen",
-        "in_progress": "In Bearbeitung",
-        "waiting_user": "Warten auf deine Rückmeldung",
-        "resolved": "Gelöst",
-        "closed": "Geschlossen"
-      },
-      "sla": {
-        "priority24h": "Prioritäts-Support - in der Regel 24h",
-        "standard72h": "Standard-Support - in der Regel 72h"
-      },
-      "realtime": {
-        "connected": "Live-Updates aktiv",
-        "fallback": "Live-Updates getrennt, Fallback-Aktualisierung aktiv"
-      },
-      "chat": {
-        "title": "Chat",
-        "you": "Du",
-        "support": "Support",
-        "replyPlaceholder": "Nachricht schreiben...",
-        "loadError": "Chat konnte nicht geladen werden.",
-        "sendError": "Nachricht konnte nicht gesendet werden.",
-        "ticketClosed": "Dieses Ticket ist geschlossen.",
-        "closeTicket": "Ticket schließen",
-        "closeError": "Ticket konnte nicht geschlossen werden.",
-        "closeSuccess": "Ticket wurde geschlossen.",
-        "newReplyNotification": "Neue Support-Antwort",
-        "newReplyBody": "Du hast eine neue Antwort auf dein Ticket erhalten."
-      }
-    },
     "profile": {
       "title": "Profil",
       "displayName": "Anzeigename",
@@ -1185,7 +1120,7 @@
   "admin": {
     "title": "Admin-Bereich",
     "brand": "Singra Vault",
-    "description": "Interne Verwaltung für Support, Rollen und Rechte.",
+    "description": "Interne Verwaltung für Benutzer, Rollen und Berechtigungen.",
     "loadError": "Admin-Zugriff konnte nicht geladen werden.",
     "accessDeniedTitle": "Kein Zugriff",
     "accessDeniedDescription": "Du hast keine Berechtigung für den internen Admin-Bereich.",
@@ -1193,100 +1128,7 @@
     "accessDeniedMissingPermissions": "Deinem internen Teamkonto fehlen Admin-Berechtigungen (z. B. {{permissions}}).",
     "backToSettings": "Zurück zu Einstellungen",
     "tabs": {
-      "support": "Support",
       "team": "Team & Rechte"
-    },
-    "support": {
-      "title": "Support-Postfach",
-      "noAccess": "Du hast keine Berechtigung zum Lesen des internen Support-Postfachs.",
-      "loadError": "Support-Tickets konnten nicht geladen werden.",
-      "ticketLoadError": "Ticketdetails konnten nicht geladen werden.",
-      "replyError": "Antwort konnte nicht gesendet werden.",
-      "replySent": "Antwort erfolgreich gesendet.",
-      "statusError": "Ticket-Status konnte nicht aktualisiert werden.",
-      "statusUpdated": "Ticket-Status aktualisiert.",
-      "metricsTitle": "Support-Metriken (30 Tage)",
-      "metricResponse": "Durchschnittliche erste Antwortzeit: {{hours}} h",
-      "metricHitRate": "SLA-Trefferquote: {{rate}}%",
-      "noMetrics": "Keine Metrikdaten verfügbar.",
-      "inboxTitle": "Tickets",
-      "refresh": "Aktualisieren",
-      "realtime": {
-        "connected": "Live",
-        "fallback": "Fallback"
-      },
-      "filters": {
-        "status": "Status",
-        "allStatuses": "Alle Status",
-        "searchPlaceholder": "Betreff durchsuchen",
-        "applySearch": "Suchen"
-      },
-      "noTickets": "Keine Tickets gefunden.",
-      "priority": "Priorität",
-      "ticketDetails": "Ticket-Details",
-      "selectTicket": "Wähle links ein Ticket aus.",
-      "unknownRequester": "Unbekannte Anfrage-E-Mail",
-      "messages": "Nachrichten",
-      "noMessages": "Keine Nachrichten vorhanden.",
-      "author": {
-        "user": "Nutzer",
-        "support": "Support-Team",
-        "system": "System"
-      },
-      "internalBadge": "Intern",
-      "statusUpdateLabel": "Status ändern",
-      "statusUpdateAction": "Status speichern",
-      "requesterEmail": "Anfrage-E-Mail",
-      "userId": "Nutzer-ID",
-      "createdAt": "Erstellt",
-      "lastActivity": "Letzte Aktivität",
-      "firstResponse": "Erste Antwort",
-      "slaDue": "SLA fällig",
-      "tierSnapshot": "Plan-Snapshot",
-      "currentStatus": "Aktueller Status",
-      "noLatestMessage": "Noch keine Nachricht vorhanden.",
-      "conversationTitle": "Konversation",
-      "conversationDescription": "Live-Verlauf mit dem Nutzer und internen Notizen für das Support-Team.",
-      "workflowTitle": "Workflow",
-      "workflowDescription": "Status ändern und die operativen Ticket-Details an einem Ort prüfen.",
-      "overviewTitle": "Nutzerübersicht",
-      "overviewDescription": "Konto und Plan des anfragenden Nutzers schnell zuordnen.",
-      "timelineTitle": "Zeitachse und SLA",
-      "timelineDescription": "Erstellt-, Update- und Reaktionszeitpunkte auf einen Blick.",
-      "tabs": {
-        "conversation": "Konversation",
-        "workflow": "Workflow"
-      },
-      "replyLabel": "Antwort verfassen",
-      "replyPlaceholder": "Antwort für den Nutzer oder interne Notiz eingeben...",
-      "internalNoteToggle": "Als interne Notiz speichern",
-      "replySending": "Wird gesendet...",
-      "replyAction": "Antwort senden",
-      "subscriptionAssigner": {
-        "title": "Abo zuweisen",
-        "description": "Weise dem aktuellen Nutzer manuell ein Abo-Tier zu.",
-        "lookupLabel": "Ziel-Nutzer-ID",
-        "lookupPlaceholder": "Nutzer-ID eingeben",
-        "resolveAction": "ID übernehmen",
-        "ticketUserHint": "Ticket-Nutzer: {{userId}}",
-        "noTicketUserHint": "Kein Ticket-Nutzer vorausgewählt.",
-        "targetUser": "Ziel-Nutzer: {{userId}}",
-        "tierLabel": "Tier",
-        "tier": {
-          "free": "Free",
-          "premium": "Premium",
-          "families": "Families",
-          "self_hosted": "Self-hosted"
-        },
-        "reasonLabel": "Begründung",
-        "reasonPlaceholder": "Begründe kurz, warum die manuelle Zuweisung nötig ist.",
-        "assignAction": "Zuweisen",
-        "assigning": "Wird zugewiesen...",
-        "success": "Abo erfolgreich zugewiesen.",
-        "errorMissingUser": "Bitte gib eine Ziel-Nutzer-ID an.",
-        "errorReasonTooShort": "Die Begründung muss mindestens 3 Zeichen haben.",
-        "errorAssignFailed": "Abo konnte nicht zugewiesen werden."
-      }
     },
     "team": {
       "title": "Team & Rechte",
@@ -1349,7 +1191,6 @@
         "admin": "Admin"
       },
       "categories": {
-        "support": "Support",
         "team": "Team"
       },
       "permissionsUpdateError": "Berechtigung konnte nicht aktualisiert werden.",
@@ -1604,16 +1445,9 @@
       "passkey_unlock": "Passkey Tresor-Entsperrung (PRF)",
       "vault_health_reports": "Tresor-Gesundheitsbericht",
       "vault_integrity": "Tresor-Integritätsprüfung",
-      "priority_support": "Prioritäts-Support",
       "six_accounts": "6 Premium-Konten",
       "shared_collections": "Geteilte Sammlungen",
       "family_organization": "Familien-Organisation"
-    },
-    "support": {
-      "free_sla": "Standard-Support - in der Regel 72h",
-      "premium_sla": "Prioritäts-Support - in der Regel 24h",
-      "families_sla": "Prioritäts-Support - in der Regel 24h (Owner + alle aktiven Familienmitglieder)",
-      "sla_note": "Support-Antwortzeiten sind Zielwerte in der Regel."
     },
     "free_security_note": "AES-256-GCM + Argon2id für alle Nutzer inklusive",
     "legal_info": "Alle Preise inkl. MwSt. Abonnements verlängern sich automatisch, sofern sie nicht vor Ablauf des Abrechnungszeitraums gekündigt werden.",

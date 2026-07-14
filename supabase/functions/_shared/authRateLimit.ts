@@ -15,6 +15,7 @@ export type AuthRateLimitAction =
   | "opaque_login"
   | "opaque_reset"
   | "opaque_register"
+  | "opaque_register_verify"
   | "account_delete"
   | "webauthn_challenge"
   | "webauthn_verify"
@@ -158,6 +159,11 @@ const AUTH_RATE_LIMITS: Record<AuthRateLimitAction, AuthRateLimitConfig> = {
     lockoutMs: 60 * 60 * 1000,
   },
   opaque_register: {
+    maxAttempts: 5,
+    windowMs: 15 * 60 * 1000,
+    lockoutMs: 60 * 60 * 1000,
+  },
+  opaque_register_verify: {
     maxAttempts: 5,
     windowMs: 15 * 60 * 1000,
     lockoutMs: 60 * 60 * 1000,

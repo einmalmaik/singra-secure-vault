@@ -49,17 +49,6 @@ const supabaseAdmin = createClient(
   supabaseUrl || "http://localhost:54321",
   supabaseServiceKey || "test-service-role-key",
 );
-const supabaseAnon = createClient(
-  supabaseUrl || "http://localhost:54321",
-  supabasePublishableKey || "test-anon-key",
-  {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-      detectSessionInUrl: false,
-    },
-  },
-);
 const describeIfSupabase = hasSupabaseTestEnv ? describe : describe.skip;
 
 describeIfSupabase("OPAQUE registration flow", () => {
@@ -88,6 +77,14 @@ describeIfSupabase("OPAQUE registration flow", () => {
         password,
       );
 
+      const linkResult = await supabaseAdmin.auth.admin.generateLink({
+        type: "signup",
+        email,
+        password: `unused-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      });
+      expect(linkResult.error).toBeNull();
+      expect(linkResult.data.properties?.email_otp).toBeTruthy();
+
       const finishResponse = await invokePublicAuthFunction<AuthRegisterFinishResponse>(
         "auth-register",
         {
@@ -95,6 +92,7 @@ describeIfSupabase("OPAQUE registration flow", () => {
           email,
           registrationId: startResponse.json.registrationId,
           registrationRecord: finishedRegistration.registrationRecord,
+          verificationCode: linkResult.data.properties!.email_otp,
         },
       );
       expect(finishResponse.status).toBe(200);
@@ -108,7 +106,7 @@ describeIfSupabase("OPAQUE registration flow", () => {
 
       const { data: authUserData, error: authUserError } = await supabaseAdmin.auth.admin.getUserById(userId!);
       expect(authUserError).toBeNull();
-      expect(authUserData.user?.email_confirmed_at ?? null).toBeNull();
+      expect(authUserData.user?.email_confirmed_at).toBeTruthy();
       expect(authUserData.user?.confirmation_sent_at).toBeTruthy();
 
       const { data: opaqueRecord, error: opaqueRecordError } = await supabaseAdmin
@@ -126,22 +124,6 @@ describeIfSupabase("OPAQUE registration flow", () => {
         .single();
       expect(profileError).toBeNull();
       expect(profile?.auth_protocol).toBe("opaque");
-
-      const linkResult = await supabaseAdmin.auth.admin.generateLink({
-        type: "signup",
-        email,
-        password: `unused-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-      });
-      expect(linkResult.error).toBeNull();
-      expect(linkResult.data.properties?.email_otp).toBeTruthy();
-
-      const verifyResult = await supabaseAnon.auth.verifyOtp({
-        email,
-        token: linkResult.data.properties!.email_otp,
-        type: "signup",
-      });
-      expect(verifyResult.error).toBeNull();
-      expect(verifyResult.data.user?.email_confirmed_at).toBeTruthy();
 
       const { clientLoginState, startLoginRequest } = await startLogin(password);
       const loginStartResponse = await invokePublicAuthFunction<AuthOpaqueStartResponse>(

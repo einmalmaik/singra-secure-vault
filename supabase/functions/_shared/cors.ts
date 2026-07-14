@@ -69,6 +69,10 @@ const configuredPreviewOriginSuffixes = readEnv("ALLOWED_PREVIEW_ORIGIN_SUFFIXES
     .filter((suffix): suffix is string => Boolean(suffix));
 
 function isAllowedOrigin(origin: string): boolean {
+    console.log("[CORS Debug] Checking origin:", origin);
+    console.log("[CORS Debug] ALLOW_LOCAL_DEV_ORIGINS:", readEnv("ALLOW_LOCAL_DEV_ORIGINS"));
+    console.log("[CORS Debug] ALLOWED_DEV_ORIGINS:", readEnv("ALLOWED_DEV_ORIGINS"));
+    console.log("[CORS Debug] configuredLocalDevOrigins:", configuredLocalDevOrigins);
     if (productionOrigins.includes(origin)) return true;
     if (configuredDesktopOrigins.includes(origin)) return true;
     if (configuredLocalDevOrigins.includes(origin)) return true;

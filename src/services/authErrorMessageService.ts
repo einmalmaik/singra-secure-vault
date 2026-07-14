@@ -5,6 +5,7 @@ export type StableAuthErrorCode =
   | 'OPAQUE_RECORD_CONFLICT'
   | 'OPAQUE_REGISTRATION_FAILED'
   | 'AUTH_EMAIL_ALREADY_IN_USE'
+  | 'REGISTRATION_CLOSED'
   | 'AUTH_INVALID_OR_EXPIRED_CODE'
   | 'TOO_MANY_ATTEMPTS'
   | 'AUTH_REQUIRED'
@@ -67,6 +68,7 @@ function isStableAuthErrorCode(value: string): value is StableAuthErrorCode {
     'OPAQUE_RECORD_CONFLICT',
     'OPAQUE_REGISTRATION_FAILED',
     'AUTH_EMAIL_ALREADY_IN_USE',
+    'REGISTRATION_CLOSED',
     'AUTH_INVALID_OR_EXPIRED_CODE',
     'TOO_MANY_ATTEMPTS',
     'AUTH_REQUIRED',
@@ -81,6 +83,8 @@ function fallbackForCode(code: StableAuthErrorCode): string {
     case 'AUTH_EMAIL_ALREADY_IN_USE':
     case 'OPAQUE_RECORD_CONFLICT':
       return 'An account with this email already exists.';
+    case 'REGISTRATION_CLOSED':
+      return 'New registrations are currently closed.';
     case 'AUTH_INVALID_OR_EXPIRED_CODE':
       return 'The code is invalid or expired.';
     case 'TOO_MANY_ATTEMPTS':

@@ -23,10 +23,10 @@ import { ProtectedRoute } from "./components/layout/ProtectedRoute";
 import { VaultUnlockRequiredRoute } from "./components/layout/VaultUnlockRequiredRoute";
 import { CookieConsent } from "./components/CookieConsent";
 import { AppConfigurationNotice } from "@/components/AppConfigurationNotice";
-import { getExtensionRoutes, getExtension } from "@/extensions/registry";
-import type { SupportWidgetExtensionProps } from "@/extensions/types";
+import { getExtensionRoutes } from "@/extensions/registry";
+import { SingraSupportIntegration } from '@/components/support/SingraSupportIntegration';
 import { checkForDesktopUpdates } from "@/services/desktopUpdateService";
-import { useEffect, type ComponentType } from "react";
+import { useEffect } from "react";
 
 // Import i18n configuration
 import "@/i18n";
@@ -44,35 +44,12 @@ import DesktopUpdatePreviewPage from "./pages/DesktopUpdatePreviewPage";
 import VaultHealthPage from "./pages/VaultHealthPage";
 import AuthenticatorPage from "./pages/AuthenticatorPage";
 import GrantorVaultPage from "./pages/GrantorVaultPage";
+import SupportPage from './pages/SupportPage';
 
 const queryClient = new QueryClient();
 
-interface SupportWidgetHostProps {
-  SupportWidget: ComponentType<SupportWidgetExtensionProps> | null;
-}
-
-function SupportWidgetHost({ SupportWidget }: SupportWidgetHostProps) {
-  const { user, session, authReady, isOfflineSession } = useAuth();
-
-  if (!SupportWidget) {
-    return null;
-  }
-
-  return (
-    <SupportWidget
-      auth={{
-        user,
-        session,
-        authReady,
-        isOfflineSession,
-      }}
-    />
-  );
-}
-
 const App = () => {
   const premiumRoutes = getExtensionRoutes();
-  const SupportWidget = getExtension<SupportWidgetExtensionProps>('layout.support-widget');
 
   useEffect(() => {
     void checkForDesktopUpdates();
@@ -97,7 +74,7 @@ const App = () => {
                   >
                     <AppConfigurationNotice />
                     <CookieConsent />
-                    <SupportWidgetHost SupportWidget={SupportWidget} />
+                    <SingraSupportIntegration />
                     <Routes>
                       {/* Core Routes */}
                       <Route path="/" element={<Index />} />
@@ -124,6 +101,7 @@ const App = () => {
                       {/* Admin route is now registered via initPremium as a premium route */}
                       <Route path="/security" element={<SecurityWhitepaper />} />
                       <Route path="/privacy" element={<PrivacyPolicy />} />
+                      <Route path="/support" element={<SupportPage />} />
                       <Route
                         path="/vault-health"
                         element={

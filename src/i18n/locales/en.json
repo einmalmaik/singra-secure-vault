@@ -478,7 +478,7 @@
     },
     "collection": {
       "title": "Data Collection",
-      "content": "We collect only what is necessary to provide the service:\n\n- Email address (for authentication and account recovery)\n- Encrypted vault data (we cannot read the content)\n- Server-visible technical metadata such as IDs, ownership references, timestamps, and neutral vault-item placeholders\n- Vault verifier/OPAQUE data for authentication and unlock checks, not your plaintext password\n- Server-side encrypted 2FA/TOTP secret (for two-factor authentication)\n- Authentication metadata (login time)\n\nVault Health note: For the analysis feature, passwords are evaluated locally after decryption in your active session (e.g. strength, age, and reuse checks). No additional persistent server-side storage of plaintext passwords is performed."
+      "content": "We collect only what is necessary to provide the service:\n\n- Email address (for authentication and account recovery)\n- Encrypted vault data (we cannot read the content)\n- Server-visible technical metadata such as IDs, ownership references, timestamps, and neutral vault-item placeholders\n- Vault verifier/OPAQUE data for authentication and unlock checks, not your plaintext password\n- Server-side encrypted 2FA/TOTP secret (for two-factor authentication)\n- Authentication metadata (login time)\n\nExternal support: The widget from singrabot.mauntingstudios.de is loaded only after separate consent. You voluntarily provide name, email address, message, and attachments. The connection technically transmits your IP address and website origin. Support data is encrypted with DIS at the bot, but is briefly decrypted by the bot runtime and Discord support team for processing. It is therefore explicitly outside the Zero-Knowledge vault. Singra Vault never sends account data, keys, or vault contents to a ticket automatically. Closed widget tickets are irreversibly removed from PostgreSQL after the bot-configured reopen window of 1 to at most 168 hours; Discord threads and support logs are then cleaned up on a best-effort basis. Webhooks already delivered cannot be recalled. You can send deletion and access requests for bot support data to kontakt@mauntingstudios.de; we respond within 30 days. Deleting your Singra Vault account does not automatically delete separately stored bot tickets.\n\nVault Health note: For the analysis feature, passwords are evaluated locally after decryption in your active session (e.g. strength, age, and reuse checks). No additional persistent server-side storage of plaintext passwords is performed."
     },
     "security": {
       "title": "Security Measures",
@@ -490,11 +490,11 @@
     },
     "cookies": {
       "title": "Cookies & Local Data",
-      "content": "We use local storage technologies (LocalStorage and IndexedDB) to store your settings (e.g., theme, language), session information, and encrypted offline vault cache for PWA use. We do not use third-party tracking cookies."
+      "content": "We use local storage technologies (LocalStorage and IndexedDB) to store your settings (e.g., theme, language), session information, and encrypted offline vault cache for PWA use. We do not use third-party tracking cookies. After separate consent, the external support widget stores ticket-access data on its own origin so you can reopen tickets you created voluntarily. You can withdraw this consent at any time in cookie settings."
     },
     "rights": {
       "title": "Your Rights",
-      "content": "You have the right at any time to:\n\n• Information about your stored data\n• Correction of incorrect data\n• Deletion of your account and all data\n• Export of your data in a machine-readable format"
+      "content": "You have the right at any time to:\n\n• Information about your stored data\n• Correction of incorrect data\n• Deletion of your account and account data stored by Singra Vault; separate bot support data is deleted through kontakt@mauntingstudios.de\n• Export of your data in a machine-readable format"
     }
   },
   "cookies": {
@@ -606,6 +606,7 @@
       "ACCOUNT_ALREADY_EXISTS": "An account with this email address already exists.",
       "OPAQUE_RECORD_CONFLICT": "An account with this email address already exists.",
       "OPAQUE_REGISTRATION_FAILED": "Registration failed. Please try again.",
+      "REGISTRATION_CLOSED": "New registrations are currently closed.",
       "AUTH_EMAIL_ALREADY_IN_USE": "An account with this email address already exists.",
       "AUTH_INVALID_OR_EXPIRED_CODE": "The code is invalid or expired.",
       "TOO_MANY_ATTEMPTS": "Too many attempts. Please wait and try again.",
@@ -830,7 +831,6 @@
       "security": "Security",
       "billingSupport": "Billing & Support",
       "billing": "Subscription",
-      "support": "Support",
       "data": "Data",
       "dataLegal": "Data & Legal",
       "sharingEmergency": "Sharing & Emergency"
@@ -1024,71 +1024,6 @@
       "importFailed": "Import failed. Make sure the file is valid.",
       "unlockRequired": "Please unlock your vault first."
     },
-    "support": {
-      "title": "Support",
-      "description": "Create support tickets and track response times.",
-      "currentSla": "Current response target",
-      "slaDisclaimer": "Response times are target values (in the usual case), not guaranteed response deadlines.",
-      "securityHint": "Never send your master password, recovery codes, private keys, or vault content via support messages.",
-      "subject": "Subject",
-      "subjectPlaceholder": "Short issue summary",
-      "category": "Category",
-      "newTicket": "New Ticket",
-      "myTickets": "My Tickets",
-      "categories": {
-        "general": "General",
-        "technical": "Technical issue",
-        "billing": "Billing",
-        "security": "Security",
-        "family": "Family plan",
-        "other": "Other"
-      },
-      "message": "Message",
-      "messagePlaceholder": "Describe your issue in detail (steps, errors, expected result).",
-      "validation": "Please enter at least 3 characters for subject and 10 characters for message.",
-      "submit": "Create Ticket",
-      "submitting": "Creating...",
-      "submitSuccess": "Support ticket created successfully.",
-      "submitError": "Failed to create support ticket.",
-      "loadError": "Failed to load support data.",
-      "rateLimited": "Too many requests. Please wait a moment and try again.",
-      "recentTickets": "Recent tickets",
-      "noTickets": "No support tickets yet.",
-      "firstResponseTime": "First response: {{minutes}} min",
-      "awaitingFirstResponse": "Waiting for first response",
-      "metricsTitle": "Current support average",
-      "averageResponse30d": "Average first response time (30 days): {{hours}} h",
-      "metricsFootnote": "SLA hit rate (responded tickets): {{hitRate}}%",
-      "status": {
-        "open": "Open",
-        "in_progress": "In progress",
-        "waiting_user": "Waiting for your reply",
-        "resolved": "Resolved",
-        "closed": "Closed"
-      },
-      "sla": {
-        "priority24h": "Priority support - usually within 24h",
-        "standard72h": "Standard support - usually within 72h"
-      },
-      "realtime": {
-        "connected": "Live updates enabled",
-        "fallback": "Live updates disconnected, fallback refresh active"
-      },
-      "chat": {
-        "title": "Chat",
-        "you": "You",
-        "support": "Support",
-        "replyPlaceholder": "Write a message...",
-        "loadError": "Could not load chat.",
-        "sendError": "Could not send message.",
-        "ticketClosed": "This ticket is closed.",
-        "closeTicket": "Close ticket",
-        "closeError": "Could not close ticket.",
-        "closeSuccess": "Ticket has been closed.",
-        "newReplyNotification": "New support reply",
-        "newReplyBody": "You received a new reply on your support ticket."
-      }
-    },
     "profile": {
       "title": "Profile",
       "displayName": "Display Name",
@@ -1165,7 +1100,7 @@
   "admin": {
     "title": "Admin Area",
     "brand": "Singra Vault",
-    "description": "Internal operations for support, team roles, and permission management.",
+    "description": "Internal operations for users, team roles, and permissions.",
     "loadError": "Failed to load admin access.",
     "accessDeniedTitle": "Access denied",
     "accessDeniedDescription": "You don't have permission to access the internal admin area.",
@@ -1173,100 +1108,7 @@
     "accessDeniedMissingPermissions": "Your internal team account is missing admin permissions (e.g. {{permissions}}).",
     "backToSettings": "Back to settings",
     "tabs": {
-      "support": "Support",
       "team": "Team & Permissions"
-    },
-    "support": {
-      "title": "Support Inbox",
-      "noAccess": "You don't have permission to read the internal support inbox.",
-      "loadError": "Failed to load support tickets.",
-      "ticketLoadError": "Failed to load ticket details.",
-      "replyError": "Failed to send reply.",
-      "replySent": "Reply sent successfully.",
-      "statusError": "Failed to update ticket status.",
-      "statusUpdated": "Ticket status updated.",
-      "metricsTitle": "Support metrics (30 days)",
-      "metricResponse": "Average first response time: {{hours}} h",
-      "metricHitRate": "SLA hit rate: {{rate}}%",
-      "noMetrics": "No metric data available.",
-      "inboxTitle": "Tickets",
-      "refresh": "Refresh",
-      "realtime": {
-        "connected": "Live",
-        "fallback": "Fallback"
-      },
-      "filters": {
-        "status": "Status",
-        "allStatuses": "All statuses",
-        "searchPlaceholder": "Search by subject",
-        "applySearch": "Search"
-      },
-      "noTickets": "No tickets found.",
-      "priority": "Priority",
-      "ticketDetails": "Ticket details",
-      "selectTicket": "Select a ticket on the left.",
-      "unknownRequester": "Unknown requester email",
-      "messages": "Messages",
-      "noMessages": "No messages yet.",
-      "author": {
-        "user": "User",
-        "support": "Support team",
-        "system": "System"
-      },
-      "internalBadge": "Internal",
-      "statusUpdateLabel": "Update status",
-      "statusUpdateAction": "Save status",
-      "requesterEmail": "Requester email",
-      "userId": "User ID",
-      "createdAt": "Created",
-      "lastActivity": "Last activity",
-      "firstResponse": "First response",
-      "slaDue": "SLA due",
-      "tierSnapshot": "Plan snapshot",
-      "currentStatus": "Current status",
-      "noLatestMessage": "No message yet.",
-      "conversationTitle": "Conversation",
-      "conversationDescription": "Live thread with the requester and internal notes for the support team.",
-      "workflowTitle": "Workflow",
-      "workflowDescription": "Update status and review the operational ticket details in one place.",
-      "overviewTitle": "Requester overview",
-      "overviewDescription": "Map the requesting account and plan quickly.",
-      "timelineTitle": "Timeline and SLA",
-      "timelineDescription": "Created, updated, and response milestones at a glance.",
-      "tabs": {
-        "conversation": "Conversation",
-        "workflow": "Workflow"
-      },
-      "replyLabel": "Compose reply",
-      "replyPlaceholder": "Write a user reply or internal note...",
-      "internalNoteToggle": "Save as internal note",
-      "replySending": "Sending...",
-      "replyAction": "Send reply",
-      "subscriptionAssigner": {
-        "title": "Assign subscription",
-        "description": "Manually assign a subscription tier to the current user.",
-        "lookupLabel": "Target user ID",
-        "lookupPlaceholder": "Enter a user ID",
-        "resolveAction": "Use ID",
-        "ticketUserHint": "Ticket user: {{userId}}",
-        "noTicketUserHint": "No ticket user preselected.",
-        "targetUser": "Target user: {{userId}}",
-        "tierLabel": "Tier",
-        "tier": {
-          "free": "Free",
-          "premium": "Premium",
-          "families": "Families",
-          "self_hosted": "Self-hosted"
-        },
-        "reasonLabel": "Reason",
-        "reasonPlaceholder": "Explain why this manual assignment is needed.",
-        "assignAction": "Assign",
-        "assigning": "Assigning...",
-        "success": "Subscription assigned successfully.",
-        "errorMissingUser": "Please provide a target user ID.",
-        "errorReasonTooShort": "Reason must be at least 3 characters.",
-        "errorAssignFailed": "Failed to assign subscription."
-      }
     },
     "team": {
       "title": "Team & Permissions",
@@ -1329,7 +1171,6 @@
         "admin": "Admin"
       },
       "categories": {
-        "support": "Support",
         "team": "Team"
       },
       "permissionsUpdateError": "Failed to update permission.",
@@ -1586,16 +1427,9 @@
       "passkey_unlock": "Passkey Vault Unlock (PRF)",
       "vault_health_reports": "Vault Health Reports",
       "vault_integrity": "Vault Integrity Verification",
-      "priority_support": "Priority Support",
       "six_accounts": "6 Premium Accounts",
       "shared_collections": "Shared Collections",
       "family_organization": "Family Organization"
-    },
-    "support": {
-      "free_sla": "Standard support - usually within 72h",
-      "premium_sla": "Priority support - usually within 24h",
-      "families_sla": "Priority support - usually within 24h (owner + all active family members)",
-      "sla_note": "Support response times are target values in the usual case."
     },
     "free_security_note": "AES-256-GCM + Argon2id included for all users",
     "legal_info": "All prices include VAT. Subscriptions renew automatically unless canceled before the end of the billing period.",

@@ -56,7 +56,7 @@ const settingsSectionRegistry = new Map<string, SettingsSectionDescriptor>();
 /**
  * Register a component into a named slot.
  *
- * @param slot - The slot identifier (e.g. 'layout.support-widget')
+ * @param slot - The slot identifier (e.g. 'subscription.checkout-dialog')
  * @param component - The React component to render in that slot
  */
 export function registerExtension(slot: ExtensionSlot, component: ExtensionComponent): void {

@@ -43,7 +43,6 @@ describe("useFeatureGate", () => {
         builtin_authenticator: "premium",
         emergency_access: "premium",
         vault_health_reports: "premium",
-        priority_support: "premium",
         duress_password: "premium",
         family_members: "families",
         shared_collections: "families",
@@ -209,9 +208,6 @@ describe("useFeatureGate", () => {
         expect(result.current.requiredTier).toBe("free");
       });
 
-      const { result } = renderHook(() => useFeatureGate("priority_support"));
-      expect(result.current.allowed).toBe(true);
-      expect(result.current.requiredTier).toBe("premium");
     });
 
     it("should expose post-quantum sharing-key protection as a free feature", () => {

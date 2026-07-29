@@ -4,14 +4,17 @@ const OPTIONAL_STORAGE_KEYS = ['Singra-language', 'i18nextLng', 'singra_autolock
 const LEGACY_SIDEBAR_COOKIE = 'sidebar:state';
 
 export interface StoredCookieConsent {
+    version: 2;
     necessary: true;
     optional: boolean;
+    supportIntegration: boolean;
     analytics?: boolean;
     timestamp?: string;
 }
 
 interface SaveCookieConsentInput {
     optional: boolean;
+    supportIntegration: boolean;
 }
 
 const isStoredCookieConsent = (value: unknown): value is StoredCookieConsent => {
@@ -20,7 +23,10 @@ const isStoredCookieConsent = (value: unknown): value is StoredCookieConsent => 
     }
 
     const candidate = value as Partial<StoredCookieConsent>;
-    return candidate.necessary === true && typeof candidate.optional === 'boolean';
+    return candidate.version === 2
+        && candidate.necessary === true
+        && typeof candidate.optional === 'boolean'
+        && typeof candidate.supportIntegration === 'boolean';
 };
 
 export function readCookieConsent(): StoredCookieConsent | null {
@@ -37,10 +43,12 @@ export function readCookieConsent(): StoredCookieConsent | null {
     }
 }
 
-export function saveCookieConsent({ optional }: SaveCookieConsentInput): StoredCookieConsent {
+export function saveCookieConsent({ optional, supportIntegration }: SaveCookieConsentInput): StoredCookieConsent {
     const consent: StoredCookieConsent = {
+        version: 2,
         necessary: true,
         optional,
+        supportIntegration,
         analytics: false,
         timestamp: new Date().toISOString(),
     };
@@ -51,6 +59,10 @@ export function saveCookieConsent({ optional }: SaveCookieConsentInput): StoredC
 
 export function hasOptionalCookieConsent(): boolean {
     return readCookieConsent()?.optional === true;
+}
+
+export function hasSupportIntegrationConsent(): boolean {
+    return readCookieConsent()?.supportIntegration === true;
 }
 
 export function clearOptionalCookieData(): void {

@@ -5,7 +5,7 @@
  */
 
 import { useTranslation } from 'react-i18next';
-import { BarChart3, Shield, Sparkles } from 'lucide-react';
+import { BarChart3, MessageCircle, Shield, Sparkles } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -24,16 +24,20 @@ import { COOKIE_DIALOG_COPY } from '@/components/cookieConsentContent';
 interface CookieSettingsDialogProps {
     open: boolean;
     optional: boolean;
+    supportIntegration: boolean;
     onOpenChange: (open: boolean) => void;
     onOptionalChange: (value: boolean) => void;
+    onSupportIntegrationChange: (value: boolean) => void;
     onSave: () => void;
 }
 
 export function CookieSettingsDialog({
     open,
     optional,
+    supportIntegration,
     onOpenChange,
     onOptionalChange,
+    onSupportIntegrationChange,
     onSave,
 }: CookieSettingsDialogProps) {
     const { i18n } = useTranslation();
@@ -42,6 +46,7 @@ export function CookieSettingsDialog({
     const necessaryItems = copy.categories.necessary.items;
     const functionalItems = copy.categories.functional.items;
     const analyticsItems = copy.categories.analytics.items;
+    const supportItems = copy.categories.support.items;
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -113,6 +118,28 @@ export function CookieSettingsDialog({
                                 onCheckedChange={onOptionalChange}
                                 className="mt-1"
                             />
+                        </div>
+                    </div>
+
+                    <Separator />
+
+                    <div className="space-y-3">
+                        <div className="flex items-start justify-between gap-4">
+                            <div className="flex gap-3 flex-1">
+                                <div className="flex-shrink-0 mt-1 flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                                    <MessageCircle className="h-5 w-5 text-primary" />
+                                </div>
+                                <div className="flex-1">
+                                    <Label htmlFor="support-integration" className="text-base font-semibold mb-1 block">
+                                        {copy.categories.support.title}
+                                    </Label>
+                                    <p className="text-sm text-muted-foreground mb-2">{copy.categories.support.description}</p>
+                                    <ul className="text-xs text-muted-foreground space-y-1 list-disc list-inside">
+                                        {supportItems.map((item) => <li key={item}>{item}</li>)}
+                                    </ul>
+                                </div>
+                            </div>
+                            <Switch id="support-integration" checked={supportIntegration} onCheckedChange={onSupportIntegrationChange} className="mt-1" />
                         </div>
                     </div>
 

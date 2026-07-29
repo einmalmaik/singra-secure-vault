@@ -22,6 +22,25 @@ vi.mock("@/lib/utils", () => ({
   cn: (...args: unknown[]) => args.filter(Boolean).join(" "),
 }));
 
+vi.mock("../CookieSettingsDialog", () => ({
+  CookieSettingsDialog: ({ open, optional, supportIntegration, onOptionalChange, onSupportIntegrationChange, onSave }: {
+    open: boolean;
+    optional: boolean;
+    supportIntegration: boolean;
+    onOptionalChange: (value: boolean) => void;
+    onSupportIntegrationChange: (value: boolean) => void;
+    onSave: () => void;
+  }) => open ? (
+    <div>
+      <h2>Cookie Settings</h2>
+      <input type="checkbox" role="switch" aria-label="Necessary cookies" checked disabled readOnly />
+      <input type="checkbox" role="switch" aria-label="Functional cookies" checked={optional} onChange={(event) => onOptionalChange(event.target.checked)} />
+      <input type="checkbox" role="switch" aria-label="Support integration" checked={supportIntegration} onChange={(event) => onSupportIntegrationChange(event.target.checked)} />
+      <button type="button" onClick={onSave}>Save Preferences</button>
+    </div>
+  ) : null,
+}));
+
 // ============ Tests ============
 
 describe("CookieConsent", () => {
@@ -61,7 +80,7 @@ describe("CookieConsent", () => {
   it("should not show banner when consent already exists", () => {
     localStorage.setItem(
       "singra-cookie-consent",
-      JSON.stringify({ necessary: true, optional: false })
+      JSON.stringify({ version: 2, necessary: true, optional: false, supportIntegration: false })
     );
 
     renderCookieConsent();
@@ -88,6 +107,8 @@ describe("CookieConsent", () => {
 
     const consent = JSON.parse(localStorage.getItem("singra-cookie-consent")!);
     expect(consent.optional).toBe(true);
+    expect(consent.supportIntegration).toBe(true);
+    expect(consent.version).toBe(2);
     expect(consent.necessary).toBe(true);
     expect(screen.queryByRole("button", { name: "Accept all" })).not.toBeInTheDocument();
   });
@@ -112,6 +133,7 @@ describe("CookieConsent", () => {
 
     const consent = JSON.parse(localStorage.getItem("singra-cookie-consent")!);
     expect(consent.optional).toBe(false);
+    expect(consent.supportIntegration).toBe(false);
     expect(consent.necessary).toBe(true);
     expect(localStorage.getItem("Singra-language")).toBeNull();
     expect(localStorage.getItem("i18nextLng")).toBeNull();
@@ -148,7 +170,7 @@ describe("CookieConsent", () => {
   it("should save the functional preference from the settings dialog", () => {
     localStorage.setItem(
       "singra-cookie-consent",
-      JSON.stringify({ necessary: true, optional: false })
+      JSON.stringify({ version: 2, necessary: true, optional: false, supportIntegration: false })
     );
 
     renderCookieConsent();
@@ -168,7 +190,7 @@ describe("CookieConsent", () => {
   it("should clear optional storage when settings are saved with functional cookies disabled", () => {
     localStorage.setItem(
       "singra-cookie-consent",
-      JSON.stringify({ necessary: true, optional: true })
+      JSON.stringify({ version: 2, necessary: true, optional: true, supportIntegration: false })
     );
     localStorage.setItem("Singra-language", "en");
     localStorage.setItem("i18nextLng", "en");
@@ -195,7 +217,7 @@ describe("CookieConsent", () => {
   it("should open dialog via custom event singra:open-cookie-settings", () => {
     localStorage.setItem(
       "singra-cookie-consent",
-      JSON.stringify({ necessary: true, optional: false })
+      JSON.stringify({ version: 2, necessary: true, optional: false, supportIntegration: false })
     );
 
     renderCookieConsent();
@@ -206,5 +228,17 @@ describe("CookieConsent", () => {
     });
 
     expect(screen.getByText("Cookie Settings")).toBeInTheDocument();
+  });
+
+  it("requires renewed consent for legacy stored preferences", () => {
+    localStorage.setItem(
+      "singra-cookie-consent",
+      JSON.stringify({ necessary: true, optional: true })
+    );
+
+    renderCookieConsent();
+    act(() => vi.advanceTimersByTime(100));
+
+    expect(screen.getByRole("button", { name: "Accept all" })).toBeInTheDocument();
   });
 });

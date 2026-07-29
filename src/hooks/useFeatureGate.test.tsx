@@ -39,7 +39,6 @@ function setupMockSubscription(tier: string) {
         builtin_authenticator: { free: false, premium: true, families: true },
         emergency_access: { free: false, premium: true, families: true },
         vault_health_reports: { free: false, premium: true, families: true },
-        priority_support: { free: false, premium: true, families: true },
         family_members: { free: false, premium: false, families: true },
         shared_collections: { free: false, premium: false, families: true },
         post_quantum_encryption: { free: true, premium: true, families: true },
@@ -72,7 +71,6 @@ beforeEach(() => {
             builtin_authenticator: "premium",
             emergency_access: "premium",
             vault_health_reports: "premium",
-            priority_support: "premium",
             duress_password: "premium",
             family_members: "families",
             shared_collections: "families",
@@ -155,13 +153,6 @@ describe("useFeatureGate", () => {
             expect(result.current.requiredTier).toBe("free");
         });
 
-        it("denies priority_support (requires premium)", () => {
-            const { result } = renderHook(() => useFeatureGate("priority_support"));
-            
-            expect(result.current.allowed).toBe(false);
-            expect(result.current.requiredTier).toBe("premium");
-        });
-
         it("denies family_members (requires families)", () => {
             const { result } = renderHook(() => useFeatureGate("family_members"));
             
@@ -238,12 +229,6 @@ describe("useFeatureGate", () => {
             expect(result.current.allowed).toBe(true);
         });
 
-        it("allows priority_support", () => {
-            const { result } = renderHook(() => useFeatureGate("priority_support"));
-            
-            expect(result.current.allowed).toBe(true);
-        });
-
         it("allows post_quantum_encryption", () => {
             const { result } = renderHook(() => useFeatureGate("post_quantum_encryption"));
             
@@ -287,7 +272,6 @@ describe("useFeatureGate", () => {
                 "builtin_authenticator",
                 "emergency_access",
                 "vault_health_reports",
-                "priority_support",
                 "family_members",
                 "shared_collections",
                 "post_quantum_encryption",

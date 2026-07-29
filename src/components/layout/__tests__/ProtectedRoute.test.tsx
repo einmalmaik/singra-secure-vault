@@ -30,20 +30,21 @@ function LocationProbe() {
   );
 }
 
-function renderProtectedSettings(initialEntry = "/settings?tab=security#profile-device-key") {
+function renderProtectedRoute(path: string, label: string) {
   return render(
-    <MemoryRouter initialEntries={[initialEntry]}>
+    <MemoryRouter initialEntries={[path]}>
       <Routes>
         <Route
-          path="/settings"
+          path={path.split("?")[0]}
           element={(
             <ProtectedRoute>
-              <div>Account security settings</div>
+              <div>{label}</div>
               <LocationProbe />
             </ProtectedRoute>
           )}
         />
         <Route path="/auth" element={<LocationProbe />} />
+        <Route path="/vault" element={<LocationProbe />} />
       </Routes>
     </MemoryRouter>,
   );
@@ -62,10 +63,38 @@ describe("ProtectedRoute", () => {
       isOfflineSession: false,
     });
 
-    renderProtectedSettings();
+    renderProtectedRoute("/settings?tab=security#profile-device-key", "Account security settings");
 
     expect(screen.getByText("Account security settings")).toBeInTheDocument();
     expect(screen.getByTestId("location")).toHaveTextContent("/settings?tab=security#profile-device-key");
+  });
+
+  it("allows the admin console for an authenticated account without vault unlock", () => {
+    mockUseAuth.mockReturnValue({
+      user: { id: "user-1", email: "admin@example.com" },
+      loading: false,
+      authReady: true,
+      isOfflineSession: false,
+    });
+
+    renderProtectedRoute("/admin", "Admin console");
+
+    expect(screen.getByText("Admin console")).toBeInTheDocument();
+    expect(screen.getByTestId("location")).toHaveTextContent("/admin");
+  });
+
+  it("keeps offline sessions on admin without forcing vault unlock first", () => {
+    mockUseAuth.mockReturnValue({
+      user: { id: "user-1", email: "admin@example.com" },
+      loading: false,
+      authReady: true,
+      isOfflineSession: true,
+    });
+
+    renderProtectedRoute("/admin", "Admin console");
+
+    expect(screen.getByText("Admin console")).toBeInTheDocument();
+    expect(screen.getByTestId("location")).toHaveTextContent("/admin");
   });
 
   it("keeps the full target URL when unauthenticated users are redirected to auth", () => {
@@ -76,7 +105,7 @@ describe("ProtectedRoute", () => {
       isOfflineSession: false,
     });
 
-    renderProtectedSettings();
+    renderProtectedRoute("/settings?tab=security#profile-device-key", "Account security settings");
 
     const location = screen.getByTestId("location").textContent ?? "";
     expect(location).toContain("/auth?redirect=");

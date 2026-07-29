@@ -87,8 +87,8 @@ import {
 import { AUTH_ERROR_CODES, isUniqueViolation, jsonError } from "../_shared/authErrors.ts";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+const supabaseServiceKey = Deno.env.get("SUPABASE_INTERNAL_SECRET_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const supabaseAnonKey = Deno.env.get("SUPABASE_INTERNAL_PUBLISHABLE_KEY") || Deno.env.get("SUPABASE_ANON_KEY")!;
 const OPAQUE_SERVER_SETUP = Deno.env.get("OPAQUE_SERVER_SETUP")!;
 const SESSION_COOKIE_NAME = "sb-bff-session";
 const SESSION_COOKIE_MAX_AGE = Number(Deno.env.get("SESSION_COOKIE_MAX_AGE_SECONDS") ?? 60 * 60 * 24 * 30);

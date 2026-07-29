@@ -26,6 +26,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { TwoFactorVerificationModal } from '@/components/auth/TwoFactorVerificationModal';
 import { verifyTwoFactorCode } from '@/services/twoFactorService';
 import { requiresDeviceKey } from '@/services/deviceKeyProtectionPolicy';
+import { AdminEntryButton } from '@/components/admin/AdminEntryButton';
 import { buildReturnState } from '@/services/returnNavigationState';
 
 function getVaultUnlockErrorMessage(error: Error, t: TFunction): string {
@@ -289,6 +290,10 @@ export function VaultUnlock() {
                         </Button>
 
                         <div className="pt-4 border-t">
+                            <AdminEntryButton
+                                fullWidth
+                                className="ms-header-secondary-button mb-2"
+                            />
                             <Button
                                 asChild
                                 type="button"

@@ -8,7 +8,9 @@ describe("auth edge functions use anon auth clients for user sessions", () => {
     it("keeps auth-session limited to refresh/hydration and OAuth sync", () => {
         const source = readFileSync("supabase/functions/auth-session/index.ts", "utf-8");
 
-        expect(source).toContain('const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!');
+        expect(source).toContain(
+            'const supabaseAnonKey = Deno.env.get("SUPABASE_INTERNAL_PUBLISHABLE_KEY") || Deno.env.get("SUPABASE_ANON_KEY")!',
+        );
         expect(source).toContain("function createSupabaseAuthClient()");
         expect(source).toContain("authClient.auth.refreshSession");
         expect(source).not.toContain("authClient.auth.signInWithPassword");
@@ -20,7 +22,9 @@ describe("auth edge functions use anon auth clients for user sessions", () => {
         const opaqueSource = readFileSync("supabase/functions/auth-opaque/index.ts", "utf-8");
         const recoverySource = readFileSync("supabase/functions/auth-recovery/index.ts", "utf-8");
 
-        expect(opaqueSource).toContain('const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!');
+        expect(opaqueSource).toContain(
+            'const supabaseAnonKey = Deno.env.get("SUPABASE_INTERNAL_PUBLISHABLE_KEY") || Deno.env.get("SUPABASE_ANON_KEY")!',
+        );
         expect(opaqueSource).toContain("authClient.auth.verifyOtp");
 
         expect(recoverySource).not.toContain("authClient.auth.verifyOtp");

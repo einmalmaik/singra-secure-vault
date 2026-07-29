@@ -1,6 +1,8 @@
 // Copyright (c) 2025-2026 Maunting Studios
 // Licensed under the Business Source License 1.1 - see LICENSE
 
+import { readFileSync } from "node:fs";
+
 import { createClient, type Session } from "@supabase/supabase-js";
 import { describe, expect, it } from "vitest";
 
@@ -49,18 +51,21 @@ const supabaseAdmin = createClient(
   supabaseUrl || "http://localhost:54321",
   supabaseServiceKey || "test-service-role-key",
 );
-const supabaseAnon = createClient(
-  supabaseUrl || "http://localhost:54321",
-  supabasePublishableKey || "test-anon-key",
-  {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-      detectSessionInUrl: false,
-    },
-  },
-);
 const describeIfSupabase = hasSupabaseTestEnv ? describe : describe.skip;
+
+describe("dev test account provisioning", () => {
+  it("registers OPAQUE records with the account password and shared server setup env", () => {
+    const scriptSource = readFileSync("scripts/dev/ensure-dev-test-account.mjs", "utf-8");
+
+    expect(scriptSource).toContain('loadDotenv({ path: "supabase/functions/.env"');
+    expect(scriptSource).toContain("readString(process.env.OPAQUE_SERVER_SETUP)");
+    expect(scriptSource).toContain("resolveSupabaseDbContainerName()");
+    expect(scriptSource).toContain("opaque.client.startRegistration({\n    password,\n  })");
+    expect(scriptSource).toContain("password,\n    keyStretching: \"memory-constrained\",");
+    expect(scriptSource).not.toMatch(/startRegistration\(\{[\s\S]*password:\s*masterPassword/);
+    expect(scriptSource).not.toMatch(/finishRegistration\(\{[\s\S]*password:\s*masterPassword/);
+  });
+});
 
 describeIfSupabase("OPAQUE registration flow", () => {
   it("registers a fresh OPAQUE account, confirms the signup code, and allows OPAQUE login", async () => {
@@ -88,6 +93,14 @@ describeIfSupabase("OPAQUE registration flow", () => {
         password,
       );
 
+      const linkResult = await supabaseAdmin.auth.admin.generateLink({
+        type: "signup",
+        email,
+        password: `unused-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      });
+      expect(linkResult.error).toBeNull();
+      expect(linkResult.data.properties?.email_otp).toBeTruthy();
+
       const finishResponse = await invokePublicAuthFunction<AuthRegisterFinishResponse>(
         "auth-register",
         {
@@ -95,6 +108,7 @@ describeIfSupabase("OPAQUE registration flow", () => {
           email,
           registrationId: startResponse.json.registrationId,
           registrationRecord: finishedRegistration.registrationRecord,
+          verificationCode: linkResult.data.properties!.email_otp,
         },
       );
       expect(finishResponse.status).toBe(200);
@@ -108,7 +122,7 @@ describeIfSupabase("OPAQUE registration flow", () => {
 
       const { data: authUserData, error: authUserError } = await supabaseAdmin.auth.admin.getUserById(userId!);
       expect(authUserError).toBeNull();
-      expect(authUserData.user?.email_confirmed_at ?? null).toBeNull();
+      expect(authUserData.user?.email_confirmed_at).toBeTruthy();
       expect(authUserData.user?.confirmation_sent_at).toBeTruthy();
 
       const { data: opaqueRecord, error: opaqueRecordError } = await supabaseAdmin
@@ -126,22 +140,6 @@ describeIfSupabase("OPAQUE registration flow", () => {
         .single();
       expect(profileError).toBeNull();
       expect(profile?.auth_protocol).toBe("opaque");
-
-      const linkResult = await supabaseAdmin.auth.admin.generateLink({
-        type: "signup",
-        email,
-        password: `unused-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-      });
-      expect(linkResult.error).toBeNull();
-      expect(linkResult.data.properties?.email_otp).toBeTruthy();
-
-      const verifyResult = await supabaseAnon.auth.verifyOtp({
-        email,
-        token: linkResult.data.properties!.email_otp,
-        type: "signup",
-      });
-      expect(verifyResult.error).toBeNull();
-      expect(verifyResult.data.user?.email_confirmed_at).toBeTruthy();
 
       const { clientLoginState, startLoginRequest } = await startLogin(password);
       const loginStartResponse = await invokePublicAuthFunction<AuthOpaqueStartResponse>(
@@ -186,6 +184,56 @@ describeIfSupabase("OPAQUE registration flow", () => {
         await supabaseAdmin.auth.admin.deleteUser(userId);
       }
     }
+  }, 30000);
+});
+
+const devTestEmail = process.env.SINGRA_DEV_TEST_EMAIL || "";
+const devTestPassword = process.env.SINGRA_DEV_TEST_PASSWORD || "";
+const hasDevTestOpaqueEnv = Boolean(
+  hasSupabaseTestEnv &&
+  devTestEmail &&
+  devTestPassword &&
+  process.env.SINGRA_DEV_TEST_ACCOUNT_ENABLED === "true",
+);
+const describeIfDevTestOpaque = hasDevTestOpaqueEnv ? describe : describe.skip;
+
+describeIfDevTestOpaque("dev test account OPAQUE login", () => {
+  it("logs in with SINGRA_DEV_TEST_EMAIL and SINGRA_DEV_TEST_PASSWORD against the real auth-opaque endpoint", async () => {
+    const { clientLoginState, startLoginRequest } = await startLogin(devTestPassword);
+    const loginStartResponse = await invokePublicAuthFunction<AuthOpaqueStartResponse>(
+      "auth-opaque",
+      {
+        action: "login-start",
+        userIdentifier: devTestEmail,
+        startLoginRequest,
+      },
+    );
+
+    expect(loginStartResponse.status).toBe(200);
+    expect(loginStartResponse.status).not.toBe(502);
+    expect(loginStartResponse.status).not.toBe(503);
+    expect(loginStartResponse.json.loginId).toBeTypeOf("string");
+    expect(loginStartResponse.json.loginResponse).toBeTypeOf("string");
+
+    const finishedLogin = await finishLogin(
+      clientLoginState,
+      loginStartResponse.json.loginResponse,
+      devTestPassword,
+    );
+    const loginFinishResponse = await invokePublicAuthFunction<AuthOpaqueFinishResponse>(
+      "auth-opaque",
+      {
+        action: "login-finish",
+        userIdentifier: devTestEmail,
+        finishLoginRequest: finishedLogin.finishLoginRequest,
+        loginId: loginStartResponse.json.loginId,
+        skipCookie: true,
+      },
+    );
+
+    expect(loginFinishResponse.status).toBe(200);
+    expect(loginFinishResponse.json.session?.access_token).toBeTypeOf("string");
+    expect(loginFinishResponse.json.session?.access_token?.length).toBeGreaterThan(0);
   }, 30000);
 });
 

@@ -39,6 +39,11 @@ export const COOKIE_DIALOG_COPY = {
                 description: 'Remember your preferences and settings for a better experience.',
                 items: ['Theme preference', 'Language preference', 'Auto-lock timer'],
             },
+            support: {
+                title: 'External support integration',
+                description: 'Allows an installed extension to load its external support service only after your consent.',
+                items: ['Connection only after consent', 'Ticket details are submitted voluntarily', 'No vault or account data is sent automatically'],
+            },
             analytics: {
                 title: 'Analytics Cookies',
                 description: 'Analytics cookies are currently not implemented and not planned in the near future.',
@@ -63,6 +68,11 @@ export const COOKIE_DIALOG_COPY = {
                 title: 'Funktionale Cookies',
                 description: 'Speichern Präferenzen und Einstellungen für eine bessere Erfahrung.',
                 items: ['Theme-Praeferenz', 'Sprachpraeferenz', 'Auto-Lock-Timer'],
+            },
+            support: {
+                title: 'Externe Support-Integration',
+                description: 'Erlaubt einer installierten Erweiterung, ihren externen Support-Dienst erst nach deiner Einwilligung zu laden.',
+                items: ['Verbindung erst nach Einwilligung', 'Ticketangaben werden freiwillig übermittelt', 'Keine automatische Übertragung von Vault- oder Kontodaten'],
             },
             analytics: {
                 title: 'Analytics-Cookies',

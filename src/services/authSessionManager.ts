@@ -356,7 +356,7 @@ export async function invalidateBffSession(): Promise<boolean> {
     headers: {
       Authorization: `Bearer ${runtimeConfig.supabasePublishableKey}`,
     },
-    credentials: "include",
+    credentials: import.meta.env.DEV ? "omit" : "include",
   });
 
   return res.ok;
@@ -376,7 +376,7 @@ export async function hydrateFromBffCookie(): Promise<Session | null> {
       headers: {
         Authorization: `Bearer ${publishableKey}`,
       },
-      credentials: "include",
+      credentials: import.meta.env.DEV ? "omit" : "include",
     });
 
     if (!response.ok) {

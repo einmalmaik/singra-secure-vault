@@ -101,17 +101,17 @@ nicht nachbauen und nicht mit echten Admin-/Support-Rechten deploybar machen.
 | `accept-family-invitation` | Einladung annehmen |
 | `invite-emergency-access` | Notfallzugang einrichten |
 
-### Admin / Support / Release
+### Admin / Release
 
 | Function | Zweck |
 |----------|-------|
 | `admin-team` | Team-Rollen & Permissions |
 | `desktop-release` | Desktop-Downloads für Website/Landing bereitstellen |
-| `support-submit` | Support-Ticket erstellen |
-| `support-list` | Tickets auflisten / Details / Antworten |
-| `support-metrics` | SLA-Metriken (Admin) |
-| `admin-support` | Admin-Support-Panel Backend |
 | `send-test-mail` | Test-E-Mail senden |
+
+Der frühere Vault-Support ist stillgelegt. Der öffentliche Web-Client bindet nach
+separater Einwilligung ausschließlich das offizielle Singra-Bot-Widget ein; Vault
+betreibt dafür keine Edge Function und erhält keine Ticketdaten.
 
 ## Shared
 

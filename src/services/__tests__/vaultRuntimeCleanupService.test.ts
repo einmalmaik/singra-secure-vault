@@ -21,14 +21,24 @@ describe('vaultRuntimeCleanupService', () => {
   });
 
   it('persists and restores auto-lock timeout only with optional consent', () => {
-    localStorage.setItem('singra-cookie-consent', JSON.stringify({ necessary: true, optional: true }));
+    localStorage.setItem('singra-cookie-consent', JSON.stringify({
+      version: 2,
+      necessary: true,
+      optional: true,
+      supportIntegration: false,
+    }));
     persistAutoLockTimeoutIfAllowed(1234);
     expect(localStorage.getItem('singra_autolock')).toBe('1234');
     expect(getInitialAutoLockTimeout()).toBe(1234);
   });
 
   it('validates session markers against the configured timeout', () => {
-    localStorage.setItem('singra-cookie-consent', JSON.stringify({ necessary: true, optional: true }));
+    localStorage.setItem('singra-cookie-consent', JSON.stringify({
+      version: 2,
+      necessary: true,
+      optional: true,
+      supportIntegration: false,
+    }));
     localStorage.setItem('singra_autolock', '1000');
     sessionStorage.setItem(VAULT_SESSION_STORAGE_KEYS.sessionKey, 'active');
     sessionStorage.setItem(VAULT_SESSION_STORAGE_KEYS.timestampKey, '5000');

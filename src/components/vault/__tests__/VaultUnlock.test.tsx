@@ -51,6 +51,14 @@ vi.mock("@/services/twoFactorService", () => ({
   verifyTwoFactorCode: (...args: unknown[]) => mockVerifyTwoFactorCode(...args),
 }));
 
+vi.mock("@/components/admin/AdminEntryButton", () => ({
+  AdminEntryButton: () => (
+    <button type="button">
+      Admin console entry
+    </button>
+  ),
+}));
+
 vi.mock("@/components/auth/TwoFactorVerificationModal", () => ({
   TwoFactorVerificationModal: ({
     open,
@@ -117,6 +125,12 @@ describe("VaultUnlock", () => {
     expect(screen.getByLabelText("auth.unlock.password")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /auth\.unlock\.submit/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Account Settings/i })).toHaveAttribute("href", "/settings");
+  });
+
+  it("shows admin entry on the locked vault screen without requiring unlock", () => {
+    renderVaultUnlock();
+
+    expect(screen.getByRole("button", { name: "Admin console entry" })).toBeInTheDocument();
   });
 
   it("navigates to account settings from the locked vault screen", () => {

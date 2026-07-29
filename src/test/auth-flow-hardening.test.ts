@@ -194,6 +194,10 @@ describe("auth flow hardening", () => {
     const sessionSource = readFileSync("supabase/functions/auth-session/index.ts", "utf-8");
     const opaqueSource = readFileSync("supabase/functions/auth-opaque/index.ts", "utf-8");
     const registerSource = readFileSync("supabase/functions/auth-register/index.ts", "utf-8");
+    const signupFinalizerSource = readFileSync(
+      "supabase/migrations/20260714053000_atomic_opaque_signup_finalization.sql",
+      "utf-8",
+    );
     const resetSource = readFileSync("supabase/functions/auth-reset-password/index.ts", "utf-8");
     const loadtestSource = readFileSync("loadtest/lib/supabase.js", "utf-8");
 
@@ -206,7 +210,8 @@ describe("auth flow hardening", () => {
     expect(sessionSource).not.toContain("argon2Verify");
     expect(opaqueSource).not.toContain("useLegacy");
     expect(opaqueSource).toContain("disableGotruePasswordLogin");
-    expect(registerSource).toContain("disableGotruePasswordLogin");
+    expect(registerSource).toContain("finish_opaque_signup");
+    expect(signupFinalizerSource).toContain("SET encrypted_password = NULL");
     expect(resetSource).toContain("finish_opaque_password_reset");
     expect(registerSource).not.toContain("argon2id");
     expect(resetSource).toContain("OPAQUE password reset required");

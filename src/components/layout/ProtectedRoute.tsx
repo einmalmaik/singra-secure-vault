@@ -17,6 +17,12 @@ interface ProtectedRouteProps {
     children: React.ReactNode;
 }
 
+function isOfflineAccessiblePath(pathname: string): boolean {
+    return pathname.startsWith('/vault')
+        || pathname.startsWith('/settings')
+        || pathname.startsWith('/admin');
+}
+
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
     const { user, loading, authReady, isOfflineSession } = useAuth();
     const location = useLocation();
@@ -56,7 +62,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
         );
     }
 
-    if (isOfflineSession && !location.pathname.startsWith("/vault")) {
+    if (isOfflineSession && !isOfflineAccessiblePath(location.pathname)) {
         return <Navigate to="/vault" replace />;
     }
 

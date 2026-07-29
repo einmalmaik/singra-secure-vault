@@ -9,7 +9,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams, Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { createClient, type Session } from '@supabase/supabase-js';
+import type { Session } from '@supabase/supabase-js';
 import { Mail, Lock, Eye, EyeOff, Loader2, ClipboardPaste, Link2, WandSparkles, AlertTriangle } from 'lucide-react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -34,7 +34,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { TwoFactorVerificationModal } from '@/components/auth/TwoFactorVerificationModal';
 import { supabase } from '@/integrations/supabase/client';
-import { LanguageSwitcher } from '@maunting/design-dna';
+import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { SEO } from '@/components/SEO';
 import { usePasswordCheck } from '@/hooks/usePasswordCheck';
 import { PasswordStrengthMeter } from '@/components/ui/PasswordStrengthMeter';
@@ -132,6 +132,11 @@ export default function Auth() {
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const { user, authReady, authMode } = useAuth();
+  const pendingSignupRef = useRef<{
+    email: string;
+    registrationId: string;
+    registrationRecord: string;
+  } | null>(null);
 
   const urlToken = searchParams.get('token');
   const [mode, setMode] = useState<'login' | 'signup' | 'verify_signup' | 'recover' | 'verify_recover' | 'update_password'>(
@@ -154,7 +159,7 @@ export default function Auth() {
   const inIframe = (() => {
     try { return window.self !== window.top; } catch { return true; }
   })();
-  const usesCookieSession = !inIframe && !isDesktopRuntime;
+  const usesCookieSession = !inIframe && !isDesktopRuntime && !import.meta.env.DEV;
   const oauthSessionSyncPolicy = useMemo(
     () => resolveOAuthSessionSyncPolicy({ usesCookieSession, isDesktopRuntime }),
     [isDesktopRuntime, usesCookieSession],
@@ -575,25 +580,11 @@ export default function Auth() {
         data.password,
       );
 
-      const finishRes = await fetch(`${API_URL}/auth-register`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${runtimeConfig.supabasePublishableKey}`
-        },
-        credentials: usesCookieSession ? 'include' : 'omit',
-        body: JSON.stringify({
-          action: 'finish',
-          email: userIdentifier,
-          registrationId,
-          registrationRecord,
-        })
-      });
-
-      if (!finishRes.ok) {
-        const errorData = await finishRes.json().catch(() => ({}));
-        throw endpointError(errorData, 'Registration failed');
-      }
+      pendingSignupRef.current = {
+        email: userIdentifier,
+        registrationId,
+        registrationRecord,
+      };
 
       setMode('verify_signup');
       toast({
@@ -616,18 +607,33 @@ export default function Auth() {
     try {
       const email = opaqueClient.normalizeOpaqueIdentifier(signupForm.getValues('email'));
       const password = signupForm.getValues('password'); // Needed for auto-login
+      const pendingSignup = pendingSignupRef.current;
+      if (!pendingSignup || pendingSignup.email !== email) {
+        throw new Error('Die Registrierungssitzung ist abgelaufen. Bitte starte die Registrierung erneut.');
+      }
 
-      const { error: verifyError } = await createEphemeralSupabaseAuthClient().auth.verifyOtp({
-        email,
-        token: data.code,
-        type: 'signup'
+      const finishRes = await fetch(`${API_URL}/auth-register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${runtimeConfig.supabasePublishableKey}`
+        },
+        credentials: usesCookieSession ? 'include' : 'omit',
+        body: JSON.stringify({
+          action: 'finish',
+          email,
+          registrationId: pendingSignup.registrationId,
+          registrationRecord: pendingSignup.registrationRecord,
+          verificationCode: data.code,
+        })
       });
 
-      if (verifyError) {
-        const error = new Error('Invalid or expired code');
-        error.name = 'AUTH_INVALID_OR_EXPIRED_CODE';
-        throw error;
+      if (!finishRes.ok) {
+        const errorData = await finishRes.json().catch(() => ({}));
+        throw endpointError(errorData, 'Registration failed');
       }
+
+      pendingSignupRef.current = null;
 
       await handleLogin({ email, password });
 
@@ -883,7 +889,7 @@ export default function Auth() {
       <div className="sv-auth-form-panel flex-1 flex flex-col items-center justify-center p-6 md:p-12 auth-form-reveal relative">
         <div className="absolute top-4 right-4 z-50">
           <LanguageSwitcher
-            language={i18n.language as any}
+            language={i18n?.language === 'de' ? 'de' : 'en'}
             onChange={(lang) => i18n.changeLanguage(lang)}
           />
         </div>
@@ -1368,16 +1374,6 @@ async function exchangeOAuthCodeForSession(code: string | null): Promise<Session
 
   await persistAuthenticatedSession(data.session);
   return data.session;
-}
-
-function createEphemeralSupabaseAuthClient() {
-  return createClient(runtimeConfig.supabaseUrl, runtimeConfig.supabasePublishableKey, {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-      detectSessionInUrl: false,
-    },
-  });
 }
 
 async function exchangeDesktopOAuthCodeForSession(payload: ParsedOAuthCallbackPayload): Promise<Session> {

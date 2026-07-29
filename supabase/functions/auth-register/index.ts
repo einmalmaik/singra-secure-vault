@@ -67,6 +67,7 @@ import {
     authRateLimitResponse,
     checkAuthRateLimit,
     recordAuthRateLimitFailure,
+    resetAuthRateLimit,
 } from "../_shared/authRateLimit.ts";
 import {
     createUnusableGotruePassword,
@@ -88,12 +89,12 @@ const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
  * Service Role Key für Admin-Operationen.
  * ACHTUNG: Umgeht RLS - nur für User-Erstellung und Record-Speicherung verwenden!
  */
-const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const supabaseServiceKey = Deno.env.get("SUPABASE_INTERNAL_SECRET_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 /**
  * Anonymer Schlüssel für OTP-Versand via Supabase Auth.
  */
-const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+const supabaseAnonKey = Deno.env.get("SUPABASE_INTERNAL_PUBLISHABLE_KEY") || Deno.env.get("SUPABASE_ANON_KEY")!;
 
 /**
  * OPAQUE Server Setup - kryptografische Serverkonfiguration.
@@ -143,7 +144,7 @@ Deno.serve(async (req) => {
         const action = typeof body.action === "string" ? body.action : "start";
 
         if (action === "finish") {
-            return await handleRegistrationFinish(body, headers);
+            return await handleRegistrationFinish(req, body, headers);
         }
 
         return await handleRegistrationStart(req, body, headers);
@@ -186,6 +187,17 @@ async function handleRegistrationStart(
         return new Response(JSON.stringify({ error: "Invalid input" }), { status: 400, headers });
     }
 
+    const { data: registrationOpen, error: registrationPolicyError } =
+        await supabaseAdmin.rpc("is_public_registration_open");
+    if (registrationPolicyError || registrationOpen !== true) {
+        return jsonError(
+            AUTH_ERROR_CODES.REGISTRATION_CLOSED,
+            "Registration is currently closed",
+            403,
+            headers,
+        );
+    }
+
     const registerRateLimit = await checkAuthRateLimit({
         supabaseAdmin,
         req,
@@ -212,15 +224,6 @@ async function handleRegistrationStart(
         ? existingUsers[0].id as string
         : null;
 
-    if (existingUserId) {
-        return jsonError(
-            AUTH_ERROR_CODES.ACCOUNT_ALREADY_EXISTS,
-            "Account already exists",
-            409,
-            headers,
-        );
-    }
-
     const { data: existingOpaqueRecord, error: opaqueLookupError } = await supabaseAdmin
         .from("user_opaque_records")
         .select("user_id")
@@ -236,12 +239,42 @@ async function handleRegistrationStart(
         );
     }
     if (existingOpaqueRecord) {
-        return jsonError(
-            AUTH_ERROR_CODES.OPAQUE_RECORD_CONFLICT,
-            "Account already exists",
-            409,
-            headers,
-        );
+        return createDecoyRegistrationStart(email, registrationRequest, headers);
+    }
+
+    if (existingUserId) {
+        const [{ data: existingAuthUser }, { data: pendingChallenge }] = await Promise.all([
+            supabaseAdmin.auth.admin.getUserById(existingUserId),
+            supabaseAdmin
+                .from("opaque_registration_challenges")
+                .select("id")
+                .eq("user_id", existingUserId)
+                .eq("email", email)
+                .eq("purpose", "signup")
+                .is("consumed_at", null)
+                .gt("expires_at", new Date().toISOString())
+                .maybeSingle(),
+        ]);
+        const canRestartPendingSignup =
+            existingAuthUser.user !== null
+            && normalizeOpaqueIdentifier(existingAuthUser.user.email) === email
+            && existingAuthUser.user.email_confirmed_at === null
+            && existingAuthUser.user.app_metadata?.signup_origin === "opaque"
+            && pendingChallenge !== null;
+
+        if (!canRestartPendingSignup) {
+            return createDecoyRegistrationStart(email, registrationRequest, headers);
+        }
+
+        const { error: deletePendingUserError } =
+            await supabaseAdmin.auth.admin.deleteUser(existingUserId);
+        if (deletePendingUserError) {
+            console.error(
+                "Failed to restart pending OPAQUE signup:",
+                sanitizeAuthError(deletePendingUserError),
+            );
+            return createDecoyRegistrationStart(email, registrationRequest, headers);
+        }
     }
 
     let userId: string;
@@ -250,11 +283,9 @@ async function handleRegistrationStart(
     } catch (error) {
         console.error("Failed to create OPAQUE-only auth user:", sanitizeAuthError(error));
         return jsonError(
-            isUniqueViolation(error)
-                ? AUTH_ERROR_CODES.AUTH_EMAIL_ALREADY_IN_USE
-                : AUTH_ERROR_CODES.OPAQUE_REGISTRATION_FAILED,
-            isUniqueViolation(error) ? "Account already exists" : "Registration failed",
-            isUniqueViolation(error) ? 409 : 500,
+            AUTH_ERROR_CODES.OPAQUE_REGISTRATION_FAILED,
+            "Registration failed",
+            500,
             headers,
         );
     }
@@ -308,42 +339,50 @@ async function handleRegistrationStart(
  *
  * Workflow:
  * 1. Validiert Eingaben
- * 2. Konsumiert Challenge (markiert als verwendet)
- * 3. Speichert OPAQUE Registration Record
- * 4. Setzt auth_protocol auf 'opaque'
- * 5. Löscht user_security (Legacy-Daten)
- * 6. Deaktiviert GoTrue-Passwort-Login
+ * 2. Verifiziert den Supabase-Signup-OTP
+ * 3. Finalisiert Challenge, OPAQUE-Record und GoTrue-Deaktivierung atomar
  *
  * WICHTIG: Nach diesem Schritt kann sich der User NUR noch via OPAQUE
  * authentifizieren, nicht mehr mit GoTrue-Passwort.
  *
- * @param body - Request-Body mit `email`, `registrationId`, `registrationRecord`
+ * @param body - Request-Body mit `email`, `registrationId`, `registrationRecord`, `verificationCode`
  * @param headers - Response-Headers
  * @returns JSON mit `success: true` bei Erfolg
  */
 async function handleRegistrationFinish(
-    body: { email?: unknown; registrationId?: unknown; registrationRecord?: unknown },
+    req: Request,
+    body: {
+        email?: unknown;
+        registrationId?: unknown;
+        registrationRecord?: unknown;
+        verificationCode?: unknown;
+    },
     headers: Headers,
 ): Promise<Response> {
     const email = normalizeOpaqueIdentifier(body.email);
     const registrationId = typeof body.registrationId === "string" ? body.registrationId : "";
     const registrationRecord = typeof body.registrationRecord === "string" ? body.registrationRecord : "";
+    const verificationCode = typeof body.verificationCode === "string" ? body.verificationCode.trim() : "";
 
-    if (!isValidOpaqueIdentifier(email) || !registrationId || !registrationRecord) {
+    if (
+        !isValidOpaqueIdentifier(email)
+        || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(registrationId)
+        || !registrationRecord
+        || !/^\d{6}$/.test(verificationCode)
+    ) {
         return new Response(JSON.stringify({ error: "Invalid input" }), { status: 400, headers });
     }
 
-    const { data: consumedChallenge, error: consumeError } = await supabaseAdmin
+    const { data: pendingChallenge, error: challengeError } = await supabaseAdmin
         .from("opaque_registration_challenges")
-        .update({ consumed_at: new Date().toISOString() })
+        .select("user_id, email, purpose")
         .eq("id", registrationId)
-        .eq("email", email)
+        .in("purpose", ["signup", "signup-decoy"])
         .is("consumed_at", null)
         .gt("expires_at", new Date().toISOString())
-        .select("user_id, purpose")
         .maybeSingle();
 
-    if (consumeError || !consumedChallenge) {
+    if (challengeError || !pendingChallenge) {
         return jsonError(
             AUTH_ERROR_CODES.AUTH_INVALID_OR_EXPIRED_CODE,
             "Invalid or expired code",
@@ -352,34 +391,100 @@ async function handleRegistrationFinish(
         );
     }
 
-    const userId = consumedChallenge.user_id as string;
-    const { error: upsertError } = await supabaseAdmin
-        .from("user_opaque_records")
-        .upsert({
-            user_id: userId,
-            opaque_identifier: email,
-            registration_record: registrationRecord,
-            updated_at: new Date().toISOString(),
-        }, { onConflict: "user_id" });
+    const verifyAccount = pendingChallenge.purpose === "signup"
+        ? { kind: "email" as const, value: pendingChallenge.email }
+        : { kind: "email" as const, value: `signup-decoy:${registrationId}` };
+    const verifyRateLimit = await checkAuthRateLimit({
+        supabaseAdmin,
+        req,
+        action: "opaque_register_verify",
+        account: verifyAccount,
+    });
+    if (!verifyRateLimit.allowed) {
+        return authRateLimitResponse(verifyRateLimit, headers);
+    }
 
-    if (upsertError) {
-        console.error("Failed to store OPAQUE registration record:", sanitizeAuthError(upsertError));
-        await supabaseAdmin.auth.admin.deleteUser(userId).catch(() => undefined);
+    if (
+        pendingChallenge.purpose !== "signup"
+        || !pendingChallenge.user_id
+        || normalizeOpaqueIdentifier(pendingChallenge.email) !== email
+    ) {
+        await recordAuthRateLimitFailure(verifyRateLimit);
         return jsonError(
-            isUniqueViolation(upsertError)
-                ? AUTH_ERROR_CODES.OPAQUE_RECORD_CONFLICT
-                : AUTH_ERROR_CODES.OPAQUE_REGISTRATION_FAILED,
-            isUniqueViolation(upsertError) ? "Account already exists" : "Registration failed",
-            isUniqueViolation(upsertError) ? 409 : 500,
+            AUTH_ERROR_CODES.AUTH_INVALID_OR_EXPIRED_CODE,
+            "Invalid or expired code",
+            401,
             headers,
         );
     }
 
-    await Promise.all([
-        supabaseAdmin.from("profiles").update({ auth_protocol: "opaque" }).eq("user_id", userId),
-        supabaseAdmin.from("user_security").delete().eq("id", userId),
-    ]);
-    await disableGotruePasswordLogin(userId);
+    const verificationClient = createClient(supabaseUrl, supabaseAnonKey, {
+        auth: {
+            persistSession: false,
+            autoRefreshToken: false,
+            detectSessionInUrl: false,
+        },
+    });
+    const { data: otpData, error: otpError } = await verificationClient.auth.verifyOtp({
+        email,
+        token: verificationCode,
+        type: "signup",
+    });
+
+    const verifiedUser = otpData.user;
+    if (
+        otpError
+        || !verifiedUser
+        || verifiedUser.id !== pendingChallenge.user_id
+        || !verifiedUser.email_confirmed_at
+    ) {
+        await recordAuthRateLimitFailure(verifyRateLimit);
+        return jsonError(
+            AUTH_ERROR_CODES.AUTH_INVALID_OR_EXPIRED_CODE,
+            "Invalid or expired code",
+            401,
+            headers,
+        );
+    }
+
+    await resetAuthRateLimit(verifyRateLimit);
+    const startRateLimit = await checkAuthRateLimit({
+        supabaseAdmin,
+        req,
+        action: "opaque_register",
+        account: { kind: "email", value: pendingChallenge.email },
+    });
+    await resetAuthRateLimit(startRateLimit);
+
+    const { error: finalizeError } = await supabaseAdmin.rpc("finish_opaque_signup", {
+        p_registration_id: registrationId,
+        p_user_id: verifiedUser.id,
+        p_email: email,
+        p_registration_record: registrationRecord,
+    });
+
+    if (finalizeError) {
+        const { data: finalizedRecord } = await supabaseAdmin
+            .from("user_opaque_records")
+            .select("user_id")
+            .eq("user_id", verifiedUser.id)
+            .eq("opaque_identifier", email)
+            .eq("registration_record", registrationRecord)
+            .maybeSingle();
+        if (finalizedRecord?.user_id === verifiedUser.id) {
+            return new Response(JSON.stringify({ success: true }), { status: 200, headers });
+        }
+
+        console.error("Failed to finalize OPAQUE signup:", sanitizeAuthError(finalizeError));
+        return jsonError(
+            isUniqueViolation(finalizeError)
+                ? AUTH_ERROR_CODES.OPAQUE_RECORD_CONFLICT
+                : AUTH_ERROR_CODES.OPAQUE_REGISTRATION_FAILED,
+            isUniqueViolation(finalizeError) ? "Account already exists" : "Registration failed",
+            isUniqueViolation(finalizeError) ? 409 : 500,
+            headers,
+        );
+    }
 
     return new Response(JSON.stringify({ success: true }), { status: 200, headers });
 }
@@ -402,6 +507,7 @@ async function createOpaqueOnlyUser(email: string): Promise<string> {
         email,
         password: createUnusableGotruePassword(),
         email_confirm: false,
+        app_metadata: { signup_origin: "opaque" },
     });
 
     if (createError || !newUser.user?.id) {
@@ -409,6 +515,45 @@ async function createOpaqueOnlyUser(email: string): Promise<string> {
     }
 
     return newUser.user.id;
+}
+
+async function createDecoyRegistrationStart(
+    email: string,
+    registrationRequest: string,
+    headers: Headers,
+): Promise<Response> {
+    const registrationResponse = opaque.server.createRegistrationResponse({
+        serverSetup: OPAQUE_SERVER_SETUP,
+        userIdentifier: email,
+        registrationRequest,
+    }).registrationResponse;
+    const registrationId = crypto.randomUUID();
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+    const { error } = await supabaseAdmin
+        .from("opaque_registration_challenges")
+        .insert({
+            id: registrationId,
+            user_id: null,
+            email: "signup-decoy@example.invalid",
+            purpose: "signup-decoy",
+            expires_at: expiresAt,
+        });
+    if (error) {
+        console.error("Failed to create OPAQUE registration decoy:", sanitizeAuthError(error));
+        return jsonError(
+            AUTH_ERROR_CODES.OPAQUE_REGISTRATION_FAILED,
+            "Registration failed",
+            500,
+            headers,
+        );
+    }
+
+    return new Response(JSON.stringify({
+        success: true,
+        registrationId,
+        registrationResponse,
+        expiresAt,
+    }), { status: 200, headers });
 }
 
 async function sendSignupOtp(email: string): Promise<void> {
@@ -445,14 +590,5 @@ async function rollbackRegistrationStart(userId: string, registrationId: string)
     }
     if (userCleanup.status === "rejected") {
         console.error("Failed to delete signup auth user after OTP send failure:", userCleanup.reason);
-    }
-}
-
-async function disableGotruePasswordLogin(userId: string): Promise<void> {
-    const { error } = await supabaseAdmin.rpc("disable_gotrue_password_login", {
-        p_user_id: userId,
-    });
-    if (error) {
-        throw new Error(`Failed to disable GoTrue password login: ${error.message}`);
     }
 }

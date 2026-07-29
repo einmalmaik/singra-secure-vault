@@ -15,6 +15,7 @@ export type AuthRateLimitAction =
   | "opaque_login"
   | "opaque_reset"
   | "opaque_register"
+  | "opaque_register_verify"
   | "account_delete"
   | "webauthn_challenge"
   | "webauthn_verify"
@@ -51,6 +52,7 @@ interface AuthRateLimitConfig {
   maxAttempts: number;
   windowMs: number;
   lockoutMs: number;
+  enforcementEnabled: boolean;
 }
 
 export interface AuthRateLimitCheckInput {
@@ -81,118 +83,131 @@ export interface AuthRateLimitFailureResult {
   retryAfterSeconds: number | null;
 }
 
-const AUTH_RATE_LIMITS: Record<AuthRateLimitAction, AuthRateLimitConfig> = {
-  password_login: {
-    maxAttempts: 5,
-    windowMs: 15 * 60 * 1000,
-    lockoutMs: 15 * 60 * 1000,
-  },
-  recovery_request: {
-    maxAttempts: 5,
-    windowMs: 15 * 60 * 1000,
-    lockoutMs: 60 * 60 * 1000,
-  },
-  recovery_verify: {
-    maxAttempts: 5,
-    windowMs: 15 * 60 * 1000,
-    lockoutMs: 60 * 60 * 1000,
-  },
-  totp_verify: {
-    maxAttempts: 5,
-    windowMs: 5 * 60 * 1000,
-    lockoutMs: 15 * 60 * 1000,
-  },
-  backup_code_verify: {
-    maxAttempts: 5,
-    windowMs: 30 * 60 * 1000,
-    lockoutMs: 60 * 60 * 1000,
-  },
-  login_totp_verify: {
-    maxAttempts: 5,
-    windowMs: 5 * 60 * 1000,
-    lockoutMs: 15 * 60 * 1000,
-  },
-  login_backup_code_verify: {
-    maxAttempts: 5,
-    windowMs: 30 * 60 * 1000,
-    lockoutMs: 60 * 60 * 1000,
-  },
-  password_reset_totp_verify: {
-    maxAttempts: 5,
-    windowMs: 5 * 60 * 1000,
-    lockoutMs: 30 * 60 * 1000,
-  },
-  password_reset_backup_code_verify: {
-    maxAttempts: 5,
-    windowMs: 30 * 60 * 1000,
-    lockoutMs: 60 * 60 * 1000,
-  },
-  vault_totp_verify: {
-    maxAttempts: 5,
-    windowMs: 5 * 60 * 1000,
-    lockoutMs: 15 * 60 * 1000,
-  },
-  vault_backup_code_verify: {
-    maxAttempts: 5,
-    windowMs: 30 * 60 * 1000,
-    lockoutMs: 60 * 60 * 1000,
-  },
-  disable_2fa_verify: {
-    maxAttempts: 3,
-    windowMs: 10 * 60 * 1000,
-    lockoutMs: 60 * 60 * 1000,
-  },
-  critical_2fa_verify: {
-    maxAttempts: 3,
-    windowMs: 10 * 60 * 1000,
-    lockoutMs: 60 * 60 * 1000,
-  },
-  opaque_login: {
-    maxAttempts: 5,
-    windowMs: 15 * 60 * 1000,
-    lockoutMs: 15 * 60 * 1000,
-  },
-  opaque_reset: {
-    maxAttempts: 5,
-    windowMs: 15 * 60 * 1000,
-    lockoutMs: 60 * 60 * 1000,
-  },
-  opaque_register: {
-    maxAttempts: 5,
-    windowMs: 15 * 60 * 1000,
-    lockoutMs: 60 * 60 * 1000,
-  },
-  account_delete: {
-    maxAttempts: 3,
-    windowMs: 10 * 60 * 1000,
-    lockoutMs: 60 * 60 * 1000,
-  },
-  webauthn_challenge: {
-    maxAttempts: 10,
-    windowMs: 10 * 60 * 1000,
-    lockoutMs: 10 * 60 * 1000,
-  },
-  webauthn_verify: {
-    maxAttempts: 5,
-    windowMs: 10 * 60 * 1000,
-    lockoutMs: 30 * 60 * 1000,
-  },
-  webauthn_manage: {
-    maxAttempts: 30,
-    windowMs: 10 * 60 * 1000,
-    lockoutMs: 10 * 60 * 1000,
-  },
-  vault_recovery_code_redeem: {
-    maxAttempts: 5,
-    windowMs: 30 * 60 * 1000,
-    lockoutMs: 60 * 60 * 1000,
-  },
+function defaultLimit(maxAttempts: number, windowMs: number, lockoutMs: number): AuthRateLimitConfig {
+  return { maxAttempts, windowMs, lockoutMs, enforcementEnabled: true };
+}
+
+export const DEFAULT_AUTH_RATE_LIMITS: Record<AuthRateLimitAction, AuthRateLimitConfig> = {
+  password_login: defaultLimit(5, 15 * 60 * 1000, 15 * 60 * 1000),
+  recovery_request: defaultLimit(5, 15 * 60 * 1000, 60 * 60 * 1000),
+  recovery_verify: defaultLimit(5, 15 * 60 * 1000, 60 * 60 * 1000),
+  totp_verify: defaultLimit(5, 5 * 60 * 1000, 15 * 60 * 1000),
+  backup_code_verify: defaultLimit(5, 30 * 60 * 1000, 60 * 60 * 1000),
+  login_totp_verify: defaultLimit(5, 5 * 60 * 1000, 15 * 60 * 1000),
+  login_backup_code_verify: defaultLimit(5, 30 * 60 * 1000, 60 * 60 * 1000),
+  password_reset_totp_verify: defaultLimit(5, 5 * 60 * 1000, 30 * 60 * 1000),
+  password_reset_backup_code_verify: defaultLimit(5, 30 * 60 * 1000, 60 * 60 * 1000),
+  vault_totp_verify: defaultLimit(5, 5 * 60 * 1000, 15 * 60 * 1000),
+  vault_backup_code_verify: defaultLimit(5, 30 * 60 * 1000, 60 * 60 * 1000),
+  disable_2fa_verify: defaultLimit(3, 10 * 60 * 1000, 60 * 60 * 1000),
+  critical_2fa_verify: defaultLimit(3, 10 * 60 * 1000, 60 * 60 * 1000),
+  opaque_login: defaultLimit(5, 15 * 60 * 1000, 15 * 60 * 1000),
+  opaque_reset: defaultLimit(5, 15 * 60 * 1000, 60 * 60 * 1000),
+  opaque_register: defaultLimit(5, 15 * 60 * 1000, 60 * 60 * 1000),
+  opaque_register_verify: defaultLimit(5, 15 * 60 * 1000, 60 * 60 * 1000),
+  account_delete: defaultLimit(3, 10 * 60 * 1000, 60 * 60 * 1000),
+  webauthn_challenge: defaultLimit(10, 10 * 60 * 1000, 10 * 60 * 1000),
+  webauthn_verify: defaultLimit(5, 10 * 60 * 1000, 30 * 60 * 1000),
+  webauthn_manage: defaultLimit(30, 10 * 60 * 1000, 10 * 60 * 1000),
+  vault_recovery_code_redeem: defaultLimit(5, 30 * 60 * 1000, 60 * 60 * 1000),
 };
 
+const AUTH_RATE_LIMITS = DEFAULT_AUTH_RATE_LIMITS;
+
+const RULE_CACHE_TTL_MS = 60_000;
+const ruleCache = new Map<string, { expiresAt: number; config: AuthRateLimitConfig }>();
+
+interface ProtectionRuleRow {
+  enabled?: boolean;
+  max_attempts?: number;
+  window_seconds?: number;
+  lockout_seconds?: number;
+}
+
+export function clearAuthProtectionRuleCacheForTests(): void {
+  ruleCache.clear();
+}
+
+export async function resolveAuthRateLimitConfig(
+  supabaseAdmin: SupabaseAdminClient,
+  action: AuthRateLimitAction,
+): Promise<AuthRateLimitConfig> {
+  const defaults = AUTH_RATE_LIMITS[action];
+  const cached = ruleCache.get(action);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.config;
+  }
+
+  if (!supabaseAdmin.rpc) {
+    return defaults;
+  }
+
+  try {
+    const { data, error } = await supabaseAdmin.rpc("get_auth_protection_rule", {
+      _action_key: action,
+    });
+
+    if (error || !Array.isArray(data) || !data[0]) {
+      ruleCache.set(action, { expiresAt: Date.now() + RULE_CACHE_TTL_MS, config: defaults });
+      return defaults;
+    }
+
+    const row = data[0] as ProtectionRuleRow;
+    const maxAttempts = Number(row.max_attempts);
+    const windowSeconds = Number(row.window_seconds);
+    const lockoutSeconds = Number(row.lockout_seconds);
+
+    if (
+      !Number.isInteger(maxAttempts)
+      || maxAttempts < 1
+      || maxAttempts > 50
+      || !Number.isInteger(windowSeconds)
+      || windowSeconds < 60
+      || windowSeconds > 86400
+      || !Number.isInteger(lockoutSeconds)
+      || lockoutSeconds < 60
+      || lockoutSeconds > 604800
+    ) {
+      ruleCache.set(action, { expiresAt: Date.now() + RULE_CACHE_TTL_MS, config: defaults });
+      return defaults;
+    }
+
+    const config: AuthRateLimitConfig = {
+      maxAttempts,
+      windowMs: windowSeconds * 1000,
+      lockoutMs: lockoutSeconds * 1000,
+      enforcementEnabled: row.enabled === true,
+    };
+    ruleCache.set(action, { expiresAt: Date.now() + RULE_CACHE_TTL_MS, config });
+    return config;
+  } catch (error) {
+    console.error("Failed to resolve auth protection rule:", action, error);
+    return defaults;
+  }
+}
+
 export async function checkAuthRateLimit(input: AuthRateLimitCheckInput): Promise<AuthRateLimitState> {
-  const limits = AUTH_RATE_LIMITS[input.action];
+  const limits = await resolveAuthRateLimitConfig(input.supabaseAdmin, input.action);
   const identifier = await buildAccountIdentifier(input.account);
   const ipAddress = getTrustedClientIp(input.req);
+
+  if (limits.enforcementEnabled === false) {
+    return {
+      allowed: true,
+      status: 200,
+      action: input.action,
+      identifier,
+      ipAddress,
+      attemptsRemaining: limits.maxAttempts,
+      failureCount: 0,
+      lockedUntil: null,
+      retryAfterSeconds: null,
+      error: null,
+      supabaseAdmin: input.supabaseAdmin,
+      limits,
+    };
+  }
+
   const now = new Date();
   const windowStart = new Date(now.getTime() - limits.windowMs);
   // Lockouts can intentionally outlive the counting window (for example
@@ -255,6 +270,14 @@ export async function checkAuthRateLimit(input: AuthRateLimitCheckInput): Promis
 export async function recordAuthRateLimitFailure(
   state: AuthRateLimitState,
 ): Promise<AuthRateLimitFailureResult> {
+  if (state.limits.enforcementEnabled === false) {
+    return {
+      attemptsRemaining: state.limits.maxAttempts,
+      lockedUntil: null,
+      retryAfterSeconds: null,
+    };
+  }
+
   const now = new Date();
   if (state.supabaseAdmin.rpc) {
     const { data, error } = await state.supabaseAdmin.rpc("record_auth_rate_limit_failure_atomic", {

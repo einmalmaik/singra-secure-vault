@@ -48,8 +48,8 @@ const PrivacyPolicy = () => {
     title: t("privacy.title"),
     intro: t("privacy.subtitle"),
     callout: t("privacy.zeroKnowledge.details"),
-    lastUpdated: "2026-06-20",
-    version: "1.0.0",
+    lastUpdated: "2026-07-13",
+    version: "1.1.0",
     meta: {
       de: t("privacy.zeroKnowledge.title") + " — " + t("privacy.zeroKnowledge.description"),
       en: t("privacy.zeroKnowledge.title") + " — " + t("privacy.zeroKnowledge.description"),

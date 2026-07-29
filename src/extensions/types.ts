@@ -8,8 +8,6 @@
  */
 
 import type { ComponentType, ReactNode } from 'react';
-import type { Session, User } from '@supabase/supabase-js';
-
 import type { FeatureAccessContext, SubscriptionSnapshot } from '@/subscription/types';
 
 // ============ Settings Sections ============
@@ -22,7 +20,6 @@ export type SettingsTabId =
     | 'general'
     | 'security'
     | 'billing'
-    | 'support'
     | 'billing-support'
     | 'data'
     | 'data-legal'
@@ -62,11 +59,12 @@ export type PageSlot =
 /** Slots for inline premium components */
 export type ComponentSlot =
     | 'landing.after-hero'
+    | 'global.support-integration'
+    | 'support.page-content'
     | 'vault.file-attachments'
     | 'vault.pending-invitations'
     | 'subscription.feature-gate'
-    | 'subscription.checkout-dialog'
-    | 'layout.support-widget';
+    | 'subscription.checkout-dialog';
 
 // ============ Combined Slot Type ============
 
@@ -76,20 +74,8 @@ export type ExtensionSlot = PageSlot | ComponentSlot;
 // ============ Extension Component Types ============
 
 /** A registered extension component. */
-export type ExtensionComponent = ComponentType<unknown>;
+export type ExtensionComponent = ComponentType<never>;
 
-/** Minimal auth state exposed by the host app to global premium slots. */
-export interface HostAuthState {
-    user: User | null;
-    session: Session | null;
-    authReady: boolean;
-    isOfflineSession: boolean;
-}
-
-/** Props for the global support widget slot. */
-export interface SupportWidgetExtensionProps {
-    auth: HostAuthState;
-}
 
 // ============ Route Registration ============
 

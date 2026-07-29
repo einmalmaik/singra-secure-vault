@@ -81,7 +81,7 @@ export async function reauthenticateWithAccountPassword(
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${runtimeConfig.supabasePublishableKey}`,
             },
-            credentials: inIframe ? 'omit' : 'include',
+            credentials: (inIframe || import.meta.env.DEV) ? 'omit' : 'include',
             body: JSON.stringify({
                 action: 'login-start',
                 userIdentifier,
@@ -121,7 +121,7 @@ export async function reauthenticateWithAccountPassword(
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${runtimeConfig.supabasePublishableKey}`,
             },
-            credentials: inIframe ? 'omit' : 'include',
+            credentials: (inIframe || import.meta.env.DEV) ? 'omit' : 'include',
             body: JSON.stringify({
                 action: 'login-finish',
                 userIdentifier,

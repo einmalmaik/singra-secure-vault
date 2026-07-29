@@ -33,7 +33,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
-import { LanguageSwitcher } from '@maunting/design-dna';
+import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 
 import { VaultSidebarItem } from './VaultSidebarItem';
 
@@ -74,7 +74,7 @@ export function VaultSidebarFooter({
       {!collapsed && (
         <div className="px-1 py-1 flex justify-center">
           <LanguageSwitcher
-            language={i18n.language as any}
+            language={i18n?.language === 'de' ? 'de' : 'en'}
             onChange={(lang) => i18n.changeLanguage(lang)}
           />
         </div>

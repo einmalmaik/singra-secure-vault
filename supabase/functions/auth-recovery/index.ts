@@ -22,7 +22,7 @@
  * - Rate-Limiting prüfen
  * - Generiert 8-stelligen Code
  * - Speichert Code-Hash mit HMAC-SHA256 + Pepper
- * - Sendet Code via Resend API
+ * - Sendet Code über den gekapselten SMTP-Transport
  *
  * ### Phase 2: E-Mail-Code verifizieren (`verify-email-code`)
  * - Prüft Code gegen Hash
@@ -90,6 +90,7 @@ import {
     verifyTwoFactorServer,
 } from "../_shared/twoFactor.ts";
 import { AUTH_ERROR_CODES } from "../_shared/authErrors.ts";
+import { sendSmtpMail } from "../_shared/smtp.ts";
 
 // ============================================================================
 // Typen
@@ -135,11 +136,6 @@ const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
  * Service Role Key für Admin-Operationen.
  */
 const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-
-/**
- * Resend API Key für E-Mail-Versand.
- */
-const resendApiKey = Deno.env.get("RESEND_API_KEY") ?? "";
 
 /**
  * Pepper für Code-Hashing. Erhöht Sicherheit bei DB-Kompromittierung.
@@ -568,29 +564,18 @@ async function maybeIssueEmailCode(email: string, purpose: ResetPurpose): Promis
 }
 
 async function sendRecoveryEmail(email: string, code: string, purpose: ResetPurpose): Promise<void> {
-    if (!resendApiKey) {
-        console.error("RESEND_API_KEY missing; cannot send recovery email.");
-        return;
-    }
-
-    const response = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-            "Authorization": `Bearer ${resendApiKey}`,
-            "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-            from: "Singra Vault <noreply@mauntingstudios.de>",
-            to: [email],
+    try {
+        await sendSmtpMail({
+            to: email,
             subject: purpose === "change"
                 ? "Sicherheitscode zum Ändern deines Singra Vault Passworts"
                 : "Sicherheitscode zum Zurücksetzen deines Singra Vault Passworts",
             html: buildEmailHtml({ code, purpose }),
-        }),
-    });
-
-    if (!response.ok) {
-        console.error("Resend API error:", await response.text());
+        });
+    } catch {
+        // Keep the public recovery response indistinguishable for existing and
+        // unknown accounts. The adapter intentionally hides provider details.
+        console.error("Recovery email delivery failed");
     }
 }
 

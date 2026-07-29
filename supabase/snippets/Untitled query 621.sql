@@ -1,0 +1,1 @@
+ALTER TABLE public.team_roles ENABLE ROW LEVEL SECURITY;

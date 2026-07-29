@@ -37,7 +37,7 @@ Diese Analyse prüft die Logik und Implementierung der Familien-Organisation und
 
 ### 1. Familien-Einladungen
 - ✅ Edge Function `invite-family-member` erstellt Einladung
-- ✅ E-Mail wird via Resend versendet
+- ✅ E-Mail wird über den konfigurierten Mail-Transport versendet
 - ✅ UNIQUE Constraint verhindert doppelte Einladungen
 - ✅ Status-Tracking (invited → active)
 

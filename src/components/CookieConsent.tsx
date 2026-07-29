@@ -27,6 +27,7 @@ export function CookieConsent({ variant: _variant = 'default' }: CookieConsentPr
     const [isBannerMounted, setIsBannerMounted] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [optional, setOptional] = useState(false);
+    const [supportIntegration, setSupportIntegration] = useState(false);
 
     useEffect(() => {
         if (isTauriRuntime()) {
@@ -42,6 +43,7 @@ export function CookieConsent({ variant: _variant = 'default' }: CookieConsentPr
         }
 
         setOptional(consent.optional === true);
+        setSupportIntegration(consent.supportIntegration === true);
         if (!consent.optional) {
             clearOptionalCookieData();
         }
@@ -52,6 +54,7 @@ export function CookieConsent({ variant: _variant = 'default' }: CookieConsentPr
             const consent = readCookieConsent();
             if (consent) {
                 setOptional(consent.optional === true);
+                setSupportIntegration(consent.supportIntegration === true);
             }
             setIsSettingsOpen(true);
         };
@@ -66,15 +69,19 @@ export function CookieConsent({ variant: _variant = 'default' }: CookieConsentPr
     };
 
     const handleAcceptAll = () => {
-        saveCookieConsent({ optional: true });
+        saveCookieConsent({ optional: true, supportIntegration: true });
         setOptional(true);
+        setSupportIntegration(true);
+        window.dispatchEvent(new Event('singra:support-consent-changed'));
         dismissBanner();
     };
 
     const handleEssentialOnly = () => {
-        saveCookieConsent({ optional: false });
+        saveCookieConsent({ optional: false, supportIntegration: false });
         clearOptionalCookieData();
         setOptional(false);
+        setSupportIntegration(false);
+        window.dispatchEvent(new Event('singra:support-consent-changed'));
         dismissBanner();
     };
 
@@ -87,6 +94,7 @@ export function CookieConsent({ variant: _variant = 'default' }: CookieConsentPr
             const consent = readCookieConsent();
             if (consent) {
                 setOptional(consent.optional === true);
+                setSupportIntegration(consent.supportIntegration === true);
             }
         }
 
@@ -94,14 +102,20 @@ export function CookieConsent({ variant: _variant = 'default' }: CookieConsentPr
     };
 
     const handleSaveSettings = () => {
-        saveCookieConsent({ optional });
+        const previouslyEnabled = readCookieConsent()?.supportIntegration === true;
+        saveCookieConsent({ optional, supportIntegration });
         if (!optional) {
             clearOptionalCookieData();
         }
         setIsSettingsOpen(false);
+        window.dispatchEvent(new Event('singra:support-consent-changed'));
 
         if (isBannerMounted) {
             dismissBanner();
+        }
+
+        if (previouslyEnabled && !supportIntegration) {
+            window.location.reload();
         }
     };
 
@@ -121,8 +135,10 @@ export function CookieConsent({ variant: _variant = 'default' }: CookieConsentPr
             <CookieSettingsDialog
                 open={isSettingsOpen}
                 optional={optional}
+                supportIntegration={supportIntegration}
                 onOpenChange={handleSettingsOpenChange}
                 onOptionalChange={setOptional}
+                onSupportIntegrationChange={setSupportIntegration}
                 onSave={handleSaveSettings}
             />
         </>

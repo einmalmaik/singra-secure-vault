@@ -103,6 +103,6 @@ See `docs/ADMIN_TEAM_ACCESS.md` for the full architecture and default permission
 
 ## Required Secrets (Supabase Edge Functions)
 
-- `RESEND_API_KEY`
+- serverseitige Zugangsdaten des damaligen Mail-Transports
 - `SUPPORT_EMAIL` (optional, default: `support@mauntingstudios.de`)
 - `SITE_URL` (used for deep links in emails)

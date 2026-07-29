@@ -29,5 +29,22 @@ jobs:
       - name: Type-check
         run: npx tsc --noEmit
 
+      - name: Test
+        run: npm run test
+
+      - name: Test SMTP adapter
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Run SMTP adapter tests
+        run: npm run test:smtp
+
+      - name: Lint
+        run: npm run lint
+
       - name: Build core bundle
         run: npm run build:core-only
+
+      - name: Release artifact guardrails
+        run: npm run release:check-artifacts

@@ -41,8 +41,8 @@ export const COOKIE_DIALOG_COPY = {
             },
             support: {
                 title: 'External support integration',
-                description: 'Loads the Singra Bot support widget only after your consent. Ticket details are sent voluntarily to the support operator.',
-                items: ['Connection to singrabot.mauntingstudios.de', 'Ticket access stored on the support origin', 'No vault or account data is sent automatically'],
+                description: 'Allows an installed extension to load its external support service only after your consent.',
+                items: ['Connection only after consent', 'Ticket details are submitted voluntarily', 'No vault or account data is sent automatically'],
             },
             analytics: {
                 title: 'Analytics Cookies',
@@ -71,8 +71,8 @@ export const COOKIE_DIALOG_COPY = {
             },
             support: {
                 title: 'Externe Support-Integration',
-                description: 'Lädt das Support-Widget des Singra Bots erst nach deiner Einwilligung. Ticketangaben werden freiwillig an den Support-Betreiber gesendet.',
-                items: ['Verbindung zu singrabot.mauntingstudios.de', 'Ticketzugriff auf der Support-Origin gespeichert', 'Keine automatische Übertragung von Vault- oder Kontodaten'],
+                description: 'Erlaubt einer installierten Erweiterung, ihren externen Support-Dienst erst nach deiner Einwilligung zu laden.',
+                items: ['Verbindung erst nach Einwilligung', 'Ticketangaben werden freiwillig übermittelt', 'Keine automatische Übertragung von Vault- oder Kontodaten'],
             },
             analytics: {
                 title: 'Analytics-Cookies',

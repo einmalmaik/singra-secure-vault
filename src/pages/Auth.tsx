@@ -889,7 +889,7 @@ export default function Auth() {
       <div className="sv-auth-form-panel flex-1 flex flex-col items-center justify-center p-6 md:p-12 auth-form-reveal relative">
         <div className="absolute top-4 right-4 z-50">
           <LanguageSwitcher
-            language={i18n.language as any}
+            language={i18n?.language === 'de' ? 'de' : 'en'}
             onChange={(lang) => i18n.changeLanguage(lang)}
           />
         </div>

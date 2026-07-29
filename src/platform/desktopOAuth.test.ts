@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { runtimeConfig } from "@/config/runtimeConfig";
 import { createDesktopOAuthUrl, exchangeDesktopOAuthCode } from "./desktopOAuth";
 
 const invokeMock = vi.hoisted(() => vi.fn());
@@ -20,7 +21,7 @@ describe("desktopOAuth", () => {
     const redirectTo = new URL(url.searchParams.get("redirect_to") ?? "");
     const flowId = redirectTo.searchParams.get("desktop_oauth_flow");
 
-    expect(url.origin).toBe("https://lcrtadxlojaucwapgzmy.supabase.co");
+    expect(url.origin).toBe(runtimeConfig.supabaseUrl);
     expect(url.pathname).toBe("/auth/v1/authorize");
     expect(url.searchParams.get("provider")).toBe("google");
     expect(redirectTo.pathname).toBe("/auth");
@@ -53,7 +54,7 @@ describe("desktopOAuth", () => {
 
     const [, requestInit] = fetchMock.mock.calls[0];
     const body = JSON.parse(String(requestInit?.body)) as Record<string, string>;
-    expect(fetchMock.mock.calls[0][0]).toBe("https://lcrtadxlojaucwapgzmy.supabase.co/auth/v1/token?grant_type=pkce");
+    expect(fetchMock.mock.calls[0][0]).toBe(`${runtimeConfig.supabaseUrl}/auth/v1/token?grant_type=pkce`);
     expect(body.auth_code).toBe("auth-code");
     expect(body.code_verifier).toMatch(/^[A-Za-z0-9_-]+$/);
     expect(window.localStorage.getItem("singra-desktop-oauth:active-flow")).toBeNull();

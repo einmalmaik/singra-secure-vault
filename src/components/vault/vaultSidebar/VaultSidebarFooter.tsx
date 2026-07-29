@@ -74,7 +74,7 @@ export function VaultSidebarFooter({
       {!collapsed && (
         <div className="px-1 py-1 flex justify-center">
           <LanguageSwitcher
-            language={i18n.language as any}
+            language={i18n?.language === 'de' ? 'de' : 'en'}
             onChange={(lang) => i18n.changeLanguage(lang)}
           />
         </div>

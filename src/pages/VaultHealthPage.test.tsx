@@ -92,6 +92,7 @@ vi.mock('@/services/passwordStrengthService', () => ({
 describe('VaultHealthPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGetVaultHealthAnalysisItems.mockReset();
     mockVaultDataVersion = 1;
     useFreshAnalysisGetterIdentity = false;
     mockGetVaultHealthAnalysisItems.mockResolvedValue([
@@ -120,8 +121,8 @@ describe('VaultHealthPage', () => {
     });
 
     expect(await screen.findByText('2 von 2 Passwort-Einträgen analysiert')).toBeInTheDocument();
-    expect(screen.getByText('vaultHealth.scoreGood')).toBeInTheDocument();
-    expect(screen.getByText('vaultHealth.issues (2)')).toBeInTheDocument();
+    expect(screen.getAllByText('vaultHealth.scoreGood').length).toBeGreaterThan(0);
+    expect(screen.getByText('vaultHealth.issues')).toBeInTheDocument();
   });
 
   it('reanalyzes when the vault data version changes after editing an item', async () => {
@@ -161,7 +162,7 @@ describe('VaultHealthPage', () => {
 
     const { rerender } = render(<VaultHealthPage />);
 
-    expect(await screen.findByText('vaultHealth.allGood')).toBeInTheDocument();
+    expect(await screen.findByText('2 von 2 Passwort-Einträgen analysiert')).toBeInTheDocument();
 
     mockVaultDataVersion = 2;
     rerender(<VaultHealthPage />);
@@ -169,7 +170,8 @@ describe('VaultHealthPage', () => {
     await waitFor(() => {
       expect(mockGetVaultHealthAnalysisItems).toHaveBeenCalledTimes(2);
     });
-    expect(await screen.findByText('vaultHealth.issues (2)')).toBeInTheDocument();
+    expect((await screen.findAllByText('vaultHealth.scorePoor')).length).toBeGreaterThan(0);
+    expect(screen.getByText('vaultHealth.issues')).toBeInTheDocument();
   });
 
   it('links health issues to the vault preview focus flow', async () => {

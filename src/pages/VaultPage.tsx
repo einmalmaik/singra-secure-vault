@@ -24,7 +24,6 @@ import {
     Menu,
     WifiOff,
     RefreshCw,
-    Wrench,
     Settings,
     QrCode,
 } from 'lucide-react';
@@ -52,9 +51,8 @@ import { VaultItemList } from '@/components/vault/VaultItemList';
 import { VaultItemDialog } from '@/components/vault/VaultItemDialog';
 import { VaultIntegrityRecovery } from '@/components/vault/VaultIntegrityRecovery';
 import { VaultMigrationRequiredPanel } from '@/components/vault/VaultMigrationRequiredPanel';
-import { getAdminEntryPath, shouldShowWebsiteChrome } from '@/platform/appShell';
-import { buildReturnState } from '@/services/returnNavigationState';
-import { useAdminPanelAccess } from '@/hooks/use-admin-panel-access';
+import { AdminEntryButton } from '@/components/admin/AdminEntryButton';
+import { shouldShowWebsiteChrome } from '@/platform/appShell';
 import { useFeatureGate } from '@/hooks/useFeatureGate';
 import { getBrowserDeviceTrustStatus } from '@/services/vaultOpLog/addDeviceFlowService';
 import type { VaultIntegrityMode, VaultIntegrityNonTamperReason } from '@/services/vaultIntegrityService';
@@ -141,10 +139,6 @@ export default function VaultPage() {
     }, [location.search]);
 
     const showWebsiteChrome = shouldShowWebsiteChrome();
-    const adminEntryPath = getAdminEntryPath();
-    const { showAdminButton } = useAdminPanelAccess({
-        enabled: isPremiumActive() && !isOfflineSession && !isLocked && !isSetupRequired,
-    });
     const authenticatorAccess = useFeatureGate('builtin_authenticator');
     const useOpLogVerifiedRuntime = vaultMigrationStatus === 'verified';
     // In duress mode the vault content is synthesised in-memory and has no
@@ -470,16 +464,10 @@ export default function VaultPage() {
                                 </Button>
                             )}
 
-                            {showAdminButton && adminEntryPath && (
-                                <Button
-                                    variant="outline"
-                                    onClick={() => navigate(adminEntryPath, { state: buildReturnState(location) })}
-                                    className="ms-header-secondary-button flex items-center gap-2"
-                                >
-                                    <Wrench className="w-4 h-4" />
-                                    <span className="hidden md:inline">{t('admin.title')}</span>
-                                </Button>
-                            )}
+                            <AdminEntryButton
+                                className="ms-header-secondary-button flex items-center gap-2"
+                                labelClassName="hidden md:inline"
+                            />
 
                             <div className="hidden rounded-lg border border-border/55 bg-[hsl(var(--el-1)/0.72)] p-0.5 sm:flex">
                                 <Button
@@ -501,7 +489,7 @@ export default function VaultPage() {
                             </div>
 
                             <LanguageSwitcher
-                                language={i18n.language as any}
+                                language={i18n?.language === 'de' ? 'de' : 'en'}
                                 onChange={(lang) => i18n.changeLanguage(lang)}
                             />
 

@@ -10,11 +10,13 @@ import { execSync } from "node:child_process";
 
 loadDotenv({ path: ".env" });
 loadDotenv({ path: ".env.local", override: true });
+loadDotenv({ path: "supabase/functions/.env", override: false });
 
 const enabled = readBoolean(process.env.SINGRA_DEV_TEST_ACCOUNT_ENABLED);
 const createUser = readBoolean(process.env.SINGRA_DEV_TEST_CREATE_USER);
 const autoConfirm = readBoolean(process.env.SINGRA_DEV_TEST_AUTO_CONFIRM);
 const resetVault = readBoolean(process.env.SINGRA_DEV_TEST_RESET_VAULT);
+const grantAdmin = readBoolean(process.env.SINGRA_DEV_TEST_GRANT_ADMIN);
 const email = readString(process.env.SINGRA_DEV_TEST_EMAIL);
 const configuredPassword = readString(process.env.SINGRA_DEV_TEST_PASSWORD);
 const configuredMasterPassword = readString(process.env.SINGRA_DEV_TEST_MASTER_PASSWORD);
@@ -87,32 +89,60 @@ if (user) {
 
 await ensureOpaqueRecord(userId);
 
+if (grantAdmin) {
+  await ensureDevAdminRole(userId);
+}
+
 if (resetVault) {
   safeLog("SINGRA_DEV_TEST_RESET_VAULT is set, but destructive vault reset is intentionally not automated here.");
 }
 
+async function ensureDevAdminRole(targetUserId) {
+  const dbContainer = resolveSupabaseDbContainerName();
+  const sql = `
+    INSERT INTO public.user_roles (user_id, role)
+    VALUES ('${targetUserId}', 'admin')
+    ON CONFLICT (user_id, role) DO NOTHING;
+  `.replace(/\s+/g, " ");
+
+  try {
+    execSync(`docker exec -i ${dbContainer} psql -U postgres -d postgres -c "${sql}"`, { stdio: "pipe" });
+  } catch (err) {
+    throw new Error(`Failed to grant dev admin role via docker exec psql (${dbContainer}): ${err.message}`);
+  }
+
+  safeLog(`Dev admin role ensured for: ${email}`);
+}
+
 async function ensureOpaqueRecord(targetUserId) {
   await opaque.ready;
-  const serverSetup = "btyEdT4GePoYHAzeg46jn67fbMIwjalmsbMZH9sRnHuTh4dZfRKDZ6kZ3gBIhS9hpqh6SYReg4zeonD4jNqE6gdwTCoYgnAuNyqmNriT_j3pxUyJRh6KMLp2FbNnk_oFmnscUHy83zESX2NW0OufWiPSqv9zsn8mHh__EeYbnxc";
+  const serverSetup = readString(process.env.OPAQUE_SERVER_SETUP);
+  if (!serverSetup) {
+    throw new Error(
+      "OPAQUE_SERVER_SETUP is missing. Set it in supabase/functions/.env so edge functions and dev provisioning share the same OPAQUE server setup.",
+    );
+  }
+
+  const dbContainer = resolveSupabaseDbContainerName();
   const userIdentifier = email.trim().toLowerCase();
 
   safeLog(`Generating OPAQUE registration record for ${email}...`);
 
   const { clientRegistrationState, registrationRequest } = opaque.client.startRegistration({
-    password: masterPassword
+    password,
   });
 
   const { registrationResponse } = opaque.server.createRegistrationResponse({
     serverSetup,
     userIdentifier,
-    registrationRequest
+    registrationRequest,
   });
 
   const { registrationRecord } = opaque.client.finishRegistration({
     clientRegistrationState,
     registrationResponse,
-    password: masterPassword,
-    keyStretching: "memory-constrained"
+    password,
+    keyStretching: "memory-constrained",
   });
 
   safeLog(`Writing OPAQUE record directly to DB via Docker psql...`);
@@ -131,13 +161,28 @@ async function ensureOpaqueRecord(targetUserId) {
   `.replace(/\s+/g, " ");
 
   try {
-    execSync(`docker exec -i supabase_db_lcrtadxlojaucwapgzmy psql -U postgres -d postgres -c "${sql1}"`, { stdio: "pipe" });
-    execSync(`docker exec -i supabase_db_lcrtadxlojaucwapgzmy psql -U postgres -d postgres -c "${sql2}"`, { stdio: "pipe" });
+    execSync(`docker exec -i ${dbContainer} psql -U postgres -d postgres -c "${sql1}"`, { stdio: "pipe" });
+    execSync(`docker exec -i ${dbContainer} psql -U postgres -d postgres -c "${sql2}"`, { stdio: "pipe" });
   } catch (err) {
-    throw new Error(`Failed to write OPAQUE record via docker exec psql: ${err.message}`);
+    throw new Error(
+      `Failed to write OPAQUE record via docker exec psql (${dbContainer}): ${err.message}`,
+    );
   }
 
   safeLog(`OPAQUE record successfully provisioned for: ${email}`);
+}
+
+function resolveSupabaseDbContainerName() {
+  const projectId = readString(
+    process.env.VITE_SUPABASE_PROJECT_ID ?? process.env.SUPABASE_PROJECT_ID,
+  );
+  if (!projectId) {
+    throw new Error(
+      "VITE_SUPABASE_PROJECT_ID is missing; cannot resolve the local Supabase DB container name.",
+    );
+  }
+
+  return `supabase_db_${projectId}`;
 }
 
 async function findUserByEmail(targetEmail) {

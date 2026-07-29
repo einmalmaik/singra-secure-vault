@@ -46,7 +46,8 @@ jobs:
         uses: actions/checkout@v4.2.2
         with:
           repository: einmalmaik/singra-premium
-          ref: ${{ vars.SINGRA_PREMIUM_REF || 'master' }}
+          # Release builds must consume an immutable, reviewed Premium version.
+          ref: v1.1.0
           token: ${{ secrets.SINGRA_PREMIUM_PAT }}
           path: .premium-source
           persist-credentials: false
@@ -93,11 +94,12 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: "Singra Vault v__VERSION__"
           releaseBody: |
-            ## Singra Vault v0.6.6
+            ## Singra Vault v0.7.0
 
-            - **Hosted connectivity restored**: Official desktop builds use the current hosted Supabase project configuration again.
-            - **Reliable public builds**: Removed the private Design-DNA checkout from Core, CI, and release builds.
-            - **Self-contained interface**: Vault UI primitives and tokens now build directly from the public repository.
+            - **Production-ready administration**: The private Premium extension now provides the complete ten-area Admin Console with server-authorized operations and privacy-preserving audit data.
+            - **Official support integration**: Web builds can load the consent-gated Singra Bot widget from server-managed public configuration; desktop builds keep remote scripts outside the Tauri WebView.
+            - **Unified email delivery**: Authentication and Premium transactional mail use the configured SMTP transport without a Resend API dependency.
+            - **Security-first operations**: Adaptive danger-action approval, notification inbox, system health, and safer account recovery preserve the Vault's zero-knowledge boundaries.
           generateReleaseNotes: false
           releaseDraft: false
           prerelease: false

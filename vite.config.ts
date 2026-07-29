@@ -8,7 +8,34 @@ import topLevelAwait from "vite-plugin-top-level-await";
 import { VitePWA } from "vite-plugin-pwa";
 
 const GITHUB_LATEST_RELEASE_URL = "https://api.github.com/repos/einmalmaik/singravault/releases/latest";
-const SINGRA_SUPPORT_ORIGIN = "https://singrabot.mauntingstudios.de";
+
+function readPremiumSupportOrigin(packageJsonPath: string): string | null {
+  try {
+    const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf-8")) as {
+      singra?: { supportOrigin?: unknown };
+    };
+    const rawOrigin = typeof packageJson.singra?.supportOrigin === "string"
+      ? packageJson.singra.supportOrigin.trim()
+      : "";
+    if (!rawOrigin) return null;
+
+    const parsed = new URL(rawOrigin);
+    if (
+      parsed.protocol !== "https:"
+      || parsed.username
+      || parsed.password
+      || parsed.pathname !== "/"
+      || parsed.search
+      || parsed.hash
+    ) {
+      return null;
+    }
+
+    return parsed.origin;
+  } catch {
+    return null;
+  }
+}
 
 async function resolveAppVersion(mode: string, packageVersion: string): Promise<{ version: string; source: string }> {
   const explicitVersion = process.env.SINGRA_VAULT_VERSION?.trim();
@@ -49,15 +76,20 @@ async function resolveAppVersion(mode: string, packageVersion: string): Promise<
   return { version: "unreleased", source: packageVersion ? "github-latest-release-invalid-tag" : "package-version-missing" };
 }
 
-function buildContentSecurityPolicy(mode: string, delivery: "header" | "meta" = "header") {
+function buildContentSecurityPolicy(
+  mode: string,
+  premiumSupportOrigin: string | null,
+  delivery: "header" | "meta" = "header",
+) {
   const dev = mode === "development";
+  const supportOrigin = premiumSupportOrigin ? ` ${premiumSupportOrigin}` : "";
   const scriptSrc = dev
-    ? `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${SINGRA_SUPPORT_ORIGIN}`
-    : `script-src 'self' 'wasm-unsafe-eval' ${SINGRA_SUPPORT_ORIGIN}`;
+    ? `script-src 'self' 'unsafe-inline' 'unsafe-eval'${supportOrigin}`
+    : `script-src 'self' 'wasm-unsafe-eval'${supportOrigin}`;
   const workerSrc = "worker-src 'self' blob:";
   const connectSrc = dev
     ? "connect-src 'self' ws: wss: http: https:"
-    : `connect-src 'self' https://*.supabase.co https://api.pwnedpasswords.com wss://*.supabase.co ${SINGRA_SUPPORT_ORIGIN}`;
+    : `connect-src 'self' https://*.supabase.co https://api.pwnedpasswords.com wss://*.supabase.co${supportOrigin}`;
   const imgSrc = dev
     ? "img-src 'self' data: blob: https:"
     : "img-src 'self' data: blob:";
@@ -73,7 +105,7 @@ function buildContentSecurityPolicy(mode: string, delivery: "header" | "meta" = 
     fontSrc,
     workerSrc,
     connectSrc,
-    `frame-src 'self' ${SINGRA_SUPPORT_ORIGIN}`,
+    `frame-src 'self'${supportOrigin}`,
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",
@@ -83,11 +115,11 @@ function buildContentSecurityPolicy(mode: string, delivery: "header" | "meta" = 
   ].join("; ");
 }
 
-function getSecurityHeaders(mode: string) {
+function getSecurityHeaders(mode: string, premiumSupportOrigin: string | null) {
   const dev = mode === "development";
 
   return {
-    "Content-Security-Policy": buildContentSecurityPolicy(mode),
+    "Content-Security-Policy": buildContentSecurityPolicy(mode, premiumSupportOrigin),
     "X-Content-Type-Options": "nosniff",
     // X-Frame-Options blocks iframes; omit in dev so the Replit preview works.
     ...(!dev ? { "X-Frame-Options": "DENY" } : {}),
@@ -98,7 +130,7 @@ function getSecurityHeaders(mode: string) {
   };
 }
 
-function cspMetaPlugin(mode: string) {
+function cspMetaPlugin(mode: string, premiumSupportOrigin: string | null) {
   return {
     name: "singra-csp-meta",
     transformIndexHtml() {
@@ -106,7 +138,7 @@ function cspMetaPlugin(mode: string) {
         tag: "meta",
         attrs: {
           "http-equiv": "Content-Security-Policy",
-          content: buildContentSecurityPolicy(mode, "meta"),
+          content: buildContentSecurityPolicy(mode, premiumSupportOrigin, "meta"),
         },
         injectTo: "head-prepend" as const,
       }];
@@ -127,7 +159,6 @@ export default defineConfig(async ({ mode }) => {
     version?: string;
   };
   const appVersion = await resolveAppVersion(mode, packageJson.version ?? "");
-  const securityHeaders = getSecurityHeaders(mode);
   const isDev = mode === "development";
   const tauriDevHost = process.env.TAURI_DEV_HOST;
   const isTauriBuild = Boolean(process.env.TAURI_ENV_PLATFORM);
@@ -145,6 +176,14 @@ export default defineConfig(async ({ mode }) => {
   // When the sibling repo exists, it is the source of truth; packaged installs and CI
   // still fall back to the installed package if no sibling checkout is present.
   const shouldUsePremiumSource = !isPremiumDisabled && hasPremiumDevRepo;
+  const premiumSupportOrigin = isPremiumDisabled
+    ? null
+    : readPremiumSupportOrigin(
+      shouldUsePremiumSource
+        ? path.resolve(__dirname, "../singra-premium/package.json")
+        : path.resolve(__dirname, "./node_modules/@singra/premium/package.json"),
+    );
+  const securityHeaders = getSecurityHeaders(mode, premiumSupportOrigin);
   const premiumEntry = isPremiumDisabled
     ? premiumStubEntry
     : shouldUsePremiumSource
@@ -290,7 +329,7 @@ export default defineConfig(async ({ mode }) => {
     plugins: [
       wasm(),
       topLevelAwait(),
-      cspMetaPlugin(mode),
+      cspMetaPlugin(mode, premiumSupportOrigin),
       react(),
       isDev && componentTagger(),
       shouldUsePremiumSource && premiumResolvePlugin(),

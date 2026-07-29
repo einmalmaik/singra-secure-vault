@@ -4,9 +4,21 @@ import { resolve } from "node:path";
 
 const pat = process.env.GITHUB_PAT;
 const installPremiumFlag = process.env.INSTALL_SINGRA_PREMIUM;
-const premiumRef = process.env.SINGRA_PREMIUM_REF?.trim() || "master";
+const configuredPremiumRef = process.env.SINGRA_PREMIUM_REF?.trim() || "master";
+const previewGitRef = process.env.VERCEL_GIT_COMMIT_REF?.trim() || "";
 const premiumRepoSlug = "einmalmaik/singra-premium";
 const premiumRepoUrl = `https://github.com/${premiumRepoSlug}.git`;
+
+function isSafeGitRef(ref) {
+  return /^[A-Za-z0-9][A-Za-z0-9._/-]{0,127}$/.test(ref)
+    && !ref.includes("..")
+    && !ref.includes("//")
+    && !ref.includes("@{");
+}
+
+const premiumRef = process.env.VERCEL_ENV === "preview" && isSafeGitRef(previewGitRef)
+  ? previewGitRef
+  : configuredPremiumRef;
 
 function shouldInstallPremium() {
   if (!installPremiumFlag) {

@@ -396,7 +396,7 @@ export default function VaultHealthPage() {
                             </DropdownMenu>
                         )}
                         <LanguageSwitcher
-                            language={i18n.language as any}
+                            language={i18n?.language === 'de' ? 'de' : 'en'}
                             onChange={(lang) => i18n.changeLanguage(lang)}
                         />
                     </div>

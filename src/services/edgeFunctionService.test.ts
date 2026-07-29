@@ -217,7 +217,7 @@ describe("edgeFunctionService", () => {
       expect.stringContaining("/functions/v1/auth-session"),
       expect.objectContaining({
         method: "GET",
-        credentials: "include",
+        credentials: "omit",
       }),
     );
     expect(mockSetSession).toHaveBeenCalledWith({

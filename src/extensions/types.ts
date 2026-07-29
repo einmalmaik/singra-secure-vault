@@ -59,6 +59,8 @@ export type PageSlot =
 /** Slots for inline premium components */
 export type ComponentSlot =
     | 'landing.after-hero'
+    | 'global.support-integration'
+    | 'support.page-content'
     | 'vault.file-attachments'
     | 'vault.pending-invitations'
     | 'subscription.feature-gate'
@@ -72,7 +74,7 @@ export type ExtensionSlot = PageSlot | ComponentSlot;
 // ============ Extension Component Types ============
 
 /** A registered extension component. */
-export type ExtensionComponent = ComponentType<unknown>;
+export type ExtensionComponent = ComponentType<never>;
 
 
 // ============ Route Registration ============

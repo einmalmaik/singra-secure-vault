@@ -37,7 +37,7 @@ SINGRA ist KEINE gewöhnliche KI – sie entwickelt eine persönliche Verbindung
 | **Backend** | Supabase (PostgreSQL, Auth, Storage, 70+ Edge Functions) |
 | **KI-Modelle** | OpenAI GPT-5, Google Gemini 2.5, Claude (über model_config verwaltbar) |
 | **Payments** | Stripe |
-| **E-Mail** | Resend |
+| **E-Mail** | SMTP über TLS/465 |
 | **Sprachen** | Deutsch (DE) und Englisch (EN) |
 
 ---
@@ -118,7 +118,7 @@ cp supabase/functions/.env.example supabase/functions/.env
 ```bash
 supabase secrets set OPENROUTER_API_KEY=sk-or-v1-xxxxxxxxxxxx
 supabase secrets set STRIPE_SECRET_KEY=sk_live_xxxxxxxxxxxx
-supabase secrets set RESEND_API_KEY=re_xxxxxxxxxxxx
+supabase secrets set SMTP_HOST=smtp.example.com SMTP_PORT=465 SMTP_USER=your-user SMTP_PASSWORD=your-password SMTP_FROM=noreply@example.com SMTP_SENDER_NAME="Singra Vault"
 ```
 
 ### Beispiel-Inhalt `supabase/functions/.env`:
@@ -131,8 +131,13 @@ OPENROUTER_API_KEY=sk-or-v1-xxxxxxxxxxxx
 STRIPE_SECRET_KEY=sk_test_xxxxxxxxxxxx
 STRIPE_WEBHOOK_SECRET=whsec_xxxxxxxxxxxx
 
-# Resend (E-Mail)
-RESEND_API_KEY=re_xxxxxxxxxxxx
+# SMTP (E-Mail, nur serverseitig)
+SMTP_HOST=smtp.example.com
+SMTP_PORT=465
+SMTP_USER=your-user
+SMTP_PASSWORD=your-password
+SMTP_FROM=noreply@example.com
+SMTP_SENDER_NAME="Singra Vault"
 
 ```
 

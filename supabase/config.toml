@@ -16,6 +16,65 @@ port = 54334
 [auth]
 jwt_expiry = 600
 
+[auth.email.template.invite]
+subject = "Einladung zu Singra Vault"
+content_path = "./supabase/templates/invite.html"
+
+[auth.email.template.confirmation]
+subject = "E-Mail-Adresse für Singra Vault bestätigen"
+content_path = "./supabase/templates/confirmation.html"
+
+[auth.email.template.recovery]
+subject = "Singra Vault Kontozugriff wiederherstellen"
+content_path = "./supabase/templates/recovery.html"
+
+[auth.email.template.magic_link]
+subject = "Deine Anmeldung bei Singra Vault"
+content_path = "./supabase/templates/magic-link.html"
+
+[auth.email.template.email_change]
+subject = "Neue E-Mail-Adresse für Singra Vault bestätigen"
+content_path = "./supabase/templates/email-change.html"
+
+[auth.email.template.reauthentication]
+subject = "Dein Sicherheitscode für Singra Vault"
+content_path = "./supabase/templates/reauthentication.html"
+
+[auth.email.notification.password_changed]
+enabled = true
+subject = "Dein Singra Vault Passwort wurde geändert"
+content_path = "./templates/password-changed-notification.html"
+
+[auth.email.notification.email_changed]
+enabled = true
+subject = "Deine Singra Vault E-Mail-Adresse wurde geändert"
+content_path = "./templates/email-changed-notification.html"
+
+[auth.email.notification.phone_changed]
+enabled = true
+subject = "Deine Singra Vault Telefonnummer wurde geändert"
+content_path = "./templates/phone-changed-notification.html"
+
+[auth.email.notification.identity_linked]
+enabled = true
+subject = "Eine Anmeldemethode wurde hinzugefügt"
+content_path = "./templates/identity-linked-notification.html"
+
+[auth.email.notification.identity_unlinked]
+enabled = true
+subject = "Eine Anmeldemethode wurde entfernt"
+content_path = "./templates/identity-unlinked-notification.html"
+
+[auth.email.notification.mfa_factor_enrolled]
+enabled = true
+subject = "Eine Verifizierungsmethode wurde hinzugefügt"
+content_path = "./templates/mfa-enrolled-notification.html"
+
+[auth.email.notification.mfa_factor_unenrolled]
+enabled = true
+subject = "Eine Verifizierungsmethode wurde entfernt"
+content_path = "./templates/mfa-unenrolled-notification.html"
+
 # ============ Core Functions (öffentlich) ============
 
 [functions.auth-opaque]
@@ -46,6 +105,11 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.vault-recovery-codes]
+verify_jwt = false
+
+# Local dev only: admin-team is linked from ../singra-premium by
+# scripts/dev/link-premium-edge-functions.mjs. Do not deploy from open core.
+[functions.admin-team]
 verify_jwt = false
 
 # Premium/Admin/Support functions are intentionally not listed in the public

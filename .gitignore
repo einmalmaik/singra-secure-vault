@@ -82,3 +82,17 @@ temp_fingerprint.txt
 /neues-deisgn
 /.refact
 *.code-workspace
+
+.vercel
+.env*
+/terminals/
+
+# Generated local copies from the closed Premium checkout.
+/supabase/functions/admin-team/
+/supabase/functions/create-checkout-session/
+/supabase/functions/public-support-config/
+/supabase/functions/singra-support-webhook/
+/supabase/functions/send-test-mail/
+/supabase/functions/_shared/billing-return-url.ts
+/supabase/functions/_shared/html.ts
+/supabase/functions/_shared/singraWebhook.ts

@@ -198,7 +198,7 @@ describe("authSessionManager", () => {
       expect.stringContaining("/auth-session"),
       expect.objectContaining({
         method: "GET",
-        credentials: "include",
+        credentials: "omit",
       }),
     );
     expect(onSessionRefreshed).toHaveBeenCalledWith(expect.objectContaining({

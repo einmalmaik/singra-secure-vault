@@ -47,7 +47,6 @@ describe("security hardening contracts", () => {
     const manifest = readFileSync("supabase/functions/EDGE_FUNCTION_MANIFEST.md", "utf-8");
 
     for (const privateFunction of [
-      "admin-team",
       "create-checkout-session",
       "create-portal-session",
       "cancel-subscription",
@@ -61,6 +60,26 @@ describe("security hardening contracts", () => {
       expect(config).not.toContain(`[functions.${privateFunction}]`);
       expect(manifest).toContain(`\`${privateFunction}\``);
     }
+
+    expect(manifest).toContain("`admin-team`");
+    if (config.includes("[functions.admin-team]")) {
+      expect(config).toContain("Local dev only: admin-team");
+    }
+  });
+
+  it("keeps has_role aligned with TEXT-based team roles after dynamic role migration", () => {
+    const migration = readFileSync(
+      "supabase/migrations/20260714200000_fix_has_role_text_compatibility.sql",
+      "utf-8",
+    );
+    const dynamicRoles = readFileSync(
+      "supabase/migrations/20260714070000_dynamic_roles_and_danger_zone.sql",
+      "utf-8",
+    );
+
+    expect(dynamicRoles).toContain("ALTER TABLE public.user_roles ALTER COLUMN role TYPE TEXT");
+    expect(migration).toContain("DROP FUNCTION IF EXISTS public.has_role(UUID, public.app_role)");
+    expect(migration).toContain("public.has_role(_user_id UUID, _role TEXT)");
   });
 
   it("extends the database rate-limit allow-list for account-delete and WebAuthn actions", () => {

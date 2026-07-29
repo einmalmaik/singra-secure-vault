@@ -5,6 +5,10 @@ const migration = readFileSync(
   'supabase/migrations/20260714040000_admin_security_summary.sql',
   'utf8',
 );
+const textCompatibilityFix = readFileSync(
+  'supabase/migrations/20260714200000_fix_has_role_text_compatibility.sql',
+  'utf8',
+);
 
 describe('admin security summary migration', () => {
   it('adds an admin-only permission and service-role-only RPC', () => {
@@ -35,5 +39,15 @@ describe('admin security summary migration', () => {
     expect(migration).not.toContain('GROUP BY attempts.identifier');
     expect(migration).toContain('COUNT(DISTINCT (attempts.identifier, attempts.action)) FILTER');
     expect(migration).toContain('MAX(attempts.attempted_at) FILTER');
+  });
+});
+
+describe('admin text-role compatibility fix migration', () => {
+  it('drops legacy app_role overloads and rewrites admin read RPC checks to TEXT', () => {
+    expect(textCompatibilityFix).toContain('DROP FUNCTION IF EXISTS public.has_role(UUID, public.app_role)');
+    expect(textCompatibilityFix).toContain("actor_role.role = 'admin'");
+    expect(textCompatibilityFix).not.toContain("'admin'::public.app_role");
+    expect(textCompatibilityFix).toContain('CREATE OR REPLACE FUNCTION public.get_admin_security_summary');
+    expect(textCompatibilityFix).toContain('CREATE OR REPLACE FUNCTION public.list_admin_audit_events');
   });
 });

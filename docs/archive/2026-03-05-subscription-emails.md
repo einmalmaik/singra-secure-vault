@@ -1,7 +1,7 @@
 # Subscription E-Mail Notifications (2026-03-05)
 
 ## Übersicht
-- E-Mail-Benachrichtigungen bei Abo-Kauf und Kündigung über Resend API
+- E-Mail-Benachrichtigungen bei Abo-Kauf und Kündigung über den damaligen Mail-Transport
 - E-Mail-Templates in `src/email-templates/` (subscription-confirmed.html, subscription-canceled.html)
 - Stripe Webhook (`stripe-webhook/index.ts`) sendet E-Mails automatisch
 

@@ -67,6 +67,7 @@ import {
     sha256Hex,
 } from "../_shared/opaqueAuth.ts";
 import { AUTH_ERROR_CODES, jsonError } from "../_shared/authErrors.ts";
+import { sendSmtpMail } from "../_shared/smtp.ts";
 
 // ============================================================================
 // Konfiguration
@@ -81,12 +82,6 @@ const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
  * Service Role Key für Admin-Operationen.
  */
 const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-
-/**
- * Resend API Key für E-Mail-Benachrichtigungen.
- * Optional - falls nicht gesetzt, werden keine Benachrichtigungen gesendet.
- */
-const resendApiKey = Deno.env.get("RESEND_API_KEY") ?? "";
 
 /**
  * OPAQUE Server Setup - muss mit Registrierung übereinstimmen.
@@ -416,32 +411,22 @@ function toLockedState(failure: AuthRateLimitFailureResult) {
 }
 
 async function sendPasswordResetNotification(email: string | null): Promise<void> {
-    if (!resendApiKey || !email) {
+    if (!email) {
         return;
     }
 
     try {
-        const response = await fetch("https://api.resend.com/emails", {
-            method: "POST",
-            headers: {
-                "Authorization": `Bearer ${resendApiKey}`,
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-                from: "Singra Vault <noreply@mauntingstudios.de>",
-                to: [email],
-                subject: "Dein Singra Vault Passwort wurde geändert",
-                html: `
+        await sendSmtpMail({
+            to: email,
+            subject: "Dein Singra Vault Passwort wurde geändert",
+            html: `
 <p>Dein Singra Vault Kontopasswort wurde soeben geändert.</p>
 <p>Wenn du diese Änderung nicht vorgenommen hast, kontaktiere bitte sofort den Support.</p>`,
-            }),
         });
-
-        if (!response.ok) {
-            console.error("Failed to send password reset notification:", await response.text());
-        }
-    } catch (error) {
-        console.error("Password reset notification failed:", error);
+    } catch {
+        // The reset is already committed atomically. Do not expose SMTP or
+        // recipient details through logs or the response.
+        console.error("Password reset notification delivery failed");
     }
 }
 

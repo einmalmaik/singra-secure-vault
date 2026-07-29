@@ -221,7 +221,8 @@ describeIfSupabase("2FA Key Rotation Property Tests", () => {
   it("should handle single secret rotation correctly", async () => {
     const testSecret = "JBSWY3DPEHPK3PXP"; // Example Base32 TOTP secret
     const testUserId = testUserIds[0]; // Use first pre-created real user
-    const newKey = "a".repeat(64); // Simple test key
+    const candidateKey = "a".repeat(64);
+    const newKey = originalKey === candidateKey ? "b".repeat(64) : candidateKey;
 
     try {
       // Clean up

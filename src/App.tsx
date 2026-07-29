@@ -23,8 +23,7 @@ import { ProtectedRoute } from "./components/layout/ProtectedRoute";
 import { VaultUnlockRequiredRoute } from "./components/layout/VaultUnlockRequiredRoute";
 import { CookieConsent } from "./components/CookieConsent";
 import { AppConfigurationNotice } from "@/components/AppConfigurationNotice";
-import { getExtensionRoutes } from "@/extensions/registry";
-import { SingraSupportIntegration } from '@/components/support/SingraSupportIntegration';
+import { getExtension, getExtensionRoutes } from "@/extensions/registry";
 import { checkForDesktopUpdates } from "@/services/desktopUpdateService";
 import { useEffect } from "react";
 
@@ -50,6 +49,7 @@ const queryClient = new QueryClient();
 
 const App = () => {
   const premiumRoutes = getExtensionRoutes();
+  const SupportIntegration = getExtension('global.support-integration');
 
   useEffect(() => {
     void checkForDesktopUpdates();
@@ -74,7 +74,7 @@ const App = () => {
                   >
                     <AppConfigurationNotice />
                     <CookieConsent />
-                    <SingraSupportIntegration />
+                    {SupportIntegration ? <SupportIntegration /> : null}
                     <Routes>
                       {/* Core Routes */}
                       <Route path="/" element={<Index />} />

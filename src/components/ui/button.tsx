@@ -105,12 +105,11 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 );
 Button.displayName = "Button";
 
-const buttonVariantsWrapper = (props?: any) => {
+const buttonVariantsWrapper = (props?: Parameters<typeof buttonVariants>[0]) => {
   const variant = props?.variant === "default" ? "primary" : props?.variant;
   const size = props?.size === "default" ? "md" : props?.size;
   return buttonVariants({ ...props, variant, size });
 };
 
 export { Button, buttonVariantsWrapper as buttonVariants };
-
 

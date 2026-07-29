@@ -198,7 +198,7 @@ Keine statischen Imports von `@zxcvbn-ts/*` gefunden — ✅ Alle Imports sind d
 
 - `.env` enthält nur publishable Keys (Supabase Anon Key, Project URL) — ✅
 - Service Role Key nur in Edge Functions via `Deno.env.get()` — ✅
-- Stripe, Resend Keys nur als Supabase Secrets — ✅
+- Stripe- und Mail-Provider-Zugangsdaten nur als Supabase Secrets — ✅
 
 ### [MINOR] CORS erlaubt alle *.lovable.app Subdomains
 

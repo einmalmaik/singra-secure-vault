@@ -54,24 +54,6 @@ jobs:
       - name: Stage premium source as sibling repository
         run: node scripts/stage-premium-source.mjs .premium-source ../singra-premium
 
-      - name: Checkout design-dna source
-        uses: actions/checkout@v4.2.2
-        with:
-          repository: einmalmaik/maunting-design-dna
-          ref: 'main'
-          token: ${{ secrets.SINGRA_PREMIUM_PAT }}
-          path: .design-dna-source
-          persist-credentials: false
-
-      - name: Stage design-dna source as sibling repository
-        run: |
-          node -e "const fs = require('fs'); fs.mkdirSync('../maunting-design-dna', { recursive: true })"
-          node scripts/stage-premium-source.mjs .design-dna-source ../maunting-design-dna/maunting-design-dna
-
-      - name: Install design-dna dependencies
-        working-directory: ../maunting-design-dna/maunting-design-dna
-        run: npm i
-
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -111,12 +93,11 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: "Singra Vault v__VERSION__"
           releaseBody: |
-            ## Singra Vault v0.6.4
+            ## Singra Vault v0.6.6
 
-            - **Core Feature Integration**: Shifted crucial security features directly into the Core package (including Duress/Panic password protection, Emergency Access configurations, File Attachment support, and Vault Health diagnostics).
-            - **Seamless Session Persistence**: Added a robust Windows DPAPI-backed secure persistence layer in the Rust backend to ensure users stay logged in online after restarting the application.
-            - **MauntingStudios Design DNA**: Integrated the premium `.scrollbar-ice` smooth scrollbar styling across all core panels (Sidebar, Entry Dialogs, Previews, and Dropdowns).
-            - **Enhanced Offline Reliability**: Bypassed redundant remote database queries when starting in offline mode, eliminating console warnings and improving start times.
+            - **Hosted connectivity restored**: Official desktop builds use the current hosted Supabase project configuration again.
+            - **Reliable public builds**: Removed the private Design-DNA checkout from Core, CI, and release builds.
+            - **Self-contained interface**: Vault UI primitives and tokens now build directly from the public repository.
           generateReleaseNotes: false
           releaseDraft: false
           prerelease: false

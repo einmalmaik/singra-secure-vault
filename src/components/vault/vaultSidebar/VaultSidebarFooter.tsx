@@ -33,7 +33,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
-import { LanguageSwitcher } from '@maunting/design-dna';
+import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 
 import { VaultSidebarItem } from './VaultSidebarItem';
 

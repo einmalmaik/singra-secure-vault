@@ -314,7 +314,6 @@ export default defineConfig(async ({ mode }) => {
       alias: {
         "@": path.resolve(__dirname, "./src"),
         "@singra/premium": premiumEntry,
-        "@singra/ui": path.resolve(__dirname, "../maunting-design-dna/maunting-design-dna"),
       },
     },
     build: {

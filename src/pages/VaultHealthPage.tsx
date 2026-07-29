@@ -39,7 +39,7 @@ import {
     DropdownMenuContent,
     DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
-import { LanguageSwitcher } from '@maunting/design-dna';
+import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { FeatureGate } from '@/components/Subscription/FeatureGate';
 import { useAuth } from '@/contexts/AuthContext';
 import { useVault } from '@/contexts/VaultContext';

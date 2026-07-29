@@ -34,7 +34,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { TwoFactorVerificationModal } from '@/components/auth/TwoFactorVerificationModal';
 import { supabase } from '@/integrations/supabase/client';
-import { LanguageSwitcher } from '@maunting/design-dna';
+import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { SEO } from '@/components/SEO';
 import { usePasswordCheck } from '@/hooks/usePasswordCheck';
 import { PasswordStrengthMeter } from '@/components/ui/PasswordStrengthMeter';

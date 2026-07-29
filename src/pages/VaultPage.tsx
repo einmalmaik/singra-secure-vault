@@ -42,7 +42,7 @@ import { VaultOpLogConflictPanel } from '@/components/vault/VaultOpLogConflictPa
 import { VaultAddDeviceBanner } from '@/components/vault/VaultAddDeviceBanner';
 import { VaultPendingDevicesPanel } from '@/components/vault/VaultPendingDevicesPanel';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
-import { LanguageSwitcher } from '@maunting/design-dna';
+import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { isPremiumActive } from '@/extensions/registry';
 import { syncOfflineMutations } from '@/services/offlineVaultService';

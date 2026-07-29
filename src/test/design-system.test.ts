@@ -24,4 +24,20 @@ describe("central design system", () => {
     expect(manifest.theme_color).toBe(designTheme.themeColor);
     expect(manifest.background_color).toBe(designTheme.backgroundColor);
   });
+
+  it("keeps the public build independent from the private design toolbox", () => {
+    const packageJson = JSON.parse(readFileSync("package.json", "utf-8")) as {
+      dependencies?: Record<string, string>;
+    };
+    const buildConfiguration = [
+      readFileSync("vite.config.ts", "utf-8"),
+      readFileSync("vitest.config.ts", "utf-8"),
+      readFileSync("src/index.css", "utf-8"),
+    ].join("\n");
+
+    expect(packageJson.dependencies).not.toHaveProperty("@maunting/design-dna");
+    expect(buildConfiguration).not.toContain("@maunting/design-dna");
+    expect(buildConfiguration).not.toContain("@singra/ui");
+    expect(buildConfiguration).not.toContain("../maunting-design-dna");
+  });
 });
